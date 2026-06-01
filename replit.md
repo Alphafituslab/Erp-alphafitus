@@ -62,6 +62,7 @@ Tables defined (all in `lib/db/src/schema/`):
 | /projetos | Projetos | Placeholder |
 | /fiscal | Fiscal | Placeholder |
 | /relatorios | Relatórios | Placeholder |
+| /aps | APS (Planejamento Avançado) | Planned |
 
 ## Test Users (dev)
 
