@@ -1,0 +1,1657 @@
+Perfeito. Abaixo está um **PROMPT MESTRE** para você usar em outra IA, equipe de programação ou software house. Ele foi pensado para desenvolver um **ERP industrial robusto para indústria farmacêutica/nutraceutica/suplementos**, com controle de qualidade, produção, estoque, vendas, compras, rastreabilidade, APS, PCP, financeiro, expedição e integração entre módulos.
+
+Usei como referência conceitos de ERPs industriais como TOTVS/Protheus/Datasul, principalmente em pontos como **PCP, apontamento de produção, APS, ordem de produção, reservas, alocação, estoque disponível, centro de trabalho, turnos, paradas e integração entre chão de fábrica e ERP**. A própria TOTVS trabalha com apontamento digital de produção, movimentações online, controle de paradas, posição de estoque e indicadores integrados ao ERP. ([Produtos TOTVS][1]) Também há no APS conceitos como considerar ordens de produção, reservas firmes, alocação de produção, horizonte fixo, lead time, centro de trabalho e turnos de exceção. ([Central de Atendimento TOTVS][2])
+
+---
+
+## PROMPT MESTRE — DESENVOLVIMENTO DE ERP INDUSTRIAL FARMACÊUTICO/NUTRACÊUTICO COM APS ROBUSTO
+
+Quero que você atue como **arquiteto sênior de sistemas ERP industriais**, especialista em **indústria farmacêutica, nutracêutica, suplementos alimentares, cosméticos, alimentos funcionais e operações reguladas por qualidade**.
+
+Preciso desenvolver um **ERP industrial completo, robusto, modular, escalável e profissional**, inspirado nas melhores práticas de grandes sistemas como **TOTVS, SAP, Oracle, Senior, Bling industrial avançado, Linx, Sankhya e ERPs farmacêuticos**, porém desenhado sob medida para uma indústria de suplementos e terceirização industrial.
+
+O sistema deverá controlar desde a **entrada da matéria-prima**, liberação pelo **Controle de Qualidade**, estoque, produção, PCP, APS, vendas, compras, financeiro, fiscal, expedição, rastreabilidade, laudos, estabilidade, fórmulas, ordens de produção, apontamento de chão de fábrica, perdas, retrabalho, não conformidades, auditoria e indicadores gerenciais.
+
+O objetivo é criar um ERP com visão de grande indústria, preparado para operação real, auditoria, rastreabilidade total, produção em larga escala e tomada de decisão por dados.
+
+---
+
+# 1. OBJETIVO PRINCIPAL DO SISTEMA
+
+Desenvolver um ERP industrial integrado onde todos os módulos se comuniquem entre si, evitando retrabalho, erro manual, perda de rastreabilidade e uso indevido de materiais não liberados.
+
+O sistema deve impedir, por regra de negócio, que qualquer matéria-prima, embalagem, rótulo, insumo ou produto seja utilizado na produção sem passar pelos fluxos obrigatórios de:
+
+**Recebimento → Conferência → Quarentena → Amostragem CQ → Análise → Aprovação/Reprovação → Liberação para uso → Reserva para OP → Baixa na produção → Rastreabilidade final por lote.**
+
+O sistema precisa ter controle forte de permissões, logs, trilha de auditoria, assinatura eletrônica, histórico de alterações e parâmetros bloqueados por senha para áreas críticas como Qualidade, Fórmulas, Custos, Fiscal, Estoque e Produção.
+
+---
+
+# 2. PERFIL DO SISTEMA
+
+Criar um ERP com módulos principais e submódulos integrados:
+
+1. Cadastros mestres
+2. Comercial e vendas
+3. CRM e pré-vendas
+4. Engenharia de produto / formulação
+5. Compras
+6. Recebimento
+7. Almoxarifado
+8. Controle de qualidade
+9. Estoque
+10. PCP
+11. APS — Planejamento Avançado da Produção
+12. Produção / chão de fábrica
+13. Pesagem
+14. Mistura
+15. Encapsulação
+16. Envase
+17. Selagem
+18. Rotulagem
+19. Embalagem secundária
+20. Expedição
+21. Fiscal / faturamento
+22. Financeiro
+23. Custos industriais
+24. Manutenção
+25. RH / usuários / permissões
+26. Gestão de documentos
+27. Estabilidade de produtos
+28. Laboratório analítico
+29. Não conformidades / CAPA
+30. Auditoria e compliance
+31. Dashboard gerencial
+32. BI industrial
+33. Portal do cliente
+34. Portal do fornecedor
+35. Integrações externas
+36. Aplicativo/mobile para chão de fábrica
+37. API para integrações futuras
+
+---
+
+# 3. REGRAS GERAIS DE ARQUITETURA
+
+O ERP deve ser construído com arquitetura profissional, modular e escalável.
+
+Cada módulo deve possuir:
+
+* Tela de cadastro;
+* Tela de consulta;
+* Filtros avançados;
+* Histórico;
+* Status;
+* Permissões por perfil;
+* Logs de alteração;
+* Exportação para Excel/PDF;
+* Importação controlada;
+* Campos obrigatórios;
+* Validações;
+* Relatórios;
+* Indicadores;
+* Integração com outros módulos;
+* Parametrizações administrativas;
+* Bloqueios automáticos;
+* Workflow de aprovação;
+* Assinatura eletrônica quando necessário.
+
+O sistema deve trabalhar com conceitos de:
+
+* Multiempresa;
+* Multifilial;
+* Multiusuário;
+* Multidepósito;
+* Multilote;
+* Multicentro de custo;
+* Multicentro de trabalho;
+* Multietapa de produção;
+* Multiunidade de medida;
+* Controle por versão;
+* Controle por revisão;
+* Controle por validade;
+* Controle por status;
+* Controle por permissão;
+* Controle por trilha de auditoria.
+
+---
+
+# 4. MÓDULO DE LOGIN E SEGURANÇA
+
+Criar sistema de login separado por perfil de usuário.
+
+Perfis sugeridos:
+
+* Administrador geral;
+* Diretoria;
+* Comercial;
+* Vendas;
+* PCP;
+* Compras;
+* Almoxarifado;
+* Controle de qualidade;
+* Laboratório;
+* Produção;
+* Pesagem;
+* Encapsulação;
+* Envase;
+* Rotulagem;
+* Expedição;
+* Financeiro;
+* Fiscal;
+* Manutenção;
+* Auditor;
+* Cliente externo;
+* Fornecedor externo.
+
+Cada perfil deve ter permissões específicas de:
+
+* Visualizar;
+* Criar;
+* Editar;
+* Aprovar;
+* Reprovar;
+* Excluir;
+* Cancelar;
+* Reabrir;
+* Exportar;
+* Imprimir;
+* Assinar eletronicamente;
+* Alterar parâmetros críticos.
+
+Nenhuma exclusão crítica deve apagar dados definitivamente. O sistema deve usar cancelamento lógico com justificativa, usuário, data e hora.
+
+---
+
+# 5. CADASTROS MESTRES
+
+Criar cadastros mestres robustos para:
+
+## 5.1 Cadastro de clientes
+
+Campos mínimos:
+
+* Código do cliente;
+* Razão social;
+* Nome fantasia;
+* CNPJ/CPF;
+* Inscrição estadual;
+* Endereço;
+* Contatos;
+* E-mails;
+* Telefones;
+* Responsável comercial;
+* Condição de pagamento;
+* Limite de crédito;
+* Transportadora padrão;
+* Status;
+* Documentos anexos;
+* Histórico de pedidos;
+* Produtos vinculados;
+* Fórmulas vinculadas;
+* Observações comerciais;
+* Observações técnicas;
+* Bloqueios financeiros;
+* Bloqueios regulatórios.
+
+## 5.2 Cadastro de fornecedores
+
+Campos mínimos:
+
+* Código;
+* Razão social;
+* CNPJ;
+* Endereço;
+* Contatos;
+* Tipo de fornecedor;
+* Insumos fornecidos;
+* Certificados;
+* Alvarás;
+* Licenças;
+* Qualificação;
+* Histórico de não conformidade;
+* Status aprovado/reprovado/bloqueado;
+* Data de validade da documentação;
+* Prazo médio de entrega;
+* Lead time;
+* Condição comercial.
+
+## 5.3 Cadastro de matérias-primas
+
+Campos mínimos:
+
+* Código interno;
+* Nome técnico;
+* Nome comercial;
+* Sinônimos;
+* Categoria;
+* Tipo: ativo, excipiente, cápsula, aroma, edulcorante, corante, embalagem, rótulo etc.;
+* Unidade de medida;
+* Fator de conversão;
+* Teor declarado;
+* Teor mínimo;
+* Teor máximo;
+* Grau de pureza;
+* Umidade máxima;
+* Densidade;
+* Granulometria;
+* Fornecedores homologados;
+* Especificação técnica;
+* Método analítico;
+* Monografia aplicável;
+* Faixa de aceitação;
+* Condição de armazenamento;
+* Validade padrão;
+* Controle por lote;
+* Controle por validade;
+* Necessita CQ? Sim/Não;
+* Necessita amostragem? Sim/Não;
+* Pode ser usado antes da liberação? Não por padrão;
+* Status: ativo, inativo, bloqueado, em revisão;
+* Ficha técnica;
+* FISPQ;
+* COA;
+* Histórico de revisão.
+
+## 5.4 Cadastro de embalagens
+
+Controlar:
+
+* Potes;
+* Tampas;
+* Selos;
+* Lacres;
+* Rótulos;
+* Cartuchos;
+* Caixas;
+* Sachês;
+* Stand pouch;
+* Blisters;
+* Etiquetas;
+* Filme termoencolhível.
+
+Campos mínimos:
+
+* Código;
+* Descrição;
+* Tipo;
+* Cor;
+* Capacidade;
+* Material;
+* Fornecedor;
+* Dimensões;
+* Peso;
+* Unidade de compra;
+* Unidade de consumo;
+* Lote;
+* Validade se aplicável;
+* Status CQ;
+* Arte vinculada;
+* Revisão da arte;
+* Cliente vinculado;
+* Produto vinculado.
+
+---
+
+# 6. MÓDULO COMERCIAL / VENDAS
+
+Criar tela de vendas dentro do ERP para lançamento de pedidos.
+
+Fluxo desejado:
+
+**Orçamento → Aprovação cliente → Pedido comercial → Análise financeira → Análise técnica → Liberação para PCP → Programação de produção → Faturamento → Expedição.**
+
+Campos da tela de pedido:
+
+* Número do pedido;
+* Cliente;
+* Vendedor;
+* Data;
+* Produto;
+* Fórmula;
+* Versão da fórmula;
+* Quantidade;
+* Unidade;
+* Tipo de embalagem;
+* Rótulo;
+* Prazo desejado;
+* Condição de pagamento;
+* Preço unitário;
+* Preço total;
+* Comissão;
+* Frete;
+* Transportadora;
+* Observações comerciais;
+* Observações técnicas;
+* Documentos anexos;
+* Status do pedido.
+
+Status sugeridos:
+
+1. Orçamento em elaboração;
+2. Orçamento enviado;
+3. Aguardando aprovação do cliente;
+4. Aprovado pelo cliente;
+5. Reprovado pelo cliente;
+6. Aguardando financeiro;
+7. Aprovado financeiro;
+8. Reprovado financeiro;
+9. Aguardando análise técnica;
+10. Aprovado técnico;
+11. Reprovado técnico;
+12. Aguardando compra de insumos;
+13. Aguardando liberação de matéria-prima;
+14. Liberado para PCP;
+15. Programado no APS;
+16. Em produção;
+17. Em controle de qualidade;
+18. Produto acabado liberado;
+19. Aguardando faturamento;
+20. Faturado parcial;
+21. Faturado total;
+22. Aguardando expedição;
+23. Enviado;
+24. Entregue;
+25. Cancelado.
+
+O pedido de venda deve alimentar automaticamente:
+
+* Demanda do PCP;
+* Necessidade de materiais;
+* Necessidade de compra;
+* Simulação de capacidade produtiva;
+* Previsão de faturamento;
+* Projeção de entrega;
+* Reserva de estoque;
+* Ordem de produção futura.
+
+---
+
+# 7. ENGENHARIA DE PRODUTO / FORMULAÇÃO
+
+Criar módulo para cadastro de produtos e fórmulas.
+
+Cada produto deve ter:
+
+* Código do produto;
+* Nome comercial;
+* Cliente;
+* Categoria;
+* Forma farmacêutica: cápsula, comprimido, pó, gummy, líquido, sachê etc.;
+* Apresentação;
+* Quantidade por pote;
+* Peso médio;
+* Tamanho de cápsula;
+* Tipo de cápsula;
+* Embalagem primária;
+* Embalagem secundária;
+* Rótulo;
+* Versão da fórmula;
+* Status da fórmula;
+* Responsável técnico;
+* Data de aprovação;
+* Histórico de revisão.
+
+A fórmula deve conter:
+
+* Matéria-prima;
+* Código do insumo;
+* Função: ativo, excipiente, lubrificante, antiumectante, veículo etc.;
+* Quantidade teórica por unidade;
+* Quantidade por dose;
+* Quantidade por lote;
+* Teor do ativo;
+* Fator de correção;
+* Potência;
+* Umidade;
+* Excesso técnico se aplicável;
+* Perda prevista;
+* Unidade;
+* Sequência de mistura;
+* Tempo de mistura;
+* Equipamento recomendado;
+* Observações de processo;
+* Limites de variação;
+* Controle de rendimento;
+* Controle de reconciliação.
+
+O sistema deve permitir:
+
+* Criar nova fórmula;
+* Revisar fórmula;
+* Bloquear fórmula antiga;
+* Comparar versões;
+* Aprovar fórmula com senha;
+* Gerar ficha de produção;
+* Gerar memorial de cálculo;
+* Gerar necessidade de insumos;
+* Simular custo;
+* Simular teor final;
+* Simular rendimento;
+* Impedir uso de fórmula não aprovada.
+
+---
+
+# 8. COMPRAS
+
+O módulo de compras deve se comunicar com estoque, PCP, qualidade e financeiro.
+
+Fluxo:
+
+**Solicitação de compra → Cotação → Aprovação → Pedido de compra → Recebimento → Quarentena → CQ → Liberação → Estoque disponível.**
+
+Funcionalidades:
+
+* Solicitação automática por MRP;
+* Solicitação manual;
+* Cotação com múltiplos fornecedores;
+* Comparativo de preço;
+* Lead time;
+* Prazo de pagamento;
+* Histórico de preço;
+* Fornecedor homologado;
+* Bloqueio de fornecedor reprovado;
+* Pedido de compra;
+* Status de entrega;
+* Recebimento parcial;
+* Recebimento total;
+* Divergência de nota;
+* Divergência de quantidade;
+* Divergência de lote;
+* Anexo de NF, COA, laudo, ficha técnica;
+* Integração com financeiro;
+* Integração com estoque;
+* Integração com CQ.
+
+---
+
+# 9. RECEBIMENTO DE MATÉRIA-PRIMA E EMBALAGEM
+
+Ao dar entrada de matéria-prima ou embalagem, o sistema deve criar automaticamente um lote interno e colocar o item em **quarentena**.
+
+Fluxo obrigatório:
+
+1. Recebimento físico;
+2. Conferência da NF;
+3. Conferência do pedido de compra;
+4. Conferência de quantidade;
+5. Conferência de lote fornecedor;
+6. Conferência de validade;
+7. Anexo do COA;
+8. Geração de lote interno;
+9. Etiqueta de quarentena;
+10. Bloqueio para produção;
+11. Solicitação automática de análise CQ;
+12. Amostragem;
+13. Resultado analítico;
+14. Aprovação ou reprovação;
+15. Liberação para estoque disponível ou bloqueio/devolução.
+
+Status possíveis:
+
+* Aguardando conferência;
+* Conferido;
+* Em quarentena;
+* Aguardando amostragem;
+* Amostrado;
+* Em análise;
+* Aprovado;
+* Reprovado;
+* Aprovado com restrição;
+* Bloqueado;
+* Devolvido;
+* Descartado.
+
+Regra crítica:
+
+**Nenhum insumo em quarentena, reprovado, vencido, bloqueado ou sem laudo aprovado pode ser reservado, pesado ou consumido em ordem de produção.**
+
+---
+
+# 10. CONTROLE DE QUALIDADE
+
+Criar módulo completo de CQ.
+
+Submódulos:
+
+* Plano de amostragem;
+* Recebimento de amostras;
+* Análises físico-químicas;
+* Análises microbiológicas;
+* Análises organolépticas;
+* Laudos;
+* Especificações;
+* Métodos analíticos;
+* Padrões de referência;
+* Reagentes;
+* Equipamentos de laboratório;
+* Validade dos padrões;
+* Calibração;
+* Liberação de matéria-prima;
+* Liberação de embalagem;
+* Liberação de produto acabado;
+* Reprovação;
+* Investigação;
+* Reteste;
+* Contraprova;
+* Estabilidade.
+
+Campos de análise:
+
+* Código da amostra;
+* Lote interno;
+* Lote fornecedor;
+* Produto/insumo;
+* Data de coleta;
+* Coletador;
+* Método;
+* Especificação;
+* Resultado encontrado;
+* Unidade;
+* Limite mínimo;
+* Limite máximo;
+* Conforme/Não conforme;
+* Analista;
+* Revisor;
+* Aprovador;
+* Anexo de cromatograma/laudo;
+* Observações;
+* Assinatura eletrônica.
+
+O CQ deve liberar ou bloquear automaticamente o estoque.
+
+Se aprovado:
+
+* Status muda para “Aprovado CQ”;
+* Item entra em estoque disponível;
+* Pode ser reservado pelo PCP;
+* Pode ser usado na produção.
+
+Se reprovado:
+
+* Status muda para “Reprovado CQ”;
+* Item fica bloqueado;
+* PCP não pode reservar;
+* Produção não pode pesar;
+* Sistema sugere devolução, descarte ou investigação.
+
+---
+
+# 11. ESTOQUE E ALMOXARIFADO
+
+Controlar estoque por:
+
+* Produto;
+* Código;
+* Lote interno;
+* Lote fornecedor;
+* Validade;
+* Status CQ;
+* Depósito;
+* Endereço;
+* Quantidade total;
+* Quantidade disponível;
+* Quantidade reservada;
+* Quantidade bloqueada;
+* Quantidade em quarentena;
+* Quantidade vencida;
+* Quantidade em análise;
+* Quantidade alocada para OP.
+
+Depósitos sugeridos:
+
+* Quarentena MP;
+* Aprovados MP;
+* Reprovados MP;
+* Embalagens quarentena;
+* Embalagens aprovadas;
+* Produção;
+* Pesagem;
+* Produto semiacabado;
+* Produto acabado quarentena;
+* Produto acabado aprovado;
+* Expedição;
+* Devolução;
+* Descarte;
+* Retenção/contraprova.
+
+Movimentações:
+
+* Entrada por compra;
+* Entrada manual controlada;
+* Transferência entre depósitos;
+* Reserva para OP;
+* Baixa por produção;
+* Estorno;
+* Ajuste de inventário;
+* Bloqueio;
+* Desbloqueio;
+* Perda;
+* Descarte;
+* Devolução;
+* Reprocesso;
+* Reclassificação.
+
+O sistema deve trabalhar com FEFO/FIFO:
+
+* FEFO: primeiro vence, primeiro sai;
+* FIFO: primeiro entra, primeiro sai;
+* Bloquear uso de vencidos;
+* Alertar itens próximos ao vencimento;
+* Alertar estoque mínimo;
+* Alertar estoque crítico;
+* Alertar excesso de estoque.
+
+---
+
+# 12. PCP — PLANEJAMENTO E CONTROLE DA PRODUÇÃO
+
+O PCP deve receber demandas de:
+
+* Pedido de venda;
+* Previsão de venda;
+* Estoque mínimo;
+* Reposição;
+* Produção interna;
+* Terceirização.
+
+Funcionalidades:
+
+* Gerar ordem de produção;
+* Simular necessidade de materiais;
+* Verificar disponibilidade de MP;
+* Verificar disponibilidade de embalagem;
+* Verificar disponibilidade de rótulo;
+* Verificar status CQ dos insumos;
+* Verificar capacidade dos equipamentos;
+* Verificar mão de obra;
+* Verificar turnos;
+* Verificar prazo de entrega;
+* Gerar carga máquina;
+* Gerar programação diária/semanal/mensal;
+* Enviar programação para APS;
+* Reprogramar atrasos;
+* Priorizar pedidos;
+* Controlar gargalos;
+* Controlar ordens atrasadas;
+* Controlar ordens parcialmente produzidas.
+
+Status de OP:
+
+1. Planejada;
+2. Aguardando materiais;
+3. Aguardando CQ;
+4. Aguardando embalagem;
+5. Aguardando aprovação técnica;
+6. Liberada para produção;
+7. Em separação;
+8. Em pesagem;
+9. Em mistura;
+10. Em encapsulação/compressão/envase;
+11. Em embalagem;
+12. Em CQ produto acabado;
+13. Aprovada CQ;
+14. Reprovada CQ;
+15. Em retrabalho;
+16. Finalizada;
+17. Encerrada;
+18. Cancelada.
+
+Regra crítica:
+
+**A OP só pode ser liberada se todos os materiais obrigatórios estiverem aprovados, disponíveis, dentro da validade e reservados.**
+
+---
+
+# 13. APS — PLANEJAMENTO AVANÇADO DA PRODUÇÃO
+
+Criar um módulo APS separado, robusto, com login próprio e integração total com ERP.
+
+O APS deve fazer programação avançada considerando:
+
+* Pedidos de venda;
+* Prioridade comercial;
+* Prazo prometido;
+* Capacidade produtiva;
+* Centro de trabalho;
+* Equipamentos;
+* Turnos;
+* Calendário fabril;
+* Manutenção programada;
+* Tempo de setup;
+* Tempo de limpeza;
+* Tempo de troca de produto;
+* Tempo de análise CQ;
+* Tempo de liberação de MP;
+* Tempo de pesagem;
+* Tempo de mistura;
+* Tempo de encapsulação;
+* Tempo de envase;
+* Tempo de rotulagem;
+* Tempo de embalagem;
+* Tempo de expedição;
+* Lead time de compras;
+* Estoque disponível;
+* Estoque reservado;
+* Estoque bloqueado;
+* Materiais em quarentena;
+* Materiais em trânsito;
+* Materiais comprados ainda não recebidos;
+* Horizonte fixo;
+* Horizonte congelado;
+* Horizonte de planejamento;
+* Gargalos;
+* Eficiência da máquina;
+* OEE;
+* Paradas previstas;
+* Paradas não previstas;
+* Rendimento histórico;
+* Perdas previstas.
+
+O APS deve permitir simulações:
+
+* Melhor prazo possível;
+* Menor custo;
+* Menor troca de setup;
+* Prioridade por cliente;
+* Prioridade por faturamento;
+* Prioridade por vencimento de MP;
+* Prioridade por equipamento;
+* Cenário otimista;
+* Cenário realista;
+* Cenário conservador;
+* Cenário com falta de insumo;
+* Cenário com máquina parada;
+* Cenário com atraso de fornecedor;
+* Cenário com retrabalho.
+
+O APS deve exibir:
+
+* Gráfico de Gantt;
+* Carga máquina;
+* Capacidade por centro de trabalho;
+* Fila de produção;
+* Ordens atrasadas;
+* Ordens críticas;
+* Materiais restritivos;
+* Gargalos;
+* Previsão de entrega;
+* Conflitos;
+* Alertas;
+* Reprogramações sugeridas.
+
+O APS deve permitir:
+
+* Arrastar e soltar OP no calendário;
+* Bloquear período;
+* Criar turno extra;
+* Criar turno de exceção;
+* Simular impacto;
+* Confirmar programação;
+* Enviar programação para produção;
+* Recalcular automaticamente;
+* Registrar motivo da reprogramação.
+
+Regras do APS:
+
+* Não programar OP sem material aprovado;
+* Não programar OP em máquina indisponível;
+* Não programar OP em turno inexistente;
+* Considerar limpeza entre produtos;
+* Considerar setup entre formatos diferentes;
+* Considerar análise de CQ;
+* Considerar embalagem e expedição;
+* Alertar quando o prazo comercial for inviável;
+* Sugerir nova data realista;
+* Sugerir compra urgente quando faltar matéria-prima;
+* Sugerir priorização quando houver conflito.
+
+---
+
+# 14. PRODUÇÃO / CHÃO DE FÁBRICA
+
+Criar módulo de produção com apontamento em tempo real.
+
+Etapas:
+
+1. Separação de materiais;
+2. Pesagem;
+3. Conferência de pesagem;
+4. Mistura;
+5. Encapsulação/compressão/envase;
+6. Inspeção em processo;
+7. Embalagem primária;
+8. Selagem;
+9. Rotulagem;
+10. Embalagem secundária;
+11. Paletização;
+12. Envio para CQ produto acabado;
+13. Liberação final.
+
+Cada etapa deve registrar:
+
+* OP;
+* Produto;
+* Lote;
+* Operador;
+* Supervisor;
+* Equipamento;
+* Sala;
+* Data e hora início;
+* Data e hora fim;
+* Quantidade inicial;
+* Quantidade final;
+* Perda;
+* Rendimento;
+* Motivo de perda;
+* Paradas;
+* Observações;
+* Fotos/anexos se necessário;
+* Assinatura eletrônica.
+
+O sistema deve ter apontamento por:
+
+* Tablet;
+* Celular;
+* Computador;
+* Leitor de código de barras;
+* QR Code;
+* Balança integrada;
+* Impressora de etiquetas.
+
+---
+
+# 15. PESAGEM
+
+O módulo de pesagem deve ser extremamente controlado.
+
+Funcionalidades:
+
+* Ordem de pesagem gerada pela OP;
+* Conferência por código de barras;
+* Conferência do lote aprovado;
+* Bloqueio de lote errado;
+* Bloqueio de lote vencido;
+* Bloqueio de lote não liberado;
+* Integração com balança;
+* Tolerância de pesagem;
+* Dupla checagem;
+* Assinatura do operador;
+* Assinatura do conferente;
+* Etiqueta de material pesado;
+* Registro de tara;
+* Registro de peso bruto;
+* Registro de peso líquido;
+* Registro de sobra;
+* Registro de devolução ao estoque.
+
+Regra crítica:
+
+**Se o operador tentar pesar matéria-prima diferente da fórmula ou lote diferente do reservado, o sistema deve bloquear e exigir autorização do responsável técnico/qualidade.**
+
+---
+
+# 16. MISTURA
+
+Controlar:
+
+* Ordem de mistura;
+* Equipamento;
+* Capacidade mínima e máxima;
+* Tempo de mistura;
+* Velocidade;
+* Sequência de adição;
+* Operador;
+* Conferente;
+* Início e fim;
+* Rendimento;
+* Aspecto;
+* Homogeneidade;
+* Perdas;
+* Amostra em processo;
+* Liberação para próxima etapa.
+
+---
+
+# 17. ENCAPSULAÇÃO / COMPRESSÃO / ENVASE
+
+Controlar:
+
+* Máquina;
+* Operador;
+* Produto;
+* Lote;
+* Peso médio;
+* Variação de peso;
+* Desintegração se aplicável;
+* Velocidade;
+* Quantidade produzida;
+* Quantidade rejeitada;
+* Paradas;
+* Motivo de parada;
+* Rendimento;
+* Amostras;
+* Controle em processo;
+* Liberação para embalagem.
+
+---
+
+# 18. SELAGEM, ROTULAGEM E EMBALAGEM
+
+Controlar:
+
+* Tipo de pote;
+* Tampa;
+* Selo;
+* Rótulo;
+* Lote impresso;
+* Validade impressa;
+* Revisão da arte;
+* Conferência de rótulo correto;
+* Conferência de cliente;
+* Conferência de código de barras;
+* Quantidade embalada;
+* Quantidade rejeitada;
+* Perdas de embalagem;
+* Reprocesso;
+* Paletização.
+
+Regra crítica:
+
+**O sistema deve impedir uso de rótulo com revisão antiga, rótulo de outro cliente ou rótulo não aprovado.**
+
+---
+
+# 19. PRODUTO ACABADO E LIBERAÇÃO FINAL
+
+Após a produção, o lote deve ficar em:
+
+**Produto acabado em quarentena.**
+
+Só pode ir para expedição após:
+
+* Conferência de produção;
+* Conferência de reconciliação;
+* CQ produto acabado;
+* Laudo aprovado;
+* Liberação do responsável técnico;
+* Liberação fiscal/comercial quando necessário.
+
+Status:
+
+* PA em quarentena;
+* PA em análise;
+* PA aprovado;
+* PA reprovado;
+* PA aprovado com restrição;
+* PA bloqueado;
+* PA liberado para expedição.
+
+---
+
+# 20. RASTREABILIDADE TOTAL
+
+O sistema deve permitir rastrear:
+
+De trás para frente:
+
+**Produto vendido → Pedido → Nota fiscal → Lote acabado → OP → Pesagem → Matérias-primas → Fornecedores → COAs → Laudos CQ.**
+
+De frente para trás:
+
+**Matéria-prima recebida → Lote interno → OPs que consumiram → Produtos finais → Clientes que receberam → Notas fiscais.**
+
+Criar tela de rastreabilidade com:
+
+* Código do lote;
+* Produto;
+* Cliente;
+* OP;
+* Insumos usados;
+* Lotes dos insumos;
+* Fornecedores;
+* Quantidade consumida;
+* Laudos;
+* Operadores;
+* Equipamentos;
+* Datas;
+* Pedidos atendidos;
+* Notas fiscais;
+* Clientes impactados.
+
+Essa tela deve permitir recall rápido em caso de problema.
+
+---
+
+# 21. NÃO CONFORMIDADE, DESVIOS E CAPA
+
+Criar módulo para:
+
+* Não conformidade de matéria-prima;
+* Não conformidade de embalagem;
+* Não conformidade de processo;
+* Não conformidade de produto acabado;
+* Reclamação de cliente;
+* Desvio de produção;
+* Investigação;
+* Ação corretiva;
+* Ação preventiva;
+* Responsável;
+* Prazo;
+* Evidências;
+* Status;
+* Encerramento;
+* Aprovação da qualidade.
+
+Status:
+
+* Aberta;
+* Em investigação;
+* Aguardando ação;
+* Ação em execução;
+* Aguardando verificação;
+* Concluída;
+* Reprovada;
+* Encerrada.
+
+---
+
+# 22. GESTÃO DE DOCUMENTOS
+
+Criar módulo para controlar:
+
+* POPs;
+* Instruções de trabalho;
+* Fichas técnicas;
+* FISPQ;
+* COA;
+* Laudos;
+* Fórmulas;
+* Ordens de produção;
+* Especificações;
+* Métodos analíticos;
+* Contratos;
+* Artes de rótulo;
+* Certificados;
+* Licenças;
+* Alvarás;
+* Registros;
+* Treinamentos.
+
+Cada documento deve ter:
+
+* Código;
+* Nome;
+* Versão;
+* Revisão;
+* Responsável;
+* Data de emissão;
+* Data de revisão;
+* Data de validade;
+* Status;
+* Assinaturas;
+* Histórico;
+* Controle de obsolescência.
+
+---
+
+# 23. ESTABILIDADE DE PRODUTOS
+
+Criar módulo para estudos de estabilidade.
+
+Controlar:
+
+* Produto;
+* Lote;
+* Fórmula;
+* Cliente;
+* Condição do estudo;
+* Temperatura;
+* Umidade;
+* Tempo zero;
+* 3 meses;
+* 6 meses;
+* 9 meses;
+* 12 meses;
+* Longa duração;
+* Amostras;
+* Triplicata;
+* Ensaios;
+* Resultados;
+* Tendência;
+* Gráficos;
+* Validade projetada;
+* Validade aprovada;
+* Relatório final.
+
+Ensaios possíveis:
+
+* Teor de ativo;
+* pH;
+* Umidade/perda por dessecação;
+* Aparência;
+* Cor;
+* Odor;
+* Sabor;
+* Desintegração;
+* Microbiologia;
+* Peso médio;
+* Densidade;
+* Granulometria.
+
+O sistema deve gerar relatório de estabilidade com:
+
+* Dados do produto;
+* Metodologia;
+* Condição;
+* Resultados;
+* Tabelas;
+* Gráficos;
+* Conclusão;
+* Prazo de validade recomendado;
+* Assinatura técnica.
+
+---
+
+# 24. FINANCEIRO
+
+Controlar:
+
+* Contas a pagar;
+* Contas a receber;
+* Fluxo de caixa;
+* Centro de custo;
+* Plano de contas;
+* Comissão de vendedores;
+* Custos por pedido;
+* Custos por OP;
+* Custos por produto;
+* Margem de contribuição;
+* Inadimplência;
+* Bloqueio financeiro de cliente;
+* Previsão de faturamento.
+
+O pedido só pode ser liberado para produção se obedecer às regras financeiras definidas pela empresa.
+
+---
+
+# 25. FISCAL E FATURAMENTO
+
+Controlar:
+
+* Emissão de NF;
+* CFOP;
+* NCM;
+* CST/CSOSN;
+* CNPJ;
+* Inscrição estadual;
+* Tributação;
+* Natureza da operação;
+* Faturamento parcial;
+* Faturamento total;
+* Cancelamento;
+* Carta de correção;
+* XML;
+* DANFE;
+* Integração contábil.
+
+---
+
+# 26. EXPEDIÇÃO
+
+Controlar:
+
+* Separação;
+* Conferência;
+* Romaneio;
+* Packing list;
+* Transportadora;
+* Etiqueta de envio;
+* Nota fiscal;
+* Volume;
+* Peso;
+* Cubagem;
+* Rastreamento;
+* Comprovante de entrega;
+* Status logístico.
+
+Status:
+
+* Aguardando separação;
+* Em separação;
+* Separado;
+* Conferido;
+* Aguardando NF;
+* Faturado;
+* Aguardando coleta;
+* Coletado;
+* Em transporte;
+* Entregue;
+* Ocorrência de transporte.
+
+---
+
+# 27. MANUTENÇÃO
+
+Criar módulo para:
+
+* Cadastro de equipamentos;
+* Plano preventivo;
+* Manutenção corretiva;
+* Manutenção preditiva;
+* Calibração;
+* Limpeza;
+* Disponibilidade;
+* Paradas;
+* Histórico;
+* Custo de manutenção.
+
+O APS deve considerar máquina em manutenção como indisponível.
+
+---
+
+# 28. DASHBOARDS E INDICADORES
+
+Criar dashboards para diretoria, produção, qualidade, PCP, comercial e financeiro.
+
+Indicadores principais:
+
+## Comercial
+
+* Vendas por período;
+* Vendas por cliente;
+* Vendas por vendedor;
+* Ticket médio;
+* Pedidos em aberto;
+* Pedidos atrasados;
+* Previsão de faturamento.
+
+## PCP/APS
+
+* OPs planejadas;
+* OPs em produção;
+* OPs atrasadas;
+* Capacidade ocupada;
+* Gargalos;
+* Materiais restritivos;
+* Previsão de entrega;
+* Aderência ao plano.
+
+## Produção
+
+* OEE;
+* Rendimento;
+* Perdas;
+* Paradas;
+* Produtividade por máquina;
+* Produtividade por operador;
+* Tempo real vs tempo padrão.
+
+## Qualidade
+
+* Lotes aprovados;
+* Lotes reprovados;
+* Tempo médio de análise;
+* Não conformidades;
+* Reanálises;
+* Fornecedores com problemas.
+
+## Estoque
+
+* Estoque disponível;
+* Estoque bloqueado;
+* Estoque em quarentena;
+* Itens próximos ao vencimento;
+* Giro de estoque;
+* Ruptura;
+* Estoque mínimo.
+
+## Financeiro
+
+* Contas a pagar;
+* Contas a receber;
+* Fluxo de caixa;
+* Margem por pedido;
+* Custo industrial;
+* Inadimplência.
+
+---
+
+# 29. INTELIGÊNCIA ARTIFICIAL NO ERP
+
+Incluir recursos de IA para:
+
+* Sugerir programação de produção;
+* Prever atraso de pedido;
+* Prever falta de matéria-prima;
+* Sugerir compra;
+* Detectar gargalos;
+* Analisar rendimento histórico;
+* Alertar produto com risco de reprovação;
+* Comparar fornecedores;
+* Gerar relatório de estabilidade;
+* Gerar análise de custo;
+* Gerar previsão de demanda;
+* Criar assistente interno para consulta de dados;
+* Responder perguntas como:
+  “Quais pedidos vão atrasar?”
+  “Qual matéria-prima está impedindo a produção?”
+  “Qual máquina é o gargalo da semana?”
+  “Quais lotes usam o insumo X?”
+  “Qual cliente recebeu o lote Y?”
+  “Qual produto teve maior perda no mês?”
+
+---
+
+# 30. REGRAS CRÍTICAS DE BLOQUEIO
+
+O sistema deve bloquear automaticamente:
+
+* Uso de matéria-prima sem CQ aprovado;
+* Uso de embalagem sem CQ aprovado;
+* Uso de rótulo não aprovado;
+* Uso de rótulo com revisão antiga;
+* Uso de lote vencido;
+* Uso de fornecedor bloqueado;
+* Produção com fórmula não aprovada;
+* Alteração de fórmula sem permissão;
+* Alteração de custo sem permissão;
+* Liberação de OP sem material completo;
+* Faturamento de produto não liberado;
+* Expedição de produto bloqueado;
+* Exclusão de documento crítico;
+* Alteração de resultado analítico sem justificativa;
+* Reabertura de OP sem autorização.
+
+---
+
+# 31. TELAS PRINCIPAIS QUE DEVEM SER DESENVOLVIDAS
+
+Criar protótipo/telas para:
+
+1. Login;
+2. Painel inicial;
+3. Cadastro de cliente;
+4. Cadastro de fornecedor;
+5. Cadastro de matéria-prima;
+6. Cadastro de produto;
+7. Cadastro de fórmula;
+8. Pedido de venda;
+9. Pedido de compra;
+10. Recebimento de matéria-prima;
+11. Tela de quarentena;
+12. Tela de amostragem CQ;
+13. Tela de análise CQ;
+14. Tela de liberação CQ;
+15. Estoque por lote;
+16. Ordem de produção;
+17. Planejamento PCP;
+18. APS com gráfico de Gantt;
+19. Pesagem;
+20. Mistura;
+21. Encapsulação/envase;
+22. Rotulagem;
+23. Produto acabado;
+24. Expedição;
+25. Rastreabilidade;
+26. Não conformidade;
+27. Estabilidade;
+28. Financeiro;
+29. Fiscal;
+30. Dashboard diretoria.
+
+---
+
+# 32. BANCO DE DADOS
+
+Criar modelagem de banco de dados relacional, com tabelas para:
+
+* Usuários;
+* Perfis;
+* Permissões;
+* Clientes;
+* Fornecedores;
+* Produtos;
+* Fórmulas;
+* Versões de fórmula;
+* Matérias-primas;
+* Embalagens;
+* Lotes;
+* Estoques;
+* Depósitos;
+* Movimentações;
+* Pedidos de venda;
+* Pedidos de compra;
+* Ordens de produção;
+* Apontamentos;
+* Pesagens;
+* Análises CQ;
+* Laudos;
+* Não conformidades;
+* Estabilidade;
+* Equipamentos;
+* Centros de trabalho;
+* Turnos;
+* APS;
+* Financeiro;
+* Fiscal;
+* Expedição;
+* Logs;
+* Auditoria.
+
+Todas as tabelas críticas devem conter:
+
+* ID;
+* Código;
+* Data de criação;
+* Usuário de criação;
+* Data de alteração;
+* Usuário de alteração;
+* Status;
+* Versão;
+* Histórico;
+* Justificativa de alteração quando aplicável.
+
+---
+
+# 33. API E INTEGRAÇÕES
+
+Preparar o ERP para integração com:
+
+* Balanças;
+* Leitores de código de barras;
+* Impressoras Zebra;
+* Coletores de dados;
+* Sistema fiscal;
+* Contabilidade;
+* Bancos;
+* Marketplaces;
+* Transportadoras;
+* Power BI;
+* Excel;
+* WhatsApp;
+* E-mail;
+* Portal do cliente;
+* Portal do fornecedor;
+* Aplicativo mobile;
+* Equipamentos de produção;
+* Laboratório externo.
+
+---
+
+# 34. ENTREGÁVEIS QUE EU ESPERO DA IA/DESENVOLVEDOR
+
+A partir deste prompt, quero que você entregue:
+
+1. Arquitetura completa do ERP;
+2. Lista de módulos;
+3. Fluxograma de cada processo;
+4. Regras de negócio;
+5. Tabelas do banco de dados;
+6. Campos de cada tela;
+7. Protótipos de telas;
+8. Permissões por perfil;
+9. Status de cada processo;
+10. Integrações entre módulos;
+11. Regras de bloqueio;
+12. Dashboards;
+13. Backlog de desenvolvimento;
+14. Priorização por fase;
+15. MVP inicial;
+16. Versão avançada;
+17. Sugestão de tecnologia;
+18. Modelo de API;
+19. Modelo de banco;
+20. Plano de implantação.
+
+---
+
+# 35. FASEAMENTO DO PROJETO
+
+Dividir o desenvolvimento em fases:
+
+## Fase 1 — Base do ERP
+
+* Login;
+* Usuários;
+* Permissões;
+* Cadastros mestres;
+* Clientes;
+* Fornecedores;
+* Produtos;
+* Matérias-primas;
+* Embalagens.
+
+## Fase 2 — Comercial, compras e estoque
+
+* Pedido de venda;
+* Pedido de compra;
+* Recebimento;
+* Estoque;
+* Quarentena;
+* Movimentação por lote.
+
+## Fase 3 — Controle de qualidade
+
+* Amostragem;
+* Análises;
+* Laudos;
+* Aprovação/reprovação;
+* Bloqueio/liberação automática.
+
+## Fase 4 — Formulação e produção
+
+* Fórmulas;
+* Ordem de produção;
+* Pesagem;
+* Mistura;
+* Encapsulação/envase;
+* Rotulagem;
+* Apontamento de produção.
+
+## Fase 5 — PCP e APS
+
+* Planejamento;
+* Capacidade;
+* Gantt;
+* Centro de trabalho;
+* Turnos;
+* Gargalos;
+* Simulação;
+* Reprogramação.
+
+## Fase 6 — Expedição, financeiro e fiscal
+
+* Produto acabado;
+* Faturamento;
+* Expedição;
+* Financeiro;
+* Fiscal.
+
+## Fase 7 — Qualidade avançada e rastreabilidade
+
+* Não conformidades;
+* CAPA;
+* Estabilidade;
+* Rastreabilidade completa;
+* Recall.
+
+## Fase 8 — BI, IA e automações
+
+* Dashboards;
+* Alertas;
+* Previsões;
+* Assistente inteligente;
+* Integrações externas.
+
+---
+
+# 36. PRINCÍPIO CENTRAL DO ERP
+
+O ERP deve funcionar com a seguinte lógica:
+
+**Nada entra sem conferência.
+Nada é usado sem qualidade liberar.
+Nada é produzido sem fórmula aprovada.
+Nada é pesado sem lote correto.
+Nada é embalado com rótulo errado.
+Nada é faturado sem produto liberado.
+Nada é expedido sem rastreabilidade.
+Nada é alterado sem histórico.
+Nada crítico acontece sem permissão.**
+
+---
+
+# 37. RESULTADO FINAL ESPERADO
+
+Quero um ERP industrial de nível profissional, preparado para indústria real, com foco em:
+
+* Controle;
+* Rastreabilidade;
+* Qualidade;
+* Produtividade;
+* Escalabilidade;
+* Segurança;
+* Compliance;
+* Redução de erros;
+* Gestão por dados;
+* Produção em grande escala;
+* Operação similar a grandes indústrias farmacêuticas e de suplementos.
+
+Desenvolva tudo com visão de longo prazo, pensando em uma indústria que pode produzir milhares ou milhões de unidades por mês, com múltiplos clientes, múltiplas fórmulas, múltiplos lotes, múltiplas linhas produtivas e exigência forte de controle de qualidade.
+
+---
+
+## Complemento importante para você pedir ao desenvolvedor
+
+Além do prompt acima, eu recomendo você exigir que o sistema tenha uma tela chamada:
+
+# “CENTRAL DE STATUS INDUSTRIAL”
+
+Essa tela seria o coração do ERP, mostrando em tempo real:
+
+* Pedidos aguardando aprovação financeira;
+* Pedidos aguardando análise técnica;
+* Pedidos aguardando compra;
+* Pedidos aguardando matéria-prima;
+* Matérias-primas em quarentena;
+* Matérias-primas em análise;
+* Matérias-primas reprovadas;
+* OPs aguardando material;
+* OPs liberadas;
+* OPs em produção;
+* OPs atrasadas;
+* Produtos acabados em CQ;
+* Produtos liberados para expedição;
+* Pedidos faturados;
+* Pedidos enviados;
+* Gargalos do dia;
+* Máquinas paradas;
+* Insumos críticos;
+* Clientes impactados por atraso.
+
+Essa tela vai permitir que a diretoria enxergue a indústria inteira sem precisar abrir 20 telas diferentes.
+
+[1]: https://produtos.totvs.com/aplicativo/app-minha-producao/?utm_source=chatgpt.com "Tudo sobre o app Minha Produção - Linha Protheus"
+[2]: https://centraldeatendimento.totvs.com/hc/pt-br/articles/6071618154519-Manufatura-Linha-Datasul-APS-DB0200-Atualiza%C3%A7%C3%A3o-de-Ordens-de-Produ%C3%A7%C3%A3o-para-o-APS?utm_source=chatgpt.com "Manufatura - Linha Datasul - APS - DB0200 - Atualização ..."
