@@ -1291,7 +1291,7 @@ export const UpdatePurchaseOrderStatusParams = zod.object({
 })
 
 export const UpdatePurchaseOrderStatusBody = zod.object({
-  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled'])
+  "status": zod.enum(['draft', 'sent', 'cancelled'])
 })
 
 export const UpdatePurchaseOrderStatusResponse = zod.object({

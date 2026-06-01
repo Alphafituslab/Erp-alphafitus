@@ -600,25 +600,33 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
       // Process each item: create quarantine lot for the DELTA qty received this call.
       // NOTE: do NOT increment product.currentStock here.
       // Stock is only released when CQ approves the lot (done in the estoque module).
+      //
+      // Quantities are stored as numeric(12,3) — preserve decimal precision throughout;
+      // never use Math.round() on domain values.
       let anyNewlyReceived = false;
       let allFullyReceived = true;
 
       for (const item of poItems) {
-        const orderedQty = Math.round(parseFloat(String(item.quantity)));
-        const alreadyReceivedQty = Math.round(parseFloat(String(item.receivedQty ?? "0")));
+        // Decimal-safe parsing — preserve up to 3 decimal places
+        const orderedQty = parseFloat(parseFloat(String(item.quantity)).toFixed(3));
+        const alreadyReceivedQty = parseFloat(parseFloat(String(item.receivedQty ?? "0")).toFixed(3));
 
         if (!item.productId || item.productId === 0) {
-          // Non-product items: treat as fully received if ordered qty was 0
-          if (orderedQty > 0) allFullyReceived = false;
+          // Non-product (description-only) lines: they are not physically received,
+          // so they do NOT participate in the fully-received status check.
           continue;
         }
 
         const ri = receiveMap.get(item.id);
-        // deltaQty = how many units are being received in THIS call (clamped to remaining)
-        const remaining = orderedQty - alreadyReceivedQty;
-        const requestedDelta = ri ? Math.max(0, Math.round(ri.receivedQty)) : remaining;
-        const deltaQty = Math.min(requestedDelta, remaining); // cannot exceed remaining
-        const newTotalReceived = alreadyReceivedQty + deltaQty;
+        // remaining = how many units are still outstanding for this item
+        const remaining = parseFloat((orderedQty - alreadyReceivedQty).toFixed(3));
+        // requestedDelta = what the caller wants to receive this time (≥ 0)
+        const requestedDelta = ri
+          ? parseFloat(Math.max(0, parseFloat(String(ri.receivedQty))).toFixed(3))
+          : remaining;
+        // deltaQty = actual receipt this call, clamped to remaining (prevents over-receipt)
+        const deltaQty = parseFloat(Math.min(requestedDelta, remaining).toFixed(3));
+        const newTotalReceived = parseFloat((alreadyReceivedQty + deltaQty).toFixed(3));
 
         // Update accumulated received quantity on the item
         await tx
@@ -634,6 +642,9 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
         const warehouseId = ri?.warehouseId ?? defaultWarehouse?.id ?? null;
         const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
 
+        // lotQty: lots and lot movements use integer columns — round the decimal delta
+        const lotQty = Math.round(deltaQty);
+
         // Create lot in quarantine for the delta (CQ approval will release to available stock)
         const [lot] = await tx
           .insert(productLotsTable)
@@ -642,7 +653,7 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
             internalLot,
             supplierLot: ri?.supplierLot || null,
             cqStatus: "quarantine",
-            totalQty: deltaQty,
+            totalQty: lotQty,
             availableQty: 0,        // Zero until CQ releases the lot
             warehouseId: warehouseId ?? undefined,
             expirationDate: ri?.expiryDate ? ri.expiryDate.slice(0, 10) : null,
@@ -657,7 +668,7 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
           productId: item.productId,
           warehouseId: warehouseId ?? undefined,
           type: "input",
-          quantity: deltaQty,
+          quantity: lotQty,
           reason: `Recebimento físico PC #${id} — aguarda CQ (${newTotalReceived}/${orderedQty})`,
           referenceId: id,
           referenceType: "purchase_order",

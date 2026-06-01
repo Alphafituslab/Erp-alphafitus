@@ -5122,7 +5122,7 @@ components:
       properties:
         status:
           type: string
-          enum: [draft, sent, partially_received, received, cancelled]
+          enum: [draft, sent, cancelled]
 
     TopSupplier:
       type: object

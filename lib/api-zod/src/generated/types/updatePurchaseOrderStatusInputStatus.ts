@@ -12,7 +12,5 @@ export type UpdatePurchaseOrderStatusInputStatus = typeof UpdatePurchaseOrderSta
 export const UpdatePurchaseOrderStatusInputStatus = {
   draft: 'draft',
   sent: 'sent',
-  partially_received: 'partially_received',
-  received: 'received',
   cancelled: 'cancelled',
 } as const;
