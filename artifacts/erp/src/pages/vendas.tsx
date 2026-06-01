@@ -72,52 +72,157 @@ function fmtDateTime(d: Date | string | null | undefined) {
 // ─── Status Config ────────────────────────────────────────────────────────────
 
 type OrderStatus =
-  | "draft" | "sent" | "client_approved" | "client_rejected"
+  | "draft" | "awaiting_docs" | "sent"
+  | "client_approved" | "client_rejected"
+  | "credit_check" | "credit_rejected"
   | "financial_review" | "financial_rejected"
   | "technical_review" | "technical_rejected"
-  | "pcp_released" | "in_production" | "quality_check"
-  | "billing" | "shipped" | "delivered" | "cancelled";
+  | "regulatory_check" | "pcp_released" | "raw_material_check"
+  | "production_planned" | "in_production"
+  | "quality_check" | "quality_rejected" | "quality_approved"
+  | "billing" | "invoice_issued" | "awaiting_pickup"
+  | "shipped" | "delivered" | "cancelled";
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: "Rascunho",
-  sent: "Enviado",
-  client_approved: "Aprovado Cliente",
-  client_rejected: "Reprovado Cliente",
-  financial_review: "Análise Financeira",
+  draft:              "Rascunho",
+  awaiting_docs:      "Aguardando Docs",
+  sent:               "Enviado",
+  client_approved:    "Aprovado Cliente",
+  client_rejected:    "Reprovado Cliente",
+  credit_check:       "Análise de Crédito",
+  credit_rejected:    "Crédito Reprovado",
+  financial_review:   "Análise Financeira",
   financial_rejected: "Reprovado Financeiro",
-  technical_review: "Análise Técnica",
+  technical_review:   "Análise Técnica",
   technical_rejected: "Reprovado Técnico",
-  pcp_released: "Liberado PCP",
-  in_production: "Em Produção",
-  quality_check: "Controle de Qualidade",
-  billing: "Faturamento",
-  shipped: "Expedido",
-  delivered: "Entregue",
-  cancelled: "Cancelado",
+  regulatory_check:   "Análise Regulatória",
+  pcp_released:       "Liberado PCP",
+  raw_material_check: "Verificação MP",
+  production_planned: "Prod. Planejada",
+  in_production:      "Em Produção",
+  quality_check:      "Controle de Qualidade",
+  quality_rejected:   "CQ Reprovado",
+  quality_approved:   "CQ Aprovado",
+  billing:            "Faturamento",
+  invoice_issued:     "NF Emitida",
+  awaiting_pickup:    "Aguardando Coleta",
+  shipped:            "Expedido",
+  delivered:          "Entregue",
+  cancelled:          "Cancelado",
 };
 
 const PIPELINE_STAGES: OrderStatus[] = [
-  "draft", "sent", "client_approved",
-  "financial_review", "technical_review",
-  "pcp_released", "in_production", "quality_check",
-  "billing", "shipped",
+  "draft", "awaiting_docs", "sent",
+  "client_approved", "credit_check",
+  "financial_review", "technical_review", "regulatory_check",
+  "pcp_released", "raw_material_check", "production_planned",
+  "in_production", "quality_check", "quality_approved",
+  "billing", "invoice_issued", "awaiting_pickup", "shipped",
 ];
 
-const TERMINAL_STATUSES = ["delivered", "cancelled", "client_rejected", "financial_rejected", "technical_rejected"];
+const TERMINAL_STATUSES = [
+  "delivered", "cancelled",
+  "client_rejected", "credit_rejected",
+  "financial_rejected", "technical_rejected", "quality_rejected",
+];
 
 type Transition = { to: OrderStatus; label: string; variant?: "default" | "destructive" | "outline"; requiresNote?: boolean };
 
 const TRANSITIONS: Record<string, Transition[]> = {
-  draft: [{ to: "sent", label: "Enviar ao Cliente", variant: "default" }, { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
-  sent: [{ to: "client_approved", label: "Aprovar (Cliente)", variant: "default" }, { to: "client_rejected", label: "Reprovar (Cliente)", variant: "destructive", requiresNote: true }, { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
-  client_approved: [{ to: "financial_review", label: "Enviar Análise Financeira", variant: "default" }, { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
-  financial_review: [{ to: "technical_review", label: "Aprovar Financeiro", variant: "default" }, { to: "financial_rejected", label: "Reprovar Financeiro", variant: "destructive", requiresNote: true }, { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
-  technical_review: [{ to: "pcp_released", label: "Aprovar Técnico / Liberar PCP", variant: "default" }, { to: "technical_rejected", label: "Reprovar Técnico", variant: "destructive", requiresNote: true }, { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
-  pcp_released: [{ to: "in_production", label: "Iniciar Produção", variant: "default" }, { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
-  in_production: [{ to: "quality_check", label: "Enviar para CQ", variant: "default" }],
-  quality_check: [{ to: "billing", label: "Liberar Faturamento", variant: "default" }, { to: "in_production", label: "Retornar Produção", variant: "outline", requiresNote: true }],
-  billing: [{ to: "shipped", label: "Marcar como Expedido", variant: "default" }],
-  shipped: [{ to: "delivered", label: "Confirmar Entrega", variant: "default" }],
+  draft: [
+    { to: "awaiting_docs", label: "Aguardar Documentos", variant: "outline" },
+    { to: "sent", label: "Enviar ao Cliente", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  awaiting_docs: [
+    { to: "sent", label: "Enviar ao Cliente", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  sent: [
+    { to: "client_approved", label: "Aprovado pelo Cliente", variant: "default" },
+    { to: "client_rejected", label: "Reprovado pelo Cliente", variant: "destructive", requiresNote: true },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  client_approved: [
+    { to: "credit_check", label: "Iniciar Análise de Crédito", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  client_rejected: [
+    { to: "sent", label: "Reenviar ao Cliente", variant: "outline" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  credit_check: [
+    { to: "financial_review", label: "Crédito OK → Análise Financeira", variant: "default" },
+    { to: "credit_rejected", label: "Crédito Reprovado", variant: "destructive", requiresNote: true },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  credit_rejected: [
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  financial_review: [
+    { to: "technical_review", label: "Financeiro OK → Análise Técnica", variant: "default" },
+    { to: "financial_rejected", label: "Reprovar Financeiro", variant: "destructive", requiresNote: true },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  financial_rejected: [
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  technical_review: [
+    { to: "regulatory_check", label: "Técnico OK → Análise Regulatória", variant: "default" },
+    { to: "technical_rejected", label: "Reprovar Técnico", variant: "destructive", requiresNote: true },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  technical_rejected: [
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  regulatory_check: [
+    { to: "pcp_released", label: "Liberar para PCP", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  pcp_released: [
+    { to: "raw_material_check", label: "Verificar Matéria-Prima", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  raw_material_check: [
+    { to: "production_planned", label: "MP OK → Planejar Produção", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  production_planned: [
+    { to: "in_production", label: "Iniciar Produção", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  in_production: [
+    { to: "quality_check", label: "Enviar para CQ", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  quality_check: [
+    { to: "quality_approved", label: "CQ Aprovado", variant: "default" },
+    { to: "quality_rejected", label: "CQ Reprovado → Retrabalho", variant: "destructive", requiresNote: true },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  quality_rejected: [
+    { to: "in_production", label: "Retornar para Produção", variant: "outline" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  quality_approved: [
+    { to: "billing", label: "Liberar Faturamento", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  billing: [
+    { to: "invoice_issued", label: "NF Emitida", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  invoice_issued: [
+    { to: "awaiting_pickup", label: "Aguardar Coleta", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  awaiting_pickup: [
+    { to: "shipped", label: "Marcar como Expedido", variant: "default" },
+    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
+  ],
+  shipped: [
+    { to: "delivered", label: "Confirmar Entrega", variant: "default" },
+  ],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -700,7 +805,10 @@ function OrderDetailSheet({
                           )}
                           <StatusBadge status={log.toStatus} />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{fmtDateTime(log.createdAt)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {fmtDateTime(log.createdAt)}
+                          {log.userName && <span className="ml-1 font-medium">— {log.userName}</span>}
+                        </p>
                         {log.notes && <p className="text-xs text-foreground/80 mt-0.5 italic">"{log.notes}"</p>}
                       </div>
                     </div>
@@ -726,23 +834,42 @@ function OrderDetailSheet({
 // ─── Pipeline (Kanban) View ────────────────────────────────────────────────────
 
 function PipelineView({
-  orders, onOrderClick, onStatusChange,
+  orders, onOrderClick, onDndDrop,
 }: {
   orders: SalesOrder[];
   onOrderClick: (o: SalesOrder) => void;
-  onStatusChange: () => void;
+  onDndDrop: (order: SalesOrder, toStatus: OrderStatus) => void;
 }) {
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<OrderStatus | null>(null);
+  const draggingOrder = orders.find((o) => o.id === draggingId) ?? null;
+
   const columns = PIPELINE_STAGES.map((status) => ({
     status,
     label: STATUS_LABELS[status] ?? status,
     orders: orders.filter((o) => o.status === status && o.type === "order"),
   }));
 
+  const handleDrop = (targetStatus: OrderStatus) => {
+    if (draggingOrder && draggingOrder.status !== targetStatus) {
+      onDndDrop(draggingOrder, targetStatus);
+    }
+    setDraggingId(null);
+    setDragOverStatus(null);
+  };
+
   return (
     <div className="overflow-x-auto pb-4">
+      <p className="text-xs text-muted-foreground mb-3">Arraste os cartões entre colunas para mover o pedido de estágio.</p>
       <div className="flex gap-3 min-w-max">
         {columns.map((col) => (
-          <div key={col.status} className="w-56 flex-shrink-0">
+          <div
+            key={col.status}
+            className={`w-52 flex-shrink-0 rounded-lg p-1 transition-colors ${dragOverStatus === col.status ? "bg-primary/5 ring-1 ring-primary/30" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOverStatus(col.status); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverStatus(null); }}
+            onDrop={() => handleDrop(col.status)}
+          >
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">{col.label}</span>
               <span className="text-xs font-bold bg-muted text-muted-foreground rounded-full px-2 py-0.5">{col.orders.length}</span>
@@ -750,8 +877,11 @@ function PipelineView({
             <div className="space-y-2 min-h-[120px]">
               {col.orders.map((order) => (
                 <div key={order.id}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDraggingId(order.id); }}
+                  onDragEnd={() => { setDraggingId(null); setDragOverStatus(null); }}
                   onClick={() => onOrderClick(order)}
-                  className="bg-card border rounded-lg p-3 cursor-pointer hover:shadow-sm hover:border-primary/40 transition-all">
+                  className={`bg-card border rounded-lg p-3 cursor-grab active:cursor-grabbing hover:shadow-sm hover:border-primary/40 transition-all select-none ${draggingId === order.id ? "opacity-50 scale-95" : ""}`}>
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <span className="text-xs font-mono text-muted-foreground">#{order.id}</span>
                     {order.deliveryDate && new Date(order.deliveryDate) < new Date() && (
@@ -769,8 +899,8 @@ function PipelineView({
                 </div>
               ))}
               {col.orders.length === 0 && (
-                <div className="border-2 border-dashed rounded-lg h-16 flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground">Vazio</span>
+                <div className={`border-2 border-dashed rounded-lg h-16 flex items-center justify-center transition-colors ${dragOverStatus === col.status ? "border-primary/50 bg-primary/5" : ""}`}>
+                  <span className="text-xs text-muted-foreground">{dragOverStatus === col.status ? "Soltar aqui" : "Vazio"}</span>
                 </div>
               )}
             </div>
@@ -820,6 +950,22 @@ export default function VendasPage() {
   const deleteCMutation = useDeleteClient();
   const deleteOMutation = useDeleteSalesOrder();
   const convertMutation = useConvertQuoteToOrder();
+  const dndStatusMutation = useUpdateSalesOrderStatus();
+
+  const handleDndDrop = (order: SalesOrder, toStatus: OrderStatus) => {
+    if (order.status === toStatus) return;
+    const transitions = TRANSITIONS[order.status as OrderStatus] ?? [];
+    const t = transitions.find((tr) => tr.to === toStatus);
+    if (!t) return;
+    if (t.requiresNote) {
+      setDetailOrder(order);
+    } else {
+      dndStatusMutation.mutate(
+        { id: order.id, data: { status: toStatus } },
+        { onSuccess: () => invalidateOrders() }
+      );
+    }
+  };
 
   const filteredClients = useMemo(() => {
     if (!clientSearch) return activeClients;
@@ -988,6 +1134,53 @@ export default function VendasPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Overdue orders table */}
+            {(() => {
+              const overdueList = allOrders.filter(
+                (o) =>
+                  o.type === "order" &&
+                  o.deliveryDate &&
+                  new Date(o.deliveryDate) < new Date() &&
+                  !TERMINAL_STATUSES.includes(o.status)
+              );
+              if (overdueList.length === 0) return null;
+              return (
+                <Card className="border-destructive/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-4 w-4" /> Pedidos com Prazo Vencido ({overdueList.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">#</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Fórmula</TableHead>
+                          <TableHead>Prazo</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {overdueList.map((order) => (
+                          <TableRow key={order.id} className="cursor-pointer" onClick={() => setDetailOrder(order)}>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{order.id}</TableCell>
+                            <TableCell className="font-medium">{order.clientName ?? "—"}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{order.formula ?? "—"}</TableCell>
+                            <TableCell className="text-sm text-destructive font-medium">{fmtDate(order.deliveryDate)}</TableCell>
+                            <TableCell><StatusBadge status={order.status} /></TableCell>
+                            <TableCell className="text-right font-semibold tabular-nums">{fmt(order.totalAmount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </TabsContent>
 
           {/* ── PIPELINE TAB ──────────────────────────────────────────────── */}
@@ -995,7 +1188,7 @@ export default function VendasPage() {
             <PipelineView
               orders={allOrders}
               onOrderClick={(o) => setDetailOrder(o)}
-              onStatusChange={invalidateOrders}
+              onDndDrop={handleDndDrop}
             />
           </TabsContent>
 

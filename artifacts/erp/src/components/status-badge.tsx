@@ -45,6 +45,17 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   medium:       { label: "Média",          variant: "amber",  icon: ShieldAlert },
   high:         { label: "Alta",           variant: "orange", icon: ShieldAlert },
   critical:     { label: "Crítica",        variant: "red",    icon: ShieldAlert },
+  /* Vendas pipeline */
+  awaiting_docs:     { label: "Aguardando Docs",      variant: "amber",  icon: Clock },
+  credit_check:      { label: "Análise de Crédito",   variant: "blue",   icon: Loader2 },
+  credit_rejected:   { label: "Crédito Reprovado",    variant: "red",    icon: XCircle },
+  regulatory_check:  { label: "Análise Regulatória",  variant: "blue",   icon: Loader2 },
+  raw_material_check:{ label: "Verificação MP",        variant: "amber",  icon: Clock },
+  production_planned:{ label: "Prod. Planejada",       variant: "gray",   icon: CircleDot },
+  quality_rejected:  { label: "CQ Reprovado",          variant: "red",    icon: XCircle },
+  quality_approved:  { label: "CQ Aprovado",           variant: "green",  icon: CheckCircle2 },
+  invoice_issued:    { label: "NF Emitida",            variant: "green",  icon: CheckCircle2 },
+  awaiting_pickup:   { label: "Aguardando Coleta",     variant: "amber",  icon: Clock },
   /* Neutral / gray */
   draft:        { label: "Rascunho",       variant: "gray",   icon: CircleDot },
   todo:         { label: "A fazer",        variant: "gray",   icon: CircleDot },

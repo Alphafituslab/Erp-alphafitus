@@ -451,7 +451,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
+            enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
         - name: clientId
           in: query
           schema:
@@ -3154,7 +3154,7 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
+          enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
         totalAmount:
           type: string
         validUntil:
@@ -3226,7 +3226,7 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
+          enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
         totalAmount:
           type: string
         validUntil:
@@ -3292,7 +3292,7 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
+          enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
         validUntil:
           type: string
           format: date-time
@@ -3343,7 +3343,7 @@ components:
       properties:
         status:
           type: string
-          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
+          enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
         notes:
           type: string
           nullable: true

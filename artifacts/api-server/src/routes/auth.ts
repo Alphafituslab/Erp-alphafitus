@@ -39,6 +39,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
   req.session.userId = user.id;
   req.session.role = user.role;
+  req.session.userName = user.name ?? user.email;
   req.session.save((err) => {
     if (err) {
       req.log.error({ err }, "Session save error");

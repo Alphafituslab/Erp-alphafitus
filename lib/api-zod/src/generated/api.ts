@@ -282,7 +282,7 @@ export const DeleteClientResponse = zod.object({
  */
 export const ListSalesOrdersQueryParams = zod.object({
   "type": zod.enum(['quote', 'order']).optional(),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']).optional(),
   "clientId": zod.coerce.number().optional(),
   "startDate": zod.date().optional(),
   "endDate": zod.date().optional()
@@ -293,7 +293,7 @@ export const ListSalesOrdersResponseItem = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -319,7 +319,7 @@ export const ListSalesOrdersResponse = zod.array(ListSalesOrdersResponseItem)
 export const CreateSalesOrderBody = zod.object({
   "clientId": zod.number().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']).optional(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
@@ -353,7 +353,7 @@ export const GetSalesOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -391,7 +391,7 @@ export const UpdateSalesOrderParams = zod.object({
 export const UpdateSalesOrderBody = zod.object({
   "clientId": zod.number().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']).optional(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
@@ -417,7 +417,7 @@ export const UpdateSalesOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -480,7 +480,7 @@ export const ConvertQuoteToOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -507,7 +507,7 @@ export const UpdateSalesOrderStatusParams = zod.object({
 })
 
 export const UpdateSalesOrderStatusBody = zod.object({
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
   "notes": zod.string().nullish()
 })
 
@@ -516,7 +516,7 @@ export const UpdateSalesOrderStatusResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),

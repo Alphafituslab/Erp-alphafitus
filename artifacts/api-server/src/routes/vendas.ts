@@ -1,21 +1,67 @@
 import { Router, type IRouter } from "express";
 import { and, eq, gte, lte, sql, desc, isNotNull } from "drizzle-orm";
-import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable } from "@workspace/db";
+import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable, usersTable } from "@workspace/db";
 import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
 const ALL_STATUSES = [
-  "draft", "sent", "client_approved", "client_rejected",
+  "draft", "awaiting_docs", "sent",
+  "client_approved", "client_rejected",
+  "credit_check", "credit_rejected",
   "financial_review", "financial_rejected",
   "technical_review", "technical_rejected",
-  "pcp_released", "in_production", "quality_check",
-  "billing", "shipped", "delivered", "cancelled",
+  "regulatory_check", "pcp_released", "raw_material_check",
+  "production_planned", "in_production",
+  "quality_check", "quality_rejected", "quality_approved",
+  "billing", "invoice_issued", "awaiting_pickup",
+  "shipped", "delivered", "cancelled",
 ] as const;
 
-const OPEN_STATUSES = ALL_STATUSES.filter(
-  (s) => !["delivered", "cancelled", "client_rejected", "financial_rejected", "technical_rejected"].includes(s)
-);
+type OrderStatus = typeof ALL_STATUSES[number];
+
+const TERMINAL_STATUSES: OrderStatus[] = [
+  "delivered", "cancelled",
+  "client_rejected", "credit_rejected",
+  "financial_rejected", "technical_rejected", "quality_rejected",
+];
+
+const OPEN_STATUSES = ALL_STATUSES.filter((s) => !TERMINAL_STATUSES.includes(s as OrderStatus));
+
+// Server-side state machine: defines allowed next statuses from each status
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  draft:              ["awaiting_docs", "sent", "cancelled"],
+  awaiting_docs:      ["sent", "cancelled"],
+  sent:               ["client_approved", "client_rejected", "cancelled"],
+  client_approved:    ["credit_check", "cancelled"],
+  client_rejected:    ["sent", "cancelled"],
+  credit_check:       ["financial_review", "credit_rejected", "cancelled"],
+  credit_rejected:    ["cancelled"],
+  financial_review:   ["technical_review", "financial_rejected", "cancelled"],
+  financial_rejected: ["cancelled"],
+  technical_review:   ["regulatory_check", "technical_rejected", "cancelled"],
+  technical_rejected: ["cancelled"],
+  regulatory_check:   ["pcp_released", "cancelled"],
+  pcp_released:       ["raw_material_check", "cancelled"],
+  raw_material_check: ["production_planned", "cancelled"],
+  production_planned: ["in_production", "cancelled"],
+  in_production:      ["quality_check", "cancelled"],
+  quality_check:      ["quality_approved", "quality_rejected", "cancelled"],
+  quality_rejected:   ["in_production", "cancelled"],
+  quality_approved:   ["billing", "cancelled"],
+  billing:            ["invoice_issued", "cancelled"],
+  invoice_issued:     ["awaiting_pickup", "cancelled"],
+  awaiting_pickup:    ["shipped", "cancelled"],
+  shipped:            ["delivered"],
+  delivered:          [],
+  cancelled:          [],
+};
+
+// Critical transitions that require a non-empty justification note
+const REQUIRE_NOTES_FOR: Set<OrderStatus> = new Set([
+  "client_rejected", "credit_rejected", "financial_rejected",
+  "technical_rejected", "quality_rejected", "cancelled",
+]);
 
 function requireAuth(req: Request, res: Response): boolean {
   if (!req.session.userId) {
@@ -406,8 +452,10 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
   if (!id) return;
 
   const { status, notes } = req.body;
-  if (!status || !ALL_STATUSES.includes(status as any)) {
-    res.status(400).json({ error: `Status inválido. Valores aceitos: ${ALL_STATUSES.join(", ")}` });
+  const toStatus = status as OrderStatus;
+
+  if (!status || !ALL_STATUSES.includes(toStatus)) {
+    res.status(400).json({ error: `Status inválido.` });
     return;
   }
 
@@ -417,9 +465,24 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
     return;
   }
 
+  const fromStatus = current.status as OrderStatus;
+
+  // Enforce state machine: validate the transition is allowed
+  const allowedNext = ALLOWED_TRANSITIONS[fromStatus] ?? [];
+  if (!allowedNext.includes(toStatus)) {
+    res.status(422).json({ error: `Transição não permitida: ${fromStatus} → ${toStatus}. Próximos válidos: ${allowedNext.join(", ") || "nenhum"}` });
+    return;
+  }
+
+  // Enforce mandatory justification for critical transitions
+  if (REQUIRE_NOTES_FOR.has(toStatus) && !notes?.trim()) {
+    res.status(422).json({ error: "Justificativa obrigatória para esta transição." });
+    return;
+  }
+
   const [updated] = await db
     .update(salesOrdersTable)
-    .set({ status })
+    .set({ status: toStatus })
     .where(eq(salesOrdersTable.id, id))
     .returning();
 
@@ -430,10 +493,10 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
 
   await db.insert(salesOrderLogsTable).values({
     salesOrderId: id,
-    fromStatus: current.status,
-    toStatus: status,
+    fromStatus,
+    toStatus,
     userId: req.session.userId ?? null,
-    notes: notes ?? null,
+    notes: notes?.trim() || null,
   });
 
   const clientName = updated.clientId
@@ -456,8 +519,18 @@ router.get("/vendas/orders/:id/logs", async (req: Request, res: Response): Promi
   }
 
   const logs = await db
-    .select()
+    .select({
+      id: salesOrderLogsTable.id,
+      salesOrderId: salesOrderLogsTable.salesOrderId,
+      fromStatus: salesOrderLogsTable.fromStatus,
+      toStatus: salesOrderLogsTable.toStatus,
+      userId: salesOrderLogsTable.userId,
+      userName: usersTable.name,
+      notes: salesOrderLogsTable.notes,
+      createdAt: salesOrderLogsTable.createdAt,
+    })
     .from(salesOrderLogsTable)
+    .leftJoin(usersTable, eq(salesOrderLogsTable.userId, usersTable.id))
     .where(eq(salesOrderLogsTable.salesOrderId, id))
     .orderBy(desc(salesOrderLogsTable.createdAt));
 
@@ -474,7 +547,7 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const CANCELLED_SQL = `status NOT IN ('cancelled', 'client_rejected', 'financial_rejected', 'technical_rejected')`;
+  const CANCELLED_SQL = `status NOT IN ('cancelled', 'client_rejected', 'credit_rejected', 'financial_rejected', 'technical_rejected', 'quality_rejected')`;
 
   const [monthlyStats] = await db
     .select({
@@ -509,7 +582,7 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
     ? Math.round((totalOrdersYear / (totalQuotes + totalOrdersYear)) * 100)
     : 0;
 
-  const NOT_TERMINAL_SQL = `status NOT IN ('delivered', 'cancelled', 'client_rejected', 'financial_rejected', 'technical_rejected')`;
+  const NOT_TERMINAL_SQL = `status NOT IN ('delivered', 'cancelled', 'client_rejected', 'credit_rejected', 'financial_rejected', 'technical_rejected', 'quality_rejected')`;
 
   const [openStats] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
@@ -577,7 +650,7 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
     .innerJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
     .where(and(
       eq(salesOrdersTable.type, "order"),
-      sql`${salesOrdersTable.status} NOT IN ('cancelled', 'client_rejected', 'financial_rejected', 'technical_rejected')`
+      sql`${salesOrdersTable.status} NOT IN ('cancelled', 'client_rejected', 'credit_rejected', 'financial_rejected', 'technical_rejected', 'quality_rejected')`
     ))
     .groupBy(clientsTable.id, clientsTable.name)
     .orderBy(desc(sql`SUM(${salesOrdersTable.totalAmount}::numeric)`))
