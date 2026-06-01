@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Link } from "wouter";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/contexts/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -585,17 +586,15 @@ export default function RelatoriosPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {isEmployee ? "Minhas Tarefas" : "Dashboard Gerencial"}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {isEmployee
+      <div className="space-y-6">
+        <PageHeader
+          title={isEmployee ? "Minhas Tarefas" : "Dashboard Gerencial"}
+          subtitle={
+            isEmployee
               ? "Suas tarefas atribuídas e acesso aos módulos"
-              : "Visão executiva consolidada de todos os módulos"}
-          </p>
-        </div>
+              : "Visão executiva consolidada de todos os módulos"
+          }
+        />
 
         {isEmployee ? <EmployeeDashboard /> : <ExecutiveDashboard />}
       </div>

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListClients,
@@ -406,12 +407,10 @@ export default function VendasPage() {
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Vendas / Comercial</h1>
-            <p className="text-muted-foreground text-sm mt-1">Clientes, orçamentos e pedidos</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Vendas / Comercial"
+          subtitle="Clientes, orçamentos e pedidos"
+        />
 
         <Tabs defaultValue="dashboard">
           <TabsList>

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListQualityInspections,
@@ -533,10 +534,10 @@ export default function QualidadePage() {
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Controle de Qualidade</h1>
-          <p className="text-muted-foreground text-sm mt-1">Inspeções, não conformidades e indicadores de qualidade</p>
-        </div>
+        <PageHeader
+          title="Controle de Qualidade"
+          subtitle="Inspeções, não conformidades e indicadores de qualidade"
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>

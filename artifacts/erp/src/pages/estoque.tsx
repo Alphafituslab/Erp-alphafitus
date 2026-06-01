@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
@@ -496,10 +497,10 @@ export default function EstoquePage() {
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Estoque</h1>
-          <p className="text-muted-foreground text-sm mt-1">Produtos, níveis de estoque e movimentações</p>
-        </div>
+        <PageHeader
+          title="Estoque"
+          subtitle="Produtos, níveis de estoque e movimentações"
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>

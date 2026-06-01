@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListEmployees,
@@ -890,12 +891,10 @@ export default function RhPage() {
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Recursos Humanos</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Funcionários, departamentos e controle de ponto
-          </p>
-        </div>
+        <PageHeader
+          title="Recursos Humanos"
+          subtitle="Funcionários, departamentos e controle de ponto"
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>

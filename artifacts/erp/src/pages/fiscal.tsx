@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -550,16 +551,16 @@ export default function FiscalPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Fiscal</h1>
-            <p className="text-muted-foreground text-sm">Registro de documentos fiscais e apuração de impostos</p>
-          </div>
-          <Button onClick={openNew}>
-            <Plus className="h-4 w-4 mr-2" /> Novo Documento
-          </Button>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="Fiscal"
+          subtitle="Registro de documentos fiscais e apuração de impostos"
+          actions={
+            <Button onClick={openNew} size="sm">
+              <Plus className="h-4 w-4 mr-1.5" /> Novo Documento
+            </Button>
+          }
+        />
 
         {/* Dashboard cards */}
         {dash && (

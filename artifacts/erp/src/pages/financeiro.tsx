@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
+import { PageHeader } from "@/components/page-header";
 import {
   useListFinancialEntries,
   useCreateFinancialEntry,
@@ -324,17 +325,16 @@ export default function FinanceiroPage() {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Financeiro</h1>
-            <p className="text-muted-foreground text-sm mt-1">Contas a pagar e a receber</p>
-          </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Lançamento
-          </Button>
-        </div>
+        <PageHeader
+          title="Financeiro"
+          subtitle="Contas a pagar e a receber"
+          actions={
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Novo Lançamento
+            </Button>
+          }
+        />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
