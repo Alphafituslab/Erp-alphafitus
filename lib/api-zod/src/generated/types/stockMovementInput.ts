@@ -9,6 +9,7 @@ import type { StockMovementInputType } from './stockMovementInputType';
 
 export interface StockMovementInput {
   productId: number;
+  lotId?: number | null;
   type: StockMovementInputType;
   quantity: number;
   reason?: string | null;

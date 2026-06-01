@@ -3896,6 +3896,12 @@ components:
         reason:
           type: string
           nullable: true
+        lotId:
+          type: integer
+          nullable: true
+        lotInternalLot:
+          type: string
+          nullable: true
         referenceId:
           type: integer
           nullable: true
@@ -3918,6 +3924,9 @@ components:
       properties:
         productId:
           type: integer
+        lotId:
+          type: integer
+          nullable: true
         type:
           type: string
           enum: [input, output]
@@ -3964,6 +3973,12 @@ components:
           type: integer
         quarantineLots:
           type: integer
+        quarantineAgingLots:
+          type: integer
+        quarantineAgingList:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductLot"
         expiringLotsList:
           type: array
           items:

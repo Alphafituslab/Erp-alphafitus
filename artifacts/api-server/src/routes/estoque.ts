@@ -174,6 +174,8 @@ router.get("/estoque/movements", async (req: Request, res: Response): Promise<vo
       id: stockMovementsTable.id,
       productId: stockMovementsTable.productId,
       productName: productsTable.name,
+      lotId: stockMovementsTable.lotId,
+      lotInternalLot: productLotsTable.internalLot,
       type: stockMovementsTable.type,
       quantity: stockMovementsTable.quantity,
       reason: stockMovementsTable.reason,
@@ -184,6 +186,7 @@ router.get("/estoque/movements", async (req: Request, res: Response): Promise<vo
     })
     .from(stockMovementsTable)
     .leftJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
+    .leftJoin(productLotsTable, eq(stockMovementsTable.lotId, productLotsTable.id))
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(stockMovementsTable.createdAt))
     .limit(200);
@@ -194,7 +197,7 @@ router.get("/estoque/movements", async (req: Request, res: Response): Promise<vo
 router.post("/estoque/movements", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { productId, type, quantity, reason, notes } = req.body;
+  const { productId, lotId, type, quantity, reason, notes } = req.body;
 
   if (!productId || isNaN(parseInt(productId))) {
     res.status(400).json({ error: "Produto é obrigatório" });
@@ -211,9 +214,11 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
   }
 
   const pid = parseInt(productId);
+  const lid = lotId ? parseInt(lotId) : null;
 
   let resultMovement: typeof stockMovementsTable.$inferSelect | undefined;
   let productName: string | undefined;
+  let lotInternalLot: string | undefined;
 
   try {
     await db.transaction(async (tx) => {
@@ -226,8 +231,48 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
       if (!product) {
         throw Object.assign(new Error("Produto não encontrado"), { status: 404 });
       }
-
       productName = product.name;
+
+      // If a lotId is provided, validate and update lot quantities
+      if (lid !== null) {
+        const [lot] = await tx.select().from(productLotsTable).where(eq(productLotsTable.id, lid)).for("update");
+        if (!lot) throw Object.assign(new Error("Lote não encontrado"), { status: 404 });
+        if (lot.productId !== pid) throw Object.assign(new Error("Lote não pertence a este produto"), { status: 400 });
+        if (lot.cqStatus !== "approved") throw Object.assign(new Error(`Lote em status "${lot.cqStatus}" — somente lotes aprovados podem ser movimentados`), { status: 400 });
+
+        lotInternalLot = lot.internalLot;
+
+        if (type === "output") {
+          if (lot.availableQty < qty) {
+            throw Object.assign(new Error(`Disponível no lote ${lot.internalLot}: ${lot.availableQty}`), { status: 400 });
+          }
+          await tx.update(productLotsTable)
+            .set({
+              availableQty: sql`${productLotsTable.availableQty} - ${qty}`,
+              totalQty: sql`${productLotsTable.totalQty} - ${qty}`,
+            })
+            .where(eq(productLotsTable.id, lid));
+        } else {
+          await tx.update(productLotsTable)
+            .set({
+              availableQty: sql`${productLotsTable.availableQty} + ${qty}`,
+              totalQty: sql`${productLotsTable.totalQty} + ${qty}`,
+            })
+            .where(eq(productLotsTable.id, lid));
+        }
+
+        await tx.insert(lotMovementsTable).values({
+          lotId: lid,
+          productId: pid,
+          warehouseId: lot.warehouseId ?? null,
+          type,
+          quantity: qty,
+          reason: reason || null,
+          notes: notes || null,
+          userId: req.session.userId ?? null,
+          referenceType: "manual",
+        });
+      }
 
       if (type === "output") {
         if (product.currentStock < qty) {
@@ -264,10 +309,11 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
         .insert(stockMovementsTable)
         .values({
           productId: pid,
+          lotId: lid,
           type,
           quantity: qty,
           reason: reason || null,
-          referenceType: "manual",
+          referenceType: lid ? "lot" : "manual",
           notes: notes || null,
         })
         .returning();
@@ -281,7 +327,7 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
     return;
   }
 
-  res.status(201).json({ ...resultMovement, productName });
+  res.status(201).json({ ...resultMovement, productName, lotInternalLot });
 });
 
 // ─── Warehouses / Depósitos ───────────────────────────────────────────────────
@@ -791,11 +837,14 @@ router.get("/estoque/dashboard", async (req: Request, res: Response): Promise<vo
 
   const hasQtyFilter = and(isNotNull(productLotsTable.expirationDate), sql`${productLotsTable.totalQty} > 0`);
 
+  // "quarantine aging" = in quarantine for more than 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+
   const [
     [totalRow], [lowRow], [outRow], [valueRow],
     lowStockProducts, recentMovements,
-    [exp30Row], [exp60Row], [exp90Row], [quarantineRow],
-    expiringLotsList, quarantineLotsList,
+    [exp30Row], [exp60Row], [exp90Row], [quarantineRow], [quarantineAgingRow],
+    expiringLotsList, quarantineLotsList, quarantineAgingList,
   ] = await Promise.all([
     db.select({ count: sql<number>`COUNT(*)::int` }).from(productsTable).where(eq(productsTable.active, "true")),
     db.select({ count: sql<number>`COUNT(*)::int` }).from(productsTable).where(
@@ -812,11 +861,16 @@ router.get("/estoque/dashboard", async (req: Request, res: Response): Promise<vo
     ).orderBy(productsTable.currentStock).limit(10),
     db.select({
       id: stockMovementsTable.id, productId: stockMovementsTable.productId,
-      productName: productsTable.name, type: stockMovementsTable.type,
+      productName: productsTable.name,
+      lotId: stockMovementsTable.lotId,
+      lotInternalLot: productLotsTable.internalLot,
+      type: stockMovementsTable.type,
       quantity: stockMovementsTable.quantity, reason: stockMovementsTable.reason,
       referenceId: stockMovementsTable.referenceId, referenceType: stockMovementsTable.referenceType,
       notes: stockMovementsTable.notes, createdAt: stockMovementsTable.createdAt,
-    }).from(stockMovementsTable).leftJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
+    }).from(stockMovementsTable)
+      .leftJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
+      .leftJoin(productLotsTable, eq(stockMovementsTable.lotId, productLotsTable.id))
       .orderBy(desc(stockMovementsTable.createdAt)).limit(5),
 
     db.select({ count: sql<number>`COUNT(*)::int` }).from(productLotsTable).where(
@@ -831,6 +885,14 @@ router.get("/estoque/dashboard", async (req: Request, res: Response): Promise<vo
     db.select({ count: sql<number>`COUNT(*)::int` }).from(productLotsTable).where(
       and(eq(productLotsTable.cqStatus, "quarantine"), sql`${productLotsTable.totalQty} > 0`)
     ),
+    // quarantine aging: lots in quarantine for > 30 days
+    db.select({ count: sql<number>`COUNT(*)::int` }).from(productLotsTable).where(
+      and(
+        eq(productLotsTable.cqStatus, "quarantine"),
+        sql`${productLotsTable.totalQty} > 0`,
+        sql`${productLotsTable.createdAt} < ${thirtyDaysAgo}`
+      )
+    ),
     db.select(LOT_SELECT).from(productLotsTable)
       .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
       .leftJoin(warehousesTable, eq(productLotsTable.warehouseId, warehousesTable.id))
@@ -840,6 +902,16 @@ router.get("/estoque/dashboard", async (req: Request, res: Response): Promise<vo
       .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
       .leftJoin(warehousesTable, eq(productLotsTable.warehouseId, warehousesTable.id))
       .where(and(eq(productLotsTable.cqStatus, "quarantine"), sql`${productLotsTable.totalQty} > 0`))
+      .orderBy(productLotsTable.createdAt).limit(10),
+    // quarantine aging list
+    db.select(LOT_SELECT).from(productLotsTable)
+      .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
+      .leftJoin(warehousesTable, eq(productLotsTable.warehouseId, warehousesTable.id))
+      .where(and(
+        eq(productLotsTable.cqStatus, "quarantine"),
+        sql`${productLotsTable.totalQty} > 0`,
+        sql`${productLotsTable.createdAt} < ${thirtyDaysAgo}`
+      ))
       .orderBy(productLotsTable.createdAt).limit(10),
   ]);
 
@@ -854,8 +926,10 @@ router.get("/estoque/dashboard", async (req: Request, res: Response): Promise<vo
     expiringLots60:  Number(exp60Row?.count  ?? 0),
     expiringLots90:  Number(exp90Row?.count  ?? 0),
     quarantineLots:  Number(quarantineRow?.count ?? 0),
+    quarantineAgingLots: Number(quarantineAgingRow?.count ?? 0),
     expiringLotsList,
     quarantineLotsList,
+    quarantineAgingList,
   });
 });
 

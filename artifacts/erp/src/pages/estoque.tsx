@@ -218,6 +218,7 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
 
 const movementSchema = z.object({
   productId: z.string().min(1, "Selecione um produto"),
+  lotId: z.string().optional(),
   type: z.enum(["input", "output"]),
   quantity: z.string().refine((v) => parseInt(v) > 0, "Deve ser ≥ 1"),
   reason: z.string().optional(),
@@ -225,28 +226,64 @@ const movementSchema = z.object({
 });
 type MovementForm = z.infer<typeof movementSchema>;
 
-function MovementDialog({ open, onClose, products, defaultProductId }: { open: boolean; onClose: () => void; products: Product[]; defaultProductId?: number }) {
+function MovementDialog({ open, onClose, products, lots, defaultProductId }: {
+  open: boolean; onClose: () => void; products: Product[]; lots: ProductLot[]; defaultProductId?: number;
+}) {
   const qc = useQueryClient();
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
     qc.invalidateQueries({ queryKey: getListStockMovementsQueryKey() });
     qc.invalidateQueries({ queryKey: getGetEstoqueDashboardQueryKey() });
+    qc.invalidateQueries({ queryKey: getListProductLotsQueryKey() });
   };
   const createMutation = useCreateStockMovement();
 
   const form = useForm<MovementForm>({
     resolver: zodResolver(movementSchema),
-    defaultValues: { productId: defaultProductId ? String(defaultProductId) : "", type: "input", quantity: "1", reason: "", notes: "" },
+    defaultValues: { productId: defaultProductId ? String(defaultProductId) : "", lotId: "none", type: "input", quantity: "1", reason: "", notes: "" },
   });
 
   const selectedProductId = parseInt(form.watch("productId") || "0");
+  const movType = form.watch("type");
+  const selectedLotId = form.watch("lotId");
+
   const selectedProduct = products.find((p) => p.id === selectedProductId);
 
+  // Available lots for this product, approved only, sorted by expiry (FEFO)
+  const productLots = useMemo(() => {
+    if (!selectedProductId) return [];
+    return lots
+      .filter((l) => l.productId === selectedProductId && l.cqStatus === "approved" && l.availableQty > 0)
+      .sort((a, b) => {
+        if (!a.expirationDate) return 1;
+        if (!b.expirationDate) return -1;
+        return a.expirationDate.localeCompare(b.expirationDate);
+      });
+  }, [selectedProductId, lots]);
+
+  const fefoLot = productLots[0];
+  const selectedLot = productLots.find((l) => String(l.id) === selectedLotId);
+
+  // Auto-suggest FEFO lot for output
+  const handleProductChange = (pid: string) => {
+    form.setValue("productId", pid);
+    form.setValue("lotId", "none");
+  };
+  const handleTypeChange = (t: string) => {
+    form.setValue("type", t as "input" | "output");
+    if (t === "output" && fefoLot) {
+      form.setValue("lotId", String(fefoLot.id));
+    } else {
+      form.setValue("lotId", "none");
+    }
+  };
+
   const onSubmit = form.handleSubmit((data) => {
+    const lid = data.lotId && data.lotId !== "none" ? parseInt(data.lotId) : null;
     createMutation.mutate(
-      { data: { productId: parseInt(data.productId), type: data.type, quantity: parseInt(data.quantity), reason: data.reason || null, notes: data.notes || null } },
+      { data: { productId: parseInt(data.productId), lotId: lid, type: data.type, quantity: parseInt(data.quantity), reason: data.reason || null, notes: data.notes || null } },
       {
-        onSuccess: () => { invalidateAll(); onClose(); form.reset({ productId: "", type: "input", quantity: "1", reason: "", notes: "" }); },
+        onSuccess: () => { invalidateAll(); onClose(); form.reset({ productId: "", lotId: "none", type: "input", quantity: "1", reason: "", notes: "" }); },
         onError: (err: any) => { form.setError("quantity", { message: err?.data?.error ?? "Erro ao registrar" }); },
       }
     );
@@ -260,7 +297,7 @@ function MovementDialog({ open, onClose, products, defaultProductId }: { open: b
           <div className="space-y-1">
             <label className="text-sm font-medium">Produto *</label>
             <Controller control={form.control} name="productId" render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select value={field.value} onValueChange={handleProductChange}>
                 <SelectTrigger><SelectValue placeholder="Selecionar produto…" /></SelectTrigger>
                 <SelectContent>{products.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}{p.sku ? ` (${p.sku})` : ""}</SelectItem>)}</SelectContent>
               </Select>
@@ -277,7 +314,7 @@ function MovementDialog({ open, onClose, products, defaultProductId }: { open: b
             <div className="space-y-1">
               <label className="text-sm font-medium">Tipo</label>
               <Controller control={form.control} name="type" render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={handleTypeChange}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="input"><span className="flex items-center gap-1.5"><ArrowDown className="h-3.5 w-3.5 text-green-600" /> Entrada</span></SelectItem>
@@ -288,10 +325,43 @@ function MovementDialog({ open, onClose, products, defaultProductId }: { open: b
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Quantidade *</label>
-              <Input {...form.register("quantity")} type="number" min="1" step="1" />
+              <Input {...form.register("quantity")} type="number" min="1" step="1" max={selectedLot ? selectedLot.availableQty : undefined} />
               {form.formState.errors.quantity && <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>}
             </div>
           </div>
+
+          {/* Lot picker — visible when product is selected and lots exist */}
+          {selectedProductId > 0 && productLots.length > 0 && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                Lote
+                {movType === "output" && fefoLot && <span className="text-xs text-blue-600 font-normal">(FEFO: {fefoLot.internalLot} vence {fmtDate(fefoLot.expirationDate)})</span>}
+              </label>
+              <Controller control={form.control} name="lotId" render={({ field }) => (
+                <Select value={field.value || "none"} onValueChange={field.onChange}>
+                  <SelectTrigger><SelectValue placeholder="Sem lote específico" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem lote específico</SelectItem>
+                    {productLots.map((l) => (
+                      <SelectItem key={l.id} value={String(l.id)}>
+                        {l.internalLot}{l.expirationDate ? ` · val ${fmtDate(l.expirationDate)}` : ""} · {l.availableQty} {l.productUnit ?? "un"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )} />
+              {selectedLot && (
+                <p className="text-xs text-muted-foreground">
+                  Disponível no lote: <span className="font-semibold">{selectedLot.availableQty} {selectedLot.productUnit ?? "un"}</span>
+                  {selectedLot.expirationDate && <> · Validade: <ExpiryBadge expirationDate={selectedLot.expirationDate} /></>}
+                </p>
+              )}
+              {movType === "output" && productLots.length > 0 && (!selectedLotId || selectedLotId === "none") && (
+                <p className="text-xs text-amber-600">Sugerido pelo FEFO: selecione o lote mais antigo ({fefoLot?.internalLot})</p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1"><label className="text-sm font-medium">Motivo</label><Input {...form.register("reason")} placeholder="Ex: Compra, Venda, Ajuste manual…" /></div>
           <div className="space-y-1"><label className="text-sm font-medium">Observações</label><Input {...form.register("notes")} placeholder="Opcional" /></div>
           <DialogFooter className="pt-2">
@@ -463,10 +533,10 @@ function LotDialog({
             <div className="space-y-1">
               <label className="text-sm font-medium">Depósito</label>
               <Controller control={form.control} name="warehouseId" render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem depósito</SelectItem>
+                    <SelectItem value="none">Sem depósito</SelectItem>
                     {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name} ({w.code})</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -947,6 +1017,36 @@ export default function EstoquePage() {
               </Card>
             </div>
 
+            {/* KPI row 3 — quarantine aging alert */}
+            {(dashboard?.quarantineAgingLots ?? 0) > 0 && (
+              <div className="grid grid-cols-1 gap-4">
+                <Card className="cursor-pointer border-red-200 hover:border-red-400 transition-colors bg-red-50" onClick={() => goToLotsWithFilter("quarantine")}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                      <CardTitle className="text-sm font-medium text-red-700">
+                        {dashboard?.quarantineAgingLots} {dashboard?.quarantineAgingLots === 1 ? "lote" : "lotes"} em quarentena há mais de 30 dias — requer ação do CQ
+                      </CardTitle>
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 text-xs h-7" onClick={(e) => { e.stopPropagation(); goToLotsWithFilter("quarantine"); }}>
+                      Ver lotes →
+                    </Button>
+                  </CardHeader>
+                  {(dashboard?.quarantineAgingList ?? []).length > 0 && (
+                    <CardContent className="pt-0 pb-3">
+                      <div className="flex flex-wrap gap-2">
+                        {(dashboard?.quarantineAgingList ?? []).map((l) => (
+                          <Badge key={l.id} variant="outline" className="border-red-300 text-red-700 bg-white font-mono text-xs cursor-pointer" onClick={() => { setSelectedLot(l); setActiveTab("lots"); }}>
+                            {l.internalLot} · {l.productName ?? "—"} · {l.totalQty} {l.productUnit ?? "un"}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              </div>
+            )}
+
             {/* Expiring lots + quarantine lists */}
             {((dashboard?.expiringLotsList ?? []).length > 0 || (dashboard?.quarantineLotsList ?? []).length > 0) && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -1288,7 +1388,7 @@ export default function EstoquePage() {
       {/* ── Dialogs ──────────────────────────────────────────────────── */}
       <ProductDialog open={productDialog} onClose={() => { setProductDialog(false); setEditingProduct(null); }} editing={editingProduct} />
 
-      <MovementDialog open={movementDialog} onClose={() => { setMovementDialog(false); setMovementProductId(undefined); }} products={activeProducts} defaultProductId={movementProductId} />
+      <MovementDialog open={movementDialog} onClose={() => { setMovementDialog(false); setMovementProductId(undefined); }} products={activeProducts} lots={lots} defaultProductId={movementProductId} />
 
       <LotDialog
         open={lotDialog}

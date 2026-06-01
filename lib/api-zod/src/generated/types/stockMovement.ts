@@ -14,6 +14,8 @@ export interface StockMovement {
   type: StockMovementType;
   quantity: number;
   reason?: string | null;
+  lotId?: number | null;
+  lotInternalLot?: string | null;
   referenceId?: number | null;
   referenceType?: string | null;
   notes?: string | null;

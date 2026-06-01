@@ -463,6 +463,8 @@ export interface StockMovement {
   type: StockMovementType;
   quantity: number;
   reason?: string | null;
+  lotId?: number | null;
+  lotInternalLot?: string | null;
   referenceId?: number | null;
   referenceType?: string | null;
   notes?: string | null;
@@ -479,6 +481,7 @@ export const StockMovementInputType = {
 
 export interface StockMovementInput {
   productId: number;
+  lotId?: number | null;
   type: StockMovementInputType;
   quantity: number;
   reason?: string | null;
@@ -527,6 +530,8 @@ export interface EstoqueDashboard {
   expiringLots60?: number;
   expiringLots90?: number;
   quarantineLots?: number;
+  quarantineAgingLots?: number;
+  quarantineAgingList?: ProductLot[];
   expiringLotsList?: ProductLot[];
   quarantineLotsList?: ProductLot[];
 }

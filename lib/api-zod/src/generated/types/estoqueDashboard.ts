@@ -20,6 +20,8 @@ export interface EstoqueDashboard {
   expiringLots60?: number;
   expiringLots90?: number;
   quarantineLots?: number;
+  quarantineAgingLots?: number;
+  quarantineAgingList?: ProductLot[];
   expiringLotsList?: ProductLot[];
   quarantineLotsList?: ProductLot[];
 }

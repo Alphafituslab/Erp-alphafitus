@@ -7,11 +7,12 @@ import { z } from "zod/v4";
 export const stockMovementsTable = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull().references(() => productsTable.id),
-  type: text("type").notNull(), // "input" | "output"
+  lotId: integer("lot_id"),            // optional: which product_lot this movement is tied to
+  type: text("type").notNull(),        // "input" | "output"
   quantity: integer("quantity").notNull(),
   reason: text("reason"),
   referenceId: integer("reference_id"), // purchase_order or sales_order id
-  referenceType: text("reference_type"), // "purchase_order" | "sales_order" | "manual"
+  referenceType: text("reference_type"), // "purchase_order" | "sales_order" | "manual" | "lot_entry"
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
