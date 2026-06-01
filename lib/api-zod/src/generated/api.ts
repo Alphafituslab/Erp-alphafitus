@@ -612,6 +612,330 @@ export const GetEstoqueDashboardResponse = zod.object({
 
 
 /**
+ * @summary List suppliers with optional search
+ */
+export const ListSuppliersQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "active": zod.enum(['true', 'false']).optional(),
+  "category": zod.coerce.string().optional()
+})
+
+export const ListSuppliersResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
+
+
+/**
+ * @summary Create a new supplier
+ */
+export const CreateSupplierBody = zod.object({
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a supplier
+ */
+export const UpdateSupplierParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSupplierBody = zod.object({
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateSupplierResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Soft-delete a supplier (set active=false)
+ */
+export const DeleteSupplierParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteSupplierResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List purchase orders with optional filters
+ */
+export const ListPurchaseOrdersQueryParams = zod.object({
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']).optional(),
+  "supplierId": zod.coerce.number().optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional()
+})
+
+export const ListPurchaseOrdersResponseItem = zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListPurchaseOrdersResponse = zod.array(ListPurchaseOrdersResponseItem)
+
+
+/**
+ * @summary Create a purchase order with items
+ */
+export const CreatePurchaseOrderBody = zod.object({
+  "supplierId": zod.number(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().nullish(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+}))
+})
+
+
+/**
+ * @summary Get a purchase order with its items
+ */
+export const GetPurchaseOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPurchaseOrderResponse = zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "purchaseOrderId": zod.number(),
+  "productId": zod.number(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string(),
+  "totalPrice": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Update a purchase order (replaces items)
+ */
+export const UpdatePurchaseOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePurchaseOrderBody = zod.object({
+  "supplierId": zod.number(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().nullish(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+}))
+})
+
+export const UpdatePurchaseOrderResponse = zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "purchaseOrderId": zod.number(),
+  "productId": zod.number(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string(),
+  "totalPrice": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Cancel a purchase order
+ */
+export const DeletePurchaseOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePurchaseOrderResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Update status of a purchase order (draft→sent→received|cancelled)
+ */
+export const UpdatePurchaseOrderStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePurchaseOrderStatusBody = zod.object({
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled'])
+})
+
+export const UpdatePurchaseOrderStatusResponse = zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark a purchase order as received and generate stock input movements
+ */
+export const ReceivePurchaseOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReceivePurchaseOrderResponse = zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "purchaseOrderId": zod.number(),
+  "productId": zod.number(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string(),
+  "totalPrice": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Purchasing dashboard stats
+ */
+export const GetComprasDashboardResponse = zod.object({
+  "totalSpentThisMonth": zod.number(),
+  "draftCount": zod.number(),
+  "sentCount": zod.number(),
+  "receivedCount": zod.number(),
+  "cancelledCount": zod.number(),
+  "pendingDeliveries": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "topSuppliers": zod.array(zod.object({
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "totalSpent": zod.number(),
+  "orderCount": zod.number()
+})),
+  "monthlySpend": zod.array(zod.object({
+  "month": zod.string(),
+  "total": zod.number()
+})),
+  "recentOrders": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "totalAmount": zod.string(),
+  "expectedDeliveryDate": zod.coerce.date().nullish(),
+  "receivedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary List quality inspections with optional filters
  */
 export const ListQualityInspectionsQueryParams = zod.object({

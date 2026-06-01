@@ -493,6 +493,146 @@ export interface QualidadeDashboard {
   openNcrList: QualityNcr[];
 }
 
+export interface Supplier {
+  id: number;
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  category?: string | null;
+  paymentTerms?: string | null;
+  notes?: string | null;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierInput {
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  category?: string | null;
+  paymentTerms?: string | null;
+  notes?: string | null;
+}
+
+export interface PurchaseOrderItem {
+  id: number;
+  purchaseOrderId: number;
+  productId: number;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+  createdAt: string;
+}
+
+export interface PurchaseOrderItemInput {
+  productId?: number | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export type PurchaseOrderStatus = typeof PurchaseOrderStatus[keyof typeof PurchaseOrderStatus];
+
+
+export const PurchaseOrderStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  received: 'received',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PurchaseOrder {
+  id: number;
+  supplierId: number;
+  supplierName?: string | null;
+  status: PurchaseOrderStatus;
+  totalAmount: string;
+  expectedDeliveryDate?: string | null;
+  receivedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PurchaseOrderWithItemsStatus = typeof PurchaseOrderWithItemsStatus[keyof typeof PurchaseOrderWithItemsStatus];
+
+
+export const PurchaseOrderWithItemsStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  received: 'received',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PurchaseOrderWithItems {
+  id: number;
+  supplierId: number;
+  supplierName?: string | null;
+  status: PurchaseOrderWithItemsStatus;
+  totalAmount: string;
+  expectedDeliveryDate?: string | null;
+  receivedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderInput {
+  supplierId: number;
+  expectedDeliveryDate?: string | null;
+  notes?: string | null;
+  items: PurchaseOrderItemInput[];
+}
+
+export type UpdatePurchaseOrderStatusInputStatus = typeof UpdatePurchaseOrderStatusInputStatus[keyof typeof UpdatePurchaseOrderStatusInputStatus];
+
+
+export const UpdatePurchaseOrderStatusInputStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  received: 'received',
+  cancelled: 'cancelled',
+} as const;
+
+export interface UpdatePurchaseOrderStatusInput {
+  status: UpdatePurchaseOrderStatusInputStatus;
+}
+
+export interface TopSupplier {
+  supplierId: number;
+  supplierName?: string | null;
+  totalSpent: number;
+  orderCount: number;
+}
+
+export interface MonthlySpend {
+  month: string;
+  total: number;
+}
+
+export interface ComprasDashboard {
+  totalSpentThisMonth: number;
+  draftCount: number;
+  sentCount: number;
+  receivedCount: number;
+  cancelledCount: number;
+  pendingDeliveries: PurchaseOrder[];
+  topSuppliers: TopSupplier[];
+  monthlySpend: MonthlySpend[];
+  recentOrders: PurchaseOrder[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -597,6 +737,37 @@ export type ListStockMovementsType = typeof ListStockMovementsType[keyof typeof 
 export const ListStockMovementsType = {
   input: 'input',
   output: 'output',
+} as const;
+
+export type ListSuppliersParams = {
+search?: string;
+active?: ListSuppliersActive;
+category?: string;
+};
+
+export type ListSuppliersActive = typeof ListSuppliersActive[keyof typeof ListSuppliersActive];
+
+
+export const ListSuppliersActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type ListPurchaseOrdersParams = {
+status?: ListPurchaseOrdersStatus;
+supplierId?: number;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListPurchaseOrdersStatus = typeof ListPurchaseOrdersStatus[keyof typeof ListPurchaseOrdersStatus];
+
+
+export const ListPurchaseOrdersStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  received: 'received',
+  cancelled: 'cancelled',
 } as const;
 
 export type ListQualityInspectionsParams = {

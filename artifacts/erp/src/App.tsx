@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/dashboard";
 import FinanceiroPage from "@/pages/financeiro";
 import VendasPage from "@/pages/vendas";
 import EstoquePage from "@/pages/estoque";
+import ComprasPage from "@/pages/compras";
 import QualidadePage from "@/pages/qualidade";
 import ModulePlaceholderPage from "@/pages/module";
 
@@ -58,7 +59,13 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/:module(compras|rh|projetos|fiscal|relatorios)">
+      <Route path="/compras">
+        <ProtectedRoute>
+          <ComprasPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/:module(rh|projetos|fiscal|relatorios)">
         <ProtectedRoute>
           <ModulePlaceholderPage />
         </ProtectedRoute>

@@ -18,6 +18,8 @@ tags:
     description: Sales module - clients, quotes, orders
   - name: estoque
     description: Inventory module - products and stock movements
+  - name: compras
+    description: Purchasing module - suppliers and purchase orders
   - name: qualidade
     description: Quality control - inspections and non-conformance reports
 paths:
@@ -893,6 +895,418 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EstoqueDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Fornecedores ────────────────────────────────────────────────────
+
+  /compras/suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [compras]
+      summary: List suppliers with optional search
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of suppliers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Supplier"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createSupplier
+      tags: [compras]
+      summary: Create a new supplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/suppliers/{id}:
+    put:
+      operationId: updateSupplier
+      tags: [compras]
+      summary: Update a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSupplier
+      tags: [compras]
+      summary: Soft-delete a supplier (set active=false)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Purchase Orders ─────────────────────────────────────────────────
+
+  /compras/orders:
+    get:
+      operationId: listPurchaseOrders
+      tags: [compras]
+      summary: List purchase orders with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, sent, received, cancelled]
+        - name: supplierId
+          in: query
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of purchase orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseOrder"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPurchaseOrder
+      tags: [compras]
+      summary: Create a purchase order with items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseOrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderWithItems"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/orders/{id}:
+    get:
+      operationId: getPurchaseOrder
+      tags: [compras]
+      summary: Get a purchase order with its items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Purchase order with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderWithItems"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updatePurchaseOrder
+      tags: [compras]
+      summary: Update a purchase order (replaces items)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseOrderInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderWithItems"
+        "400":
+          description: Cannot edit non-draft order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deletePurchaseOrder
+      tags: [compras]
+      summary: Cancel a purchase order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Cannot cancel received order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/orders/{id}/status:
+    post:
+      operationId: updatePurchaseOrderStatus
+      tags: [compras]
+      summary: Update status of a purchase order (draft→sent→received|cancelled)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePurchaseOrderStatusInput"
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrder"
+        "400":
+          description: Invalid transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/orders/{id}/receive:
+    post:
+      operationId: receivePurchaseOrder
+      tags: [compras]
+      summary: Mark a purchase order as received and generate stock input movements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Received — stock movements created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderWithItems"
+        "400":
+          description: Already received or invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Dashboard ───────────────────────────────────────────────────────
+
+  /compras/dashboard:
+    get:
+      operationId: getComprasDashboard
+      tags: [compras]
+      summary: Purchasing dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComprasDashboard"
         "401":
           description: Not authenticated
           content:
@@ -2106,3 +2520,318 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QualityNcr"
+
+    # ── Compras schemas ─────────────────────────────────────────────────────────
+
+    Supplier:
+      type: object
+      required:
+        - id
+        - name
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SupplierInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    PurchaseOrderItem:
+      type: object
+      required:
+        - id
+        - purchaseOrderId
+        - productId
+        - description
+        - quantity
+        - unitPrice
+        - totalPrice
+        - createdAt
+      properties:
+        id:
+          type: integer
+        purchaseOrderId:
+          type: integer
+        productId:
+          type: integer
+        description:
+          type: string
+        quantity:
+          type: string
+        unitPrice:
+          type: string
+        totalPrice:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PurchaseOrderItemInput:
+      type: object
+      required:
+        - description
+        - quantity
+        - unitPrice
+      properties:
+        productId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+
+    PurchaseOrder:
+      type: object
+      required:
+        - id
+        - supplierId
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, received, cancelled]
+        totalAmount:
+          type: string
+        expectedDeliveryDate:
+          type: string
+          format: date-time
+          nullable: true
+        receivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PurchaseOrderWithItems:
+      type: object
+      required:
+        - id
+        - supplierId
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+        - items
+      properties:
+        id:
+          type: integer
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, received, cancelled]
+        totalAmount:
+          type: string
+        expectedDeliveryDate:
+          type: string
+          format: date-time
+          nullable: true
+        receivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrderItem"
+
+    PurchaseOrderInput:
+      type: object
+      required:
+        - supplierId
+        - items
+      properties:
+        supplierId:
+          type: integer
+        expectedDeliveryDate:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrderItemInput"
+
+    UpdatePurchaseOrderStatusInput:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [draft, sent, received, cancelled]
+
+    TopSupplier:
+      type: object
+      required:
+        - supplierId
+        - totalSpent
+        - orderCount
+      properties:
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+          nullable: true
+        totalSpent:
+          type: number
+        orderCount:
+          type: integer
+
+    MonthlySpend:
+      type: object
+      required:
+        - month
+        - total
+      properties:
+        month:
+          type: string
+        total:
+          type: number
+
+    ComprasDashboard:
+      type: object
+      required:
+        - totalSpentThisMonth
+        - draftCount
+        - sentCount
+        - receivedCount
+        - cancelledCount
+        - pendingDeliveries
+        - topSuppliers
+        - monthlySpend
+        - recentOrders
+      properties:
+        totalSpentThisMonth:
+          type: number
+        draftCount:
+          type: integer
+        sentCount:
+          type: integer
+        receivedCount:
+          type: integer
+        cancelledCount:
+          type: integer
+        pendingDeliveries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrder"
+        topSuppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopSupplier"
+        monthlySpend:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlySpend"
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrder"
