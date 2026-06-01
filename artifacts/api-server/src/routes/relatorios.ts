@@ -25,7 +25,7 @@ function requireAuth(req: Request, res: Response): boolean {
 
 function requireManager(req: Request, res: Response): boolean {
   if (!requireAuth(req, res)) return false;
-  if (req.session.role === "employee") {
+  if (req.session.role !== "admin" && req.session.role !== "manager") {
     res.status(403).json({ error: "Acesso restrito a gestores e administradores" });
     return false;
   }
@@ -290,7 +290,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     };
   });
 
-  // ── Top 5 clients by delivered sales revenue (all time) ───────────────────
+  // ── Top 5 clients by sales revenue within selected period ────────────────
 
   const topClientRows = await db
     .select({
@@ -301,12 +301,18 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     })
     .from(salesOrdersTable)
     .innerJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
-    .where(sql`${salesOrdersTable.status} IN ('confirmed', 'delivered')`)
+    .where(
+      and(
+        sql`${salesOrdersTable.status} IN ('confirmed', 'delivered')`,
+        gte(salesOrdersTable.createdAt, range.start),
+        lte(salesOrdersTable.createdAt, range.end)
+      )
+    )
     .groupBy(clientsTable.id, clientsTable.name)
     .orderBy(desc(sql`SUM(${salesOrdersTable.totalAmount})`))
     .limit(5);
 
-  // ── Top 5 products by stock movement count (all time) ────────────────────
+  // ── Top 5 products by stock movement count within selected period ─────────
 
   const topProductRows = await db
     .select({
@@ -319,6 +325,12 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     })
     .from(stockMovementsTable)
     .innerJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
+    .where(
+      and(
+        gte(stockMovementsTable.createdAt, range.start),
+        lte(stockMovementsTable.createdAt, range.end)
+      )
+    )
     .groupBy(productsTable.id, productsTable.name)
     .orderBy(desc(sql`COUNT(${stockMovementsTable.id})`))
     .limit(5);
