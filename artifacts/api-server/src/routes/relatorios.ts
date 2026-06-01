@@ -60,7 +60,8 @@ function getDateRange(period: Period): DateRange {
     case "last_month": {
       const lm = m === 0 ? 11 : m - 1;
       const ly = m === 0 ? y - 1 : y;
-      const lastDay = new Date(y, m, 0); // last day of prev month
+      // last day of previous month at 23:59:59.999 (fully inclusive)
+      const lastDay = new Date(y, m, 0, 23, 59, 59, 999);
       return {
         start: new Date(ly, lm, 1),
         end: lastDay,
