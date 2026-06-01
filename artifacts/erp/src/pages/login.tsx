@@ -42,16 +42,14 @@ export default function LoginPage() {
   const loginMutation = useLogin();
 
   if (isAuthenticated) {
-    const home = user?.role === "employee" ? "/dashboard" : "/relatorios";
-    return <Redirect to={home} />;
+    return <Redirect to="/relatorios" />;
   }
 
   function onSubmit(data: LoginFormValues) {
     loginMutation.mutate({ data }, {
       onSuccess: (response) => {
         queryClient.setQueryData(getGetMeQueryKey(), response);
-        const home = response.role === "employee" ? "/dashboard" : "/relatorios";
-        setLocation(home);
+        setLocation("/relatorios");
       },
       onError: (error) => {
         toast({

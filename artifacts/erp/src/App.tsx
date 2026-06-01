@@ -24,8 +24,7 @@ function RootRoute() {
   const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return null;
   if (isAuthenticated) {
-    const home = user?.role === "employee" ? "/dashboard" : "/relatorios";
-    return <Redirect to={home} />;
+    return <Redirect to="/relatorios" />;
   }
   return <Redirect to="/login" />;
 }

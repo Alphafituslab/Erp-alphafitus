@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
   db,
+  usersTable,
   financialEntriesTable,
   salesOrdersTable,
   clientsTable,
@@ -23,9 +24,27 @@ function requireAuth(req: Request, res: Response): boolean {
   return true;
 }
 
-function requireManager(req: Request, res: Response): boolean {
-  if (!requireAuth(req, res)) return false;
-  if (req.session.role !== "admin" && req.session.role !== "manager") {
+async function requireManagerAsync(req: Request, res: Response): Promise<boolean> {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Não autenticado" });
+    return false;
+  }
+  // role may be absent in pre-existing sessions — backfill from DB
+  let role = req.session.role;
+  if (!role) {
+    const [user] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.session.userId))
+      .limit(1);
+    if (!user) {
+      res.status(401).json({ error: "Não autenticado" });
+      return false;
+    }
+    role = user.role;
+    req.session.role = role; // cache for next request
+  }
+  if (role !== "admin" && role !== "manager") {
     res.status(403).json({ error: "Acesso restrito a gestores e administradores" });
     return false;
   }
@@ -95,7 +114,7 @@ function getPreviousPeriodRange(period: Period, current: DateRange): DateRange {
 // ─── Executive Dashboard ──────────────────────────────────────────────────────
 
 router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise<void> => {
-  if (!requireManager(req, res)) return;
+  if (!await requireManagerAsync(req, res)) return;
 
   const period = (req.query.period as Period) ?? "this_month";
   const validPeriods: Period[] = ["this_month", "last_month", "this_quarter", "this_year"];
