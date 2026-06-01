@@ -8,6 +8,7 @@ import {
   useMarkFinancialEntryPaid,
   useGetCashflow,
   getListFinancialEntriesQueryKey,
+  getGetCashflowQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -99,7 +100,10 @@ interface EntryDialogProps {
 
 function EntryDialog({ open, onClose, editing }: EntryDialogProps) {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: getListFinancialEntriesQueryKey() });
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: getListFinancialEntriesQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetCashflowQueryKey() });
+  };
 
   const createMutation = useCreateFinancialEntry();
   const updateMutation = useUpdateFinancialEntry();
@@ -133,12 +137,12 @@ function EntryDialog({ open, onClose, editing }: EntryDialogProps) {
     if (editing) {
       updateMutation.mutate(
         { id: editing.id, data: payload },
-        { onSuccess: () => { invalidate(); onClose(); } }
+        { onSuccess: () => { invalidateAll(); onClose(); } }
       );
     } else {
       createMutation.mutate(
         { data: payload },
-        { onSuccess: () => { invalidate(); onClose(); form.reset(); } }
+        { onSuccess: () => { invalidateAll(); onClose(); form.reset(); } }
       );
     }
   });
@@ -242,6 +246,7 @@ export default function FinanceiroPage() {
 
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState("");
   const [filterStart, setFilterStart] = useState("");
   const [filterEnd, setFilterEnd] = useState("");
 
@@ -252,9 +257,10 @@ export default function FinanceiroPage() {
   const queryParams = useMemo(() => ({
     ...(filterType !== "all" ? { type: filterType as "income" | "expense" } : {}),
     ...(filterStatus !== "all" ? { status: filterStatus as "pending" | "paid" | "overdue" | "cancelled" } : {}),
+    ...(filterCategory ? { category: filterCategory } : {}),
     ...(filterStart ? { startDate: filterStart } : {}),
     ...(filterEnd ? { endDate: filterEnd } : {}),
-  }), [filterType, filterStatus, filterStart, filterEnd]);
+  }), [filterType, filterStatus, filterCategory, filterStart, filterEnd]);
 
   const { data: entries = [], isLoading } = useListFinancialEntries(queryParams);
   const { data: cashflow = [] } = useGetCashflow({ year: currentYear });
@@ -262,7 +268,10 @@ export default function FinanceiroPage() {
   const deleteMutation = useDeleteFinancialEntry();
   const markPaidMutation = useMarkFinancialEntryPaid();
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: getListFinancialEntriesQueryKey() });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: getListFinancialEntriesQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetCashflowQueryKey() });
+  };
 
   const totals = useMemo(() => {
     const receivable = entries
@@ -308,6 +317,7 @@ export default function FinanceiroPage() {
   function rowClass(entry: FinancialEntry) {
     if (entry.status === "paid") return "bg-green-50/50 dark:bg-green-950/10";
     if (entry.status === "overdue") return "bg-red-50/50 dark:bg-red-950/10";
+    if (entry.status === "pending") return "bg-yellow-50/50 dark:bg-yellow-950/10";
     return "";
   }
 
@@ -406,6 +416,12 @@ export default function FinanceiroPage() {
             </SelectContent>
           </Select>
           <Input
+            className="w-40"
+            placeholder="Categoria"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+          />
+          <Input
             type="date"
             className="w-40"
             placeholder="De"
@@ -419,8 +435,8 @@ export default function FinanceiroPage() {
             value={filterEnd}
             onChange={(e) => setFilterEnd(e.target.value)}
           />
-          {(filterType !== "all" || filterStatus !== "all" || filterStart || filterEnd) && (
-            <Button variant="ghost" size="sm" onClick={() => { setFilterType("all"); setFilterStatus("all"); setFilterStart(""); setFilterEnd(""); }}>
+          {(filterType !== "all" || filterStatus !== "all" || filterCategory || filterStart || filterEnd) && (
+            <Button variant="ghost" size="sm" onClick={() => { setFilterType("all"); setFilterStatus("all"); setFilterCategory(""); setFilterStart(""); setFilterEnd(""); }}>
               Limpar filtros
             </Button>
           )}

@@ -122,7 +122,11 @@ router.post("/financeiro/entries/:id/pay", async (req, res): Promise<void> => {
   }
 
   const parsed = MarkFinancialEntryPaidBody.safeParse(req.body ?? {});
-  const paidAt = parsed.success && parsed.data.paidAt ? new Date(parsed.data.paidAt) : new Date();
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const paidAt = parsed.data.paidAt ? new Date(parsed.data.paidAt) : new Date();
 
   const [entry] = await db
     .update(financialEntriesTable)
