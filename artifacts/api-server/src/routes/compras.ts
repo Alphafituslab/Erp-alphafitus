@@ -462,13 +462,14 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
     return;
   }
 
-  if (existing.status === "received") {
-    res.status(400).json({ error: "Pedido já foi recebido" });
-    return;
-  }
-
-  if (existing.status === "cancelled") {
-    res.status(400).json({ error: "Pedido cancelado não pode ser recebido" });
+  if (existing.status !== "sent") {
+    if (existing.status === "received") {
+      res.status(400).json({ error: "Pedido já foi recebido" });
+    } else if (existing.status === "cancelled") {
+      res.status(400).json({ error: "Pedido cancelado não pode ser recebido" });
+    } else {
+      res.status(400).json({ error: "Apenas pedidos com status 'enviado' podem ser recebidos" });
+    }
     return;
   }
 
@@ -479,11 +480,17 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
 
   try {
     await db.transaction(async (tx) => {
-      // Mark order as received
-      await tx
+      // Atomic conditional update: only mark as received if still in 'sent' state
+      // This prevents duplicate processing under concurrent requests
+      const updated = await tx
         .update(purchaseOrdersTable)
         .set({ status: "received", receivedAt: new Date() })
-        .where(eq(purchaseOrdersTable.id, id));
+        .where(and(eq(purchaseOrdersTable.id, id), eq(purchaseOrdersTable.status, "sent")))
+        .returning({ id: purchaseOrdersTable.id });
+
+      if (updated.length === 0) {
+        throw new Error("ALREADY_PROCESSED");
+      }
 
       // For each item with a valid productId that exists in the DB, create a stock input movement
       for (const item of items) {
@@ -519,7 +526,11 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
       }
     });
   } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Erro ao registrar recebimento" });
+    if (err?.message === "ALREADY_PROCESSED") {
+      res.status(409).json({ error: "Pedido já foi processado por outra requisição" });
+    } else {
+      res.status(500).json({ error: err?.message ?? "Erro ao registrar recebimento" });
+    }
     return;
   }
 

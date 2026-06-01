@@ -392,9 +392,11 @@ function PurchaseOrderDialog({
 
   // Auto-fill description from product selection
   const handleProductSelect = (idx: number, productId: string) => {
-    form.setValue(`items.${idx}.productId`, productId);
-    if (productId) {
-      const p = products.find((pr) => String(pr.id) === productId);
+    // "none" sentinel means "no product selected" — store as empty string
+    const value = productId === "none" ? "" : productId;
+    form.setValue(`items.${idx}.productId`, value);
+    if (value) {
+      const p = products.find((pr) => String(pr.id) === value);
       if (p && !form.getValues(`items.${idx}.description`)) {
         form.setValue(`items.${idx}.description`, p.name);
       }
@@ -487,14 +489,14 @@ function PurchaseOrderDialog({
                             name={`items.${idx}.productId`}
                             render={({ field: f }) => (
                               <Select
-                                value={f.value ?? ""}
+                                value={f.value || "none"}
                                 onValueChange={(v) => handleProductSelect(idx, v)}
                               >
                                 <SelectTrigger className="h-8 text-xs">
                                   <SelectValue placeholder="Produto…" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">— Nenhum —</SelectItem>
+                                  <SelectItem value="none">— Nenhum —</SelectItem>
                                   {products.map((p) => (
                                     <SelectItem key={p.id} value={String(p.id)}>
                                       {p.name}
