@@ -21,9 +21,12 @@ import ModulePlaceholderPage from "@/pages/module";
 const queryClient = new QueryClient();
 
 function RootRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return null;
-  if (isAuthenticated) return <Redirect to="/dashboard" />;
+  if (isAuthenticated) {
+    const home = user?.role === "employee" ? "/dashboard" : "/relatorios";
+    return <Redirect to={home} />;
+  }
   return <Redirect to="/login" />;
 }
 

@@ -23,6 +23,15 @@ function requireAuth(req: Request, res: Response): boolean {
   return true;
 }
 
+function requireManager(req: Request, res: Response): boolean {
+  if (!requireAuth(req, res)) return false;
+  if (req.session.role === "employee") {
+    res.status(403).json({ error: "Acesso restrito a gestores e administradores" });
+    return false;
+  }
+  return true;
+}
+
 const MONTH_LABELS = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
@@ -85,7 +94,7 @@ function getPreviousPeriodRange(period: Period, current: DateRange): DateRange {
 // ─── Executive Dashboard ──────────────────────────────────────────────────────
 
 router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise<void> => {
-  if (!requireAuth(req, res)) return;
+  if (!requireManager(req, res)) return;
 
   const period = (req.query.period as Period) ?? "this_month";
   const validPeriods: Period[] = ["this_month", "last_month", "this_quarter", "this_year"];
