@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/dashboard";
 import FinanceiroPage from "@/pages/financeiro";
 import VendasPage from "@/pages/vendas";
 import EstoquePage from "@/pages/estoque";
+import QualidadePage from "@/pages/qualidade";
 import ModulePlaceholderPage from "@/pages/module";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,12 @@ function Router() {
       <Route path="/estoque">
         <ProtectedRoute>
           <EstoquePage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/qualidade">
+        <ProtectedRoute>
+          <QualidadePage />
         </ProtectedRoute>
       </Route>
 

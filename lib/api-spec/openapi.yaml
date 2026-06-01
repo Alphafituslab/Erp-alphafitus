@@ -18,6 +18,8 @@ tags:
     description: Sales module - clients, quotes, orders
   - name: estoque
     description: Inventory module - products and stock movements
+  - name: qualidade
+    description: Quality control - inspections and non-conformance reports
 paths:
   /healthz:
     get:
@@ -898,6 +900,335 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Qualidade: Inspeções ─────────────────────────────────────────────────────
+
+  /qualidade/inspections:
+    get:
+      operationId: listQualityInspections
+      tags: [qualidade]
+      summary: List quality inspections with optional filters
+      parameters:
+        - name: productId
+          in: query
+          schema:
+            type: integer
+        - name: result
+          in: query
+          schema:
+            type: string
+            enum: [approved, rejected, conditional]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of inspections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QualityInspection"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createQualityInspection
+      tags: [qualidade]
+      summary: Create a quality inspection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QualityInspectionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityInspection"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/inspections/{id}:
+    put:
+      operationId: updateQualityInspection
+      tags: [qualidade]
+      summary: Update a quality inspection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QualityInspectionInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityInspection"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteQualityInspection
+      tags: [qualidade]
+      summary: Delete a quality inspection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Qualidade: NCRs ──────────────────────────────────────────────────────────
+
+  /qualidade/ncrs:
+    get:
+      operationId: listQualityNcrs
+      tags: [qualidade]
+      summary: List non-conformance reports with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, in_progress, resolved, closed]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: productId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of NCRs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QualityNcr"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createQualityNcr
+      tags: [qualidade]
+      summary: Create a non-conformance report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QualityNcrInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityNcr"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/ncrs/{id}:
+    put:
+      operationId: updateQualityNcr
+      tags: [qualidade]
+      summary: Update a non-conformance report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QualityNcrInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityNcr"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteQualityNcr
+      tags: [qualidade]
+      summary: Delete a non-conformance report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/ncrs/{id}/resolve:
+    post:
+      operationId: resolveQualityNcr
+      tags: [qualidade]
+      summary: Mark a NCR as resolved
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveNcrInput"
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityNcr"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Qualidade: Dashboard ─────────────────────────────────────────────────────
+
+  /qualidade/dashboard:
+    get:
+      operationId: getQualidadeDashboard
+      tags: [qualidade]
+      summary: Quality control dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualidadeDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vendas/dashboard:
     get:
       operationId: getVendasDashboard
@@ -1552,3 +1883,226 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StockMovement"
+
+    # ── Qualidade schemas ───────────────────────────────────────────────────────
+
+    QualityInspection:
+      type: object
+      required:
+        - id
+        - inspectionDate
+        - inspector
+        - result
+        - quantityInspected
+        - quantityFailed
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        batchNumber:
+          type: string
+          nullable: true
+        inspectionDate:
+          type: string
+        inspector:
+          type: string
+        result:
+          type: string
+          enum: [approved, rejected, conditional]
+        quantityInspected:
+          type: integer
+        quantityFailed:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    QualityInspectionInput:
+      type: object
+      required:
+        - inspectionDate
+        - inspector
+        - result
+      properties:
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        batchNumber:
+          type: string
+          nullable: true
+        inspectionDate:
+          type: string
+        inspector:
+          type: string
+        result:
+          type: string
+          enum: [approved, rejected, conditional]
+        quantityInspected:
+          type: integer
+          nullable: true
+        quantityFailed:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    QualityNcr:
+      type: object
+      required:
+        - id
+        - title
+        - severity
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        inspectionId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        rootCause:
+          type: string
+          nullable: true
+        correctiveAction:
+          type: string
+          nullable: true
+        reportedBy:
+          type: string
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    QualityNcrInput:
+      type: object
+      required:
+        - title
+      properties:
+        inspectionId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+          nullable: true
+        rootCause:
+          type: string
+          nullable: true
+        correctiveAction:
+          type: string
+          nullable: true
+        reportedBy:
+          type: string
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+
+    ResolveNcrInput:
+      type: object
+      properties:
+        correctiveAction:
+          type: string
+          nullable: true
+
+    QualidadeDashboard:
+      type: object
+      required:
+        - totalInspections
+        - approvedCount
+        - rejectedCount
+        - conditionalCount
+        - approvalRate
+        - openNcrsCount
+        - criticalNcrsCount
+        - recentInspections
+        - openNcrList
+      properties:
+        totalInspections:
+          type: integer
+        approvedCount:
+          type: integer
+        rejectedCount:
+          type: integer
+        conditionalCount:
+          type: integer
+        approvalRate:
+          type: integer
+        openNcrsCount:
+          type: integer
+        criticalNcrsCount:
+          type: integer
+        recentInspections:
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityInspection"
+        openNcrList:
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityNcr"

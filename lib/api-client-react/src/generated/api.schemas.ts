@@ -358,6 +358,141 @@ export interface EstoqueDashboard {
   recentMovements: StockMovement[];
 }
 
+export type QualityInspectionResult = typeof QualityInspectionResult[keyof typeof QualityInspectionResult];
+
+
+export const QualityInspectionResult = {
+  approved: 'approved',
+  rejected: 'rejected',
+  conditional: 'conditional',
+} as const;
+
+export interface QualityInspection {
+  id: number;
+  productId?: number | null;
+  productName?: string | null;
+  batchNumber?: string | null;
+  inspectionDate: string;
+  inspector: string;
+  result: QualityInspectionResult;
+  quantityInspected: number;
+  quantityFailed: number;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type QualityInspectionInputResult = typeof QualityInspectionInputResult[keyof typeof QualityInspectionInputResult];
+
+
+export const QualityInspectionInputResult = {
+  approved: 'approved',
+  rejected: 'rejected',
+  conditional: 'conditional',
+} as const;
+
+export interface QualityInspectionInput {
+  productId?: number | null;
+  productName?: string | null;
+  batchNumber?: string | null;
+  inspectionDate: string;
+  inspector: string;
+  result: QualityInspectionInputResult;
+  quantityInspected?: number | null;
+  quantityFailed?: number | null;
+  notes?: string | null;
+}
+
+export type QualityNcrSeverity = typeof QualityNcrSeverity[keyof typeof QualityNcrSeverity];
+
+
+export const QualityNcrSeverity = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export type QualityNcrStatus = typeof QualityNcrStatus[keyof typeof QualityNcrStatus];
+
+
+export const QualityNcrStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface QualityNcr {
+  id: number;
+  inspectionId?: number | null;
+  productId?: number | null;
+  productName?: string | null;
+  title: string;
+  description?: string | null;
+  severity: QualityNcrSeverity;
+  status: QualityNcrStatus;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  reportedBy?: string | null;
+  assignedTo?: string | null;
+  dueDate?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type QualityNcrInputSeverity = typeof QualityNcrInputSeverity[keyof typeof QualityNcrInputSeverity] | null;
+
+
+export const QualityNcrInputSeverity = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export type QualityNcrInputStatus = typeof QualityNcrInputStatus[keyof typeof QualityNcrInputStatus] | null;
+
+
+export const QualityNcrInputStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface QualityNcrInput {
+  inspectionId?: number | null;
+  productId?: number | null;
+  productName?: string | null;
+  title: string;
+  description?: string | null;
+  severity?: QualityNcrInputSeverity;
+  status?: QualityNcrInputStatus;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  reportedBy?: string | null;
+  assignedTo?: string | null;
+  dueDate?: string | null;
+}
+
+export interface ResolveNcrInput {
+  correctiveAction?: string | null;
+}
+
+export interface QualidadeDashboard {
+  totalInspections: number;
+  approvedCount: number;
+  rejectedCount: number;
+  conditionalCount: number;
+  approvalRate: number;
+  openNcrsCount: number;
+  criticalNcrsCount: number;
+  recentInspections: QualityInspection[];
+  openNcrList: QualityNcr[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -462,6 +597,48 @@ export type ListStockMovementsType = typeof ListStockMovementsType[keyof typeof 
 export const ListStockMovementsType = {
   input: 'input',
   output: 'output',
+} as const;
+
+export type ListQualityInspectionsParams = {
+productId?: number;
+result?: ListQualityInspectionsResult;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListQualityInspectionsResult = typeof ListQualityInspectionsResult[keyof typeof ListQualityInspectionsResult];
+
+
+export const ListQualityInspectionsResult = {
+  approved: 'approved',
+  rejected: 'rejected',
+  conditional: 'conditional',
+} as const;
+
+export type ListQualityNcrsParams = {
+status?: ListQualityNcrsStatus;
+severity?: ListQualityNcrsSeverity;
+productId?: number;
+};
+
+export type ListQualityNcrsStatus = typeof ListQualityNcrsStatus[keyof typeof ListQualityNcrsStatus];
+
+
+export const ListQualityNcrsStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export type ListQualityNcrsSeverity = typeof ListQualityNcrsSeverity[keyof typeof ListQualityNcrsSeverity];
+
+
+export const ListQualityNcrsSeverity = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'critical',
 } as const;
 
 export type GetVendasDashboardParams = {

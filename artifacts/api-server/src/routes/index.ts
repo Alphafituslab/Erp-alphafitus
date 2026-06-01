@@ -4,6 +4,7 @@ import authRouter from "./auth";
 import financeiroRouter from "./financeiro";
 import vendasRouter from "./vendas";
 import estoqueRouter from "./estoque";
+import qualidadeRouter from "./qualidade";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(authRouter);
 router.use(financeiroRouter);
 router.use(vendasRouter);
 router.use(estoqueRouter);
+router.use(qualidadeRouter);
 
 export default router;

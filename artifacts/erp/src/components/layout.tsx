@@ -14,7 +14,8 @@ import {
   BarChart2, 
   LogOut,
   Hexagon,
-  LayoutDashboard
+  LayoutDashboard,
+  ClipboardCheck
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
   { href: "/rh", label: "RH", icon: Users },
   { href: "/projetos", label: "Projetos", icon: FolderKanban },
   { href: "/fiscal", label: "Fiscal", icon: FileText },
+  { href: "/qualidade", label: "Qualidade", icon: ClipboardCheck },
   { href: "/relatorios", label: "Relatórios", icon: BarChart2 },
 ];
 

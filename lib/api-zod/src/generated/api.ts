@@ -612,6 +612,276 @@ export const GetEstoqueDashboardResponse = zod.object({
 
 
 /**
+ * @summary List quality inspections with optional filters
+ */
+export const ListQualityInspectionsQueryParams = zod.object({
+  "productId": zod.coerce.number().optional(),
+  "result": zod.enum(['approved', 'rejected', 'conditional']).optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional()
+})
+
+export const ListQualityInspectionsResponseItem = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "inspectionDate": zod.string(),
+  "inspector": zod.string(),
+  "result": zod.enum(['approved', 'rejected', 'conditional']),
+  "quantityInspected": zod.number(),
+  "quantityFailed": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListQualityInspectionsResponse = zod.array(ListQualityInspectionsResponseItem)
+
+
+/**
+ * @summary Create a quality inspection
+ */
+export const CreateQualityInspectionBody = zod.object({
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "inspectionDate": zod.string(),
+  "inspector": zod.string(),
+  "result": zod.enum(['approved', 'rejected', 'conditional']),
+  "quantityInspected": zod.number().nullish(),
+  "quantityFailed": zod.number().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a quality inspection
+ */
+export const UpdateQualityInspectionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateQualityInspectionBody = zod.object({
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "inspectionDate": zod.string(),
+  "inspector": zod.string(),
+  "result": zod.enum(['approved', 'rejected', 'conditional']),
+  "quantityInspected": zod.number().nullish(),
+  "quantityFailed": zod.number().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateQualityInspectionResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "inspectionDate": zod.string(),
+  "inspector": zod.string(),
+  "result": zod.enum(['approved', 'rejected', 'conditional']),
+  "quantityInspected": zod.number(),
+  "quantityFailed": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a quality inspection
+ */
+export const DeleteQualityInspectionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteQualityInspectionResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List non-conformance reports with optional filters
+ */
+export const ListQualityNcrsQueryParams = zod.object({
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']).optional(),
+  "productId": zod.coerce.number().optional()
+})
+
+export const ListQualityNcrsResponseItem = zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListQualityNcrsResponse = zod.array(ListQualityNcrsResponseItem)
+
+
+/**
+ * @summary Create a non-conformance report
+ */
+export const CreateQualityNcrBody = zod.object({
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']).nullish(),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a non-conformance report
+ */
+export const UpdateQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateQualityNcrBody = zod.object({
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']).nullish(),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish()
+})
+
+export const UpdateQualityNcrResponse = zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a non-conformance report
+ */
+export const DeleteQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteQualityNcrResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Mark a NCR as resolved
+ */
+export const ResolveQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ResolveQualityNcrBody = zod.object({
+  "correctiveAction": zod.string().nullish()
+})
+
+export const ResolveQualityNcrResponse = zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Quality control dashboard stats
+ */
+export const GetQualidadeDashboardResponse = zod.object({
+  "totalInspections": zod.number(),
+  "approvedCount": zod.number(),
+  "rejectedCount": zod.number(),
+  "conditionalCount": zod.number(),
+  "approvalRate": zod.number(),
+  "openNcrsCount": zod.number(),
+  "criticalNcrsCount": zod.number(),
+  "recentInspections": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "batchNumber": zod.string().nullish(),
+  "inspectionDate": zod.string(),
+  "inspector": zod.string(),
+  "result": zod.enum(['approved', 'rejected', 'conditional']),
+  "quantityInspected": zod.number(),
+  "quantityFailed": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "openNcrList": zod.array(zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Sales dashboard stats and monthly chart data
  */
 export const GetVendasDashboardQueryParams = zod.object({

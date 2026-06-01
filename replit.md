@@ -47,6 +47,7 @@ Tables defined (all in `lib/db/src/schema/`):
 - `financial_entries` — accounts payable/receivable
 - `fiscal_documents` — NF-e/NFS-e registry
 - `projects` + `project_tasks` — project management
+- `quality_inspections` + `quality_ncrs` — quality control module
 
 ## ERP Modules (all at /erp/)
 
@@ -63,6 +64,7 @@ Tables defined (all in `lib/db/src/schema/`):
 | /fiscal | Fiscal | Placeholder |
 | /relatorios | Relatórios | Placeholder |
 | /aps | APS (Planejamento Avançado) | Planned |
+| /qualidade | Controle de Qualidade | Done |
 
 ## Test Users (dev)
 
