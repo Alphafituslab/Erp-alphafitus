@@ -13,6 +13,7 @@ export const productsTable = pgTable("products", {
   salePrice: numeric("sale_price", { precision: 12, scale: 2 }),
   currentStock: numeric("current_stock", { precision: 12, scale: 3 }).notNull().default("0"),
   minStock: integer("min_stock").notNull().default(0),
+  isCritical: text("is_critical").notNull().default("false"),
   active: text("active").notNull().default("true"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
