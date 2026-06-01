@@ -536,14 +536,16 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
     return;
   }
 
-  if (existing.status !== "sent") {
-    if (existing.status === "received") {
-      res.status(400).json({ error: "Pedido já foi recebido" });
-    } else if (existing.status === "cancelled") {
-      res.status(400).json({ error: "Pedido cancelado não pode ser recebido" });
-    } else {
-      res.status(400).json({ error: "Apenas pedidos com status 'enviado' podem ser recebidos" });
-    }
+  if (existing.status === "received") {
+    res.status(400).json({ error: "Pedido já foi completamente recebido" });
+    return;
+  }
+  if (existing.status === "cancelled") {
+    res.status(400).json({ error: "Pedido cancelado não pode ser recebido" });
+    return;
+  }
+  if (existing.status !== "sent" && existing.status !== "partially_received") {
+    res.status(400).json({ error: "Apenas pedidos com status 'enviado' ou 'recebimento parcial' podem ser recebidos" });
     return;
   }
 
@@ -584,48 +586,55 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
 
   try {
     await db.transaction(async (tx) => {
-      // Lock the row first; fail fast if already processed
+      // Lock the row first; fail fast if completely processed or invalid
       const [locked] = await tx
         .select({ status: purchaseOrdersTable.status })
         .from(purchaseOrdersTable)
         .where(eq(purchaseOrdersTable.id, id))
         .for("update");
 
-      if (!locked || locked.status !== "sent") {
+      if (!locked || (locked.status !== "sent" && locked.status !== "partially_received")) {
         throw new Error("ALREADY_PROCESSED");
       }
 
-      // Process each item: create quarantine lot + record lot movement.
+      // Process each item: create quarantine lot for the DELTA qty received this call.
       // NOTE: do NOT increment product.currentStock here.
       // Stock is only released when CQ approves the lot (done in the estoque module).
-      let anyReceived = false;
-      let allReceived = true;
+      let anyNewlyReceived = false;
+      let allFullyReceived = true;
 
       for (const item of poItems) {
+        const orderedQty = Math.round(parseFloat(String(item.quantity)));
+        const alreadyReceivedQty = Math.round(parseFloat(String(item.receivedQty ?? "0")));
+
         if (!item.productId || item.productId === 0) {
-          allReceived = false;
+          // Non-product items: treat as fully received if ordered qty was 0
+          if (orderedQty > 0) allFullyReceived = false;
           continue;
         }
 
         const ri = receiveMap.get(item.id);
-        const orderedQty = Math.round(parseFloat(String(item.quantity)));
-        const receivedQty = ri ? Math.round(ri.receivedQty) : orderedQty;
+        // deltaQty = how many units are being received in THIS call (clamped to remaining)
+        const remaining = orderedQty - alreadyReceivedQty;
+        const requestedDelta = ri ? Math.max(0, Math.round(ri.receivedQty)) : remaining;
+        const deltaQty = Math.min(requestedDelta, remaining); // cannot exceed remaining
+        const newTotalReceived = alreadyReceivedQty + deltaQty;
 
-        // Update received quantity on the item
+        // Update accumulated received quantity on the item
         await tx
           .update(purchaseOrderItemsTable)
-          .set({ receivedQty: String(receivedQty) })
+          .set({ receivedQty: String(newTotalReceived) })
           .where(eq(purchaseOrderItemsTable.id, item.id));
 
-        if (receivedQty < orderedQty) allReceived = false;
-        if (receivedQty <= 0) continue;
+        if (newTotalReceived < orderedQty) allFullyReceived = false;
+        if (deltaQty <= 0) continue; // nothing new received for this item this time
 
-        anyReceived = true;
+        anyNewlyReceived = true;
 
         const warehouseId = ri?.warehouseId ?? defaultWarehouse?.id ?? null;
         const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
 
-        // Create lot in quarantine (CQ approval will release to available stock)
+        // Create lot in quarantine for the delta (CQ approval will release to available stock)
         const [lot] = await tx
           .insert(productLotsTable)
           .values({
@@ -633,12 +642,12 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
             internalLot,
             supplierLot: ri?.supplierLot || null,
             cqStatus: "quarantine",
-            totalQty: receivedQty,
+            totalQty: deltaQty,
             availableQty: 0,        // Zero until CQ releases the lot
             warehouseId: warehouseId ?? undefined,
             expirationDate: ri?.expiryDate ? ri.expiryDate.slice(0, 10) : null,
             manufacturingDate: ri?.manufactureDate ? ri.manufactureDate.slice(0, 10) : null,
-            notes: `Aguardando CQ. Recebimento PC #${id}.`,
+            notes: `Aguardando CQ. Recebimento PC #${id}. Total recebido: ${newTotalReceived}/${orderedQty}.`,
           })
           .returning();
 
@@ -648,24 +657,28 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
           productId: item.productId,
           warehouseId: warehouseId ?? undefined,
           type: "input",
-          quantity: receivedQty,
-          reason: `Recebimento físico PC #${id} — aguarda CQ`,
+          quantity: deltaQty,
+          reason: `Recebimento físico PC #${id} — aguarda CQ (${newTotalReceived}/${orderedQty})`,
           referenceId: id,
           referenceType: "purchase_order",
         });
       }
 
       // Determine PO final status:
-      //   - all items received at ordered qty  → "received"
-      //   - at least one item received but not all → "partially_received"
-      //   - nothing received → stay "sent"
-      const newStatus = allReceived ? "received" : anyReceived ? "partially_received" : "sent";
+      //   - all items at ordered qty → "received"
+      //   - some newly received but not all → "partially_received"
+      //   - nothing received this call → stay at current status (sent or partially_received)
+      const newStatus = allFullyReceived
+        ? "received"
+        : anyNewlyReceived
+        ? "partially_received"
+        : locked.status;
 
       await tx
         .update(purchaseOrdersTable)
         .set({
           status: newStatus,
-          receivedAt: anyReceived ? new Date() : null,
+          receivedAt: anyNewlyReceived ? new Date() : existing.receivedAt,
           nfNumber: receiveInput.nfNumber || null,
           carrier: receiveInput.carrier || null,
           freightCost: receiveInput.freightCost != null

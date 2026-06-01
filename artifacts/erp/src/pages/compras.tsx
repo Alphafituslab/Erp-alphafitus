@@ -790,8 +790,12 @@ function ReceiveDialog({
     if (order) {
       const initial: typeof itemDetails = {};
       for (const item of order.items ?? []) {
+        // Pre-fill with REMAINING qty (ordered - already received) so partial re-receipt is intuitive
+        const ordered = parseFloat(String(item.quantity));
+        const alreadyReceived = parseFloat(String((item as any).receivedQty ?? "0")) || 0;
+        const remaining = Math.max(0, ordered - alreadyReceived);
         initial[item.id] = {
-          receivedQty: item.quantity,
+          receivedQty: String(remaining),
           supplierLot: "",
           expiryDate: "",
           manufactureDate: "",
@@ -1676,6 +1680,7 @@ export default function ComprasPage() {
                     <SelectItem value="all">Todos os status</SelectItem>
                     <SelectItem value="draft">Rascunho</SelectItem>
                     <SelectItem value="sent">Enviado</SelectItem>
+                    <SelectItem value="partially_received">Rec. Parcial</SelectItem>
                     <SelectItem value="received">Recebido</SelectItem>
                     <SelectItem value="cancelled">Cancelado</SelectItem>
                   </SelectContent>
@@ -1722,8 +1727,9 @@ export default function ComprasPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalhes" onClick={() => setViewPoId(o.id)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {o.status === "sent" && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" title="Confirmar recebimento"
+                            {(o.status === "sent" || o.status === "partially_received") && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600"
+                                title={o.status === "partially_received" ? "Continuar recebimento" : "Confirmar recebimento"}
                                 onClick={async () => {
                                   const full = await getPurchaseOrder(o.id);
                                   setReceiveOrder(full);
