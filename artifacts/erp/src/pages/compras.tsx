@@ -821,7 +821,7 @@ function ReceiveDialog({
         const d = itemDetails[item.id];
         return {
           itemId: item.id,
-          receivedQty: parseFloat(d?.receivedQty ?? item.quantity) || parseFloat(item.quantity),
+          receivedQty: d?.receivedQty !== undefined && d.receivedQty !== "" ? parseFloat(d.receivedQty) : parseFloat(item.quantity),
           supplierLot: d?.supplierLot || undefined,
           expiryDate: d?.expiryDate || undefined,
           manufactureDate: d?.manufactureDate || undefined,

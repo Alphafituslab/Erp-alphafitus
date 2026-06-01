@@ -522,10 +522,15 @@ router.post("/estoque/lots", async (req: Request, res: Response): Promise<void> 
 
       lotId = inserted!.id;
 
-      await tx
-        .update(productsTable)
-        .set({ currentStock: sql`${productsTable.currentStock} + ${qty}` })
-        .where(eq(productsTable.id, pid));
+      // Only increment product stock immediately when lot is created as 'approved'.
+      // Quarantine/blocked lots do NOT affect currentStock until CQ releases them
+      // via PUT /estoque/lots/:id (quarantine → approved transition).
+      if (status === "approved" && qty > 0) {
+        await tx
+          .update(productsTable)
+          .set({ currentStock: sql`${productsTable.currentStock} + ${qty}` })
+          .where(eq(productsTable.id, pid));
+      }
 
       await tx.insert(lotMovementsTable).values({
         lotId: lotId,
@@ -533,7 +538,7 @@ router.post("/estoque/lots", async (req: Request, res: Response): Promise<void> 
         warehouseId: warehouseId ? parseInt(warehouseId) : null,
         type: "input",
         quantity: String(qty),
-        reason: "Entrada de lote",
+        reason: status === "approved" ? "Entrada de lote (aprovado)" : "Entrada de lote (quarentena)",
         notes: notes || null,
         userId: req.session.userId ?? null,
         referenceType: "manual",
