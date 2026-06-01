@@ -885,6 +885,129 @@ export interface ProjectsDashboard {
   recentProjects: Project[];
 }
 
+export type FiscalDocumentType = typeof FiscalDocumentType[keyof typeof FiscalDocumentType];
+
+
+export const FiscalDocumentType = {
+  nfe: 'nfe',
+  nfse: 'nfse',
+  nf_entrada: 'nf_entrada',
+} as const;
+
+export type FiscalDocumentDirection = typeof FiscalDocumentDirection[keyof typeof FiscalDocumentDirection];
+
+
+export const FiscalDocumentDirection = {
+  entrada: 'entrada',
+  saida: 'saida',
+} as const;
+
+export type FiscalDocumentStatus = typeof FiscalDocumentStatus[keyof typeof FiscalDocumentStatus];
+
+
+export const FiscalDocumentStatus = {
+  issued: 'issued',
+  cancelled: 'cancelled',
+} as const;
+
+export interface FiscalDocument {
+  id: number;
+  type: FiscalDocumentType;
+  direction: FiscalDocumentDirection;
+  number?: string | null;
+  emitter: string;
+  recipient: string;
+  emitterDocument?: string | null;
+  recipientDocument?: string | null;
+  issueDate: string;
+  totalAmount: string;
+  cfop?: string | null;
+  icmsAmount?: string | null;
+  pisAmount?: string | null;
+  cofinsAmount?: string | null;
+  issAmount?: string | null;
+  status: FiscalDocumentStatus;
+  referenceOrderId?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type FiscalDocumentInputType = typeof FiscalDocumentInputType[keyof typeof FiscalDocumentInputType];
+
+
+export const FiscalDocumentInputType = {
+  nfe: 'nfe',
+  nfse: 'nfse',
+  nf_entrada: 'nf_entrada',
+} as const;
+
+export type FiscalDocumentInputDirection = typeof FiscalDocumentInputDirection[keyof typeof FiscalDocumentInputDirection];
+
+
+export const FiscalDocumentInputDirection = {
+  entrada: 'entrada',
+  saida: 'saida',
+} as const;
+
+export type FiscalDocumentInputStatus = typeof FiscalDocumentInputStatus[keyof typeof FiscalDocumentInputStatus];
+
+
+export const FiscalDocumentInputStatus = {
+  issued: 'issued',
+  cancelled: 'cancelled',
+} as const;
+
+export interface FiscalDocumentInput {
+  type: FiscalDocumentInputType;
+  direction: FiscalDocumentInputDirection;
+  number?: string | null;
+  emitter: string;
+  recipient: string;
+  emitterDocument?: string | null;
+  recipientDocument?: string | null;
+  issueDate: string;
+  totalAmount: string;
+  cfop?: string | null;
+  icmsAmount?: string | null;
+  pisAmount?: string | null;
+  cofinsAmount?: string | null;
+  issAmount?: string | null;
+  status: FiscalDocumentInputStatus;
+  referenceOrderId?: string | null;
+  notes?: string | null;
+}
+
+export interface FiscalTaxSummaryMonth {
+  year: number;
+  month: number;
+  monthLabel: string;
+  totalAmount: string;
+  icmsTotal: string;
+  pisTotal: string;
+  cofinsTotal: string;
+  issTotal: string;
+  documentCount: number;
+}
+
+export type FiscalDashboardByTypeItem = {
+  type: string;
+  count: number;
+  totalAmount: string;
+};
+
+export interface FiscalDashboard {
+  totalDocuments: number;
+  issuedCount: number;
+  cancelledCount: number;
+  totalAmount: string;
+  totalIcms: string;
+  totalPis: string;
+  totalCofins: string;
+  totalIss: string;
+  byType: FiscalDashboardByTypeItem[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -1139,4 +1262,42 @@ export const ListProjectTasksPriority = {
   high: 'high',
   urgent: 'urgent',
 } as const;
+
+export type ListFiscalDocumentsParams = {
+type?: ListFiscalDocumentsType;
+direction?: ListFiscalDocumentsDirection;
+status?: ListFiscalDocumentsStatus;
+startDate?: string;
+endDate?: string;
+search?: string;
+};
+
+export type ListFiscalDocumentsType = typeof ListFiscalDocumentsType[keyof typeof ListFiscalDocumentsType];
+
+
+export const ListFiscalDocumentsType = {
+  nfe: 'nfe',
+  nfse: 'nfse',
+  nf_entrada: 'nf_entrada',
+} as const;
+
+export type ListFiscalDocumentsDirection = typeof ListFiscalDocumentsDirection[keyof typeof ListFiscalDocumentsDirection];
+
+
+export const ListFiscalDocumentsDirection = {
+  entrada: 'entrada',
+  saida: 'saida',
+} as const;
+
+export type ListFiscalDocumentsStatus = typeof ListFiscalDocumentsStatus[keyof typeof ListFiscalDocumentsStatus];
+
+
+export const ListFiscalDocumentsStatus = {
+  issued: 'issued',
+  cancelled: 'cancelled',
+} as const;
+
+export type GetFiscalTaxSummaryParams = {
+year?: number;
+};
 

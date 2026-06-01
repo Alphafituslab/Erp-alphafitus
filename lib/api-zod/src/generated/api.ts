@@ -1796,3 +1796,168 @@ export const GetProjectsDashboardResponse = zod.object({
 })
 
 
+/**
+ * @summary List fiscal documents with optional filters
+ */
+export const ListFiscalDocumentsQueryParams = zod.object({
+  "type": zod.enum(['nfe', 'nfse', 'nf_entrada']).optional(),
+  "direction": zod.enum(['entrada', 'saida']).optional(),
+  "status": zod.enum(['issued', 'cancelled']).optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListFiscalDocumentsResponseItem = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['nfe', 'nfse', 'nf_entrada']),
+  "direction": zod.enum(['entrada', 'saida']),
+  "number": zod.string().nullish(),
+  "emitter": zod.string(),
+  "recipient": zod.string(),
+  "emitterDocument": zod.string().nullish(),
+  "recipientDocument": zod.string().nullish(),
+  "issueDate": zod.coerce.date(),
+  "totalAmount": zod.string(),
+  "cfop": zod.string().nullish(),
+  "icmsAmount": zod.string().nullish(),
+  "pisAmount": zod.string().nullish(),
+  "cofinsAmount": zod.string().nullish(),
+  "issAmount": zod.string().nullish(),
+  "status": zod.enum(['issued', 'cancelled']),
+  "referenceOrderId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListFiscalDocumentsResponse = zod.array(ListFiscalDocumentsResponseItem)
+
+
+/**
+ * @summary Create a new fiscal document entry
+ */
+export const CreateFiscalDocumentBody = zod.object({
+  "type": zod.enum(['nfe', 'nfse', 'nf_entrada']),
+  "direction": zod.enum(['entrada', 'saida']),
+  "number": zod.string().nullish(),
+  "emitter": zod.string(),
+  "recipient": zod.string(),
+  "emitterDocument": zod.string().nullish(),
+  "recipientDocument": zod.string().nullish(),
+  "issueDate": zod.coerce.date(),
+  "totalAmount": zod.string(),
+  "cfop": zod.string().nullish(),
+  "icmsAmount": zod.string().nullish(),
+  "pisAmount": zod.string().nullish(),
+  "cofinsAmount": zod.string().nullish(),
+  "issAmount": zod.string().nullish(),
+  "status": zod.enum(['issued', 'cancelled']),
+  "referenceOrderId": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a fiscal document entry
+ */
+export const UpdateFiscalDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateFiscalDocumentBody = zod.object({
+  "type": zod.enum(['nfe', 'nfse', 'nf_entrada']),
+  "direction": zod.enum(['entrada', 'saida']),
+  "number": zod.string().nullish(),
+  "emitter": zod.string(),
+  "recipient": zod.string(),
+  "emitterDocument": zod.string().nullish(),
+  "recipientDocument": zod.string().nullish(),
+  "issueDate": zod.coerce.date(),
+  "totalAmount": zod.string(),
+  "cfop": zod.string().nullish(),
+  "icmsAmount": zod.string().nullish(),
+  "pisAmount": zod.string().nullish(),
+  "cofinsAmount": zod.string().nullish(),
+  "issAmount": zod.string().nullish(),
+  "status": zod.enum(['issued', 'cancelled']),
+  "referenceOrderId": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateFiscalDocumentResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['nfe', 'nfse', 'nf_entrada']),
+  "direction": zod.enum(['entrada', 'saida']),
+  "number": zod.string().nullish(),
+  "emitter": zod.string(),
+  "recipient": zod.string(),
+  "emitterDocument": zod.string().nullish(),
+  "recipientDocument": zod.string().nullish(),
+  "issueDate": zod.coerce.date(),
+  "totalAmount": zod.string(),
+  "cfop": zod.string().nullish(),
+  "icmsAmount": zod.string().nullish(),
+  "pisAmount": zod.string().nullish(),
+  "cofinsAmount": zod.string().nullish(),
+  "issAmount": zod.string().nullish(),
+  "status": zod.enum(['issued', 'cancelled']),
+  "referenceOrderId": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a fiscal document entry
+ */
+export const DeleteFiscalDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteFiscalDocumentResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Monthly tax breakdown (ICMS, PIS, COFINS, ISS) for a given year
+ */
+export const GetFiscalTaxSummaryQueryParams = zod.object({
+  "year": zod.coerce.number().optional()
+})
+
+export const GetFiscalTaxSummaryResponseItem = zod.object({
+  "year": zod.number(),
+  "month": zod.number(),
+  "monthLabel": zod.string(),
+  "totalAmount": zod.string(),
+  "icmsTotal": zod.string(),
+  "pisTotal": zod.string(),
+  "cofinsTotal": zod.string(),
+  "issTotal": zod.string(),
+  "documentCount": zod.number()
+})
+export const GetFiscalTaxSummaryResponse = zod.array(GetFiscalTaxSummaryResponseItem)
+
+
+/**
+ * @summary Fiscal module dashboard totals
+ */
+export const GetFiscalDashboardResponse = zod.object({
+  "totalDocuments": zod.number(),
+  "issuedCount": zod.number(),
+  "cancelledCount": zod.number(),
+  "totalAmount": zod.string(),
+  "totalIcms": zod.string(),
+  "totalPis": zod.string(),
+  "totalCofins": zod.string(),
+  "totalIss": zod.string(),
+  "byType": zod.array(zod.object({
+  "type": zod.string(),
+  "count": zod.number(),
+  "totalAmount": zod.string()
+}))
+})
+
+

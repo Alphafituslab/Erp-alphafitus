@@ -37,14 +37,20 @@ import type {
   EstoqueDashboard,
   FinancialEntry,
   FinancialEntryInput,
+  FiscalDashboard,
+  FiscalDocument,
+  FiscalDocumentInput,
+  FiscalTaxSummaryMonth,
   GetAttendanceSummaryParams,
   GetCashflowParams,
+  GetFiscalTaxSummaryParams,
   GetVendasDashboardParams,
   HealthStatus,
   ListAttendanceLogsParams,
   ListClientsParams,
   ListEmployeesParams,
   ListFinancialEntriesParams,
+  ListFiscalDocumentsParams,
   ListProductsParams,
   ListProjectTasksParams,
   ListProjectsParams,
@@ -5914,6 +5920,464 @@ export function useGetProjectsDashboard<TData = Awaited<ReturnType<typeof getPro
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProjectsDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListFiscalDocumentsUrl = (params?: ListFiscalDocumentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/fiscal/documents?${stringifiedParams}` : `/api/fiscal/documents`
+}
+
+/**
+ * @summary List fiscal documents with optional filters
+ */
+export const listFiscalDocuments = async (params?: ListFiscalDocumentsParams, options?: RequestInit): Promise<FiscalDocument[]> => {
+
+  return customFetch<FiscalDocument[]>(getListFiscalDocumentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFiscalDocumentsQueryKey = (params?: ListFiscalDocumentsParams,) => {
+    return [
+    `/api/fiscal/documents`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFiscalDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listFiscalDocuments>>, TError = ErrorType<ErrorResponse>>(params?: ListFiscalDocumentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFiscalDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFiscalDocumentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFiscalDocuments>>> = ({ signal }) => listFiscalDocuments(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFiscalDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFiscalDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listFiscalDocuments>>>
+export type ListFiscalDocumentsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List fiscal documents with optional filters
+ */
+
+export function useListFiscalDocuments<TData = Awaited<ReturnType<typeof listFiscalDocuments>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListFiscalDocumentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFiscalDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFiscalDocumentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateFiscalDocumentUrl = () => {
+
+
+
+
+  return `/api/fiscal/documents`
+}
+
+/**
+ * @summary Create a new fiscal document entry
+ */
+export const createFiscalDocument = async (fiscalDocumentInput: FiscalDocumentInput, options?: RequestInit): Promise<FiscalDocument> => {
+
+  return customFetch<FiscalDocument>(getCreateFiscalDocumentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      fiscalDocumentInput,)
+  }
+);}
+
+
+
+
+export const getCreateFiscalDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFiscalDocument>>, TError,{data: BodyType<FiscalDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFiscalDocument>>, TError,{data: BodyType<FiscalDocumentInput>}, TContext> => {
+
+const mutationKey = ['createFiscalDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFiscalDocument>>, {data: BodyType<FiscalDocumentInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createFiscalDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFiscalDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof createFiscalDocument>>>
+    export type CreateFiscalDocumentMutationBody = BodyType<FiscalDocumentInput>
+    export type CreateFiscalDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a new fiscal document entry
+ */
+export const useCreateFiscalDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFiscalDocument>>, TError,{data: BodyType<FiscalDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFiscalDocument>>,
+        TError,
+        {data: BodyType<FiscalDocumentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateFiscalDocumentMutationOptions(options));
+    }
+
+export const getUpdateFiscalDocumentUrl = (id: number,) => {
+
+
+
+
+  return `/api/fiscal/documents/${id}`
+}
+
+/**
+ * @summary Update a fiscal document entry
+ */
+export const updateFiscalDocument = async (id: number,
+    fiscalDocumentInput: FiscalDocumentInput, options?: RequestInit): Promise<FiscalDocument> => {
+
+  return customFetch<FiscalDocument>(getUpdateFiscalDocumentUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      fiscalDocumentInput,)
+  }
+);}
+
+
+
+
+export const getUpdateFiscalDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFiscalDocument>>, TError,{id: number;data: BodyType<FiscalDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFiscalDocument>>, TError,{id: number;data: BodyType<FiscalDocumentInput>}, TContext> => {
+
+const mutationKey = ['updateFiscalDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFiscalDocument>>, {id: number;data: BodyType<FiscalDocumentInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateFiscalDocument(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFiscalDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof updateFiscalDocument>>>
+    export type UpdateFiscalDocumentMutationBody = BodyType<FiscalDocumentInput>
+    export type UpdateFiscalDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a fiscal document entry
+ */
+export const useUpdateFiscalDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFiscalDocument>>, TError,{id: number;data: BodyType<FiscalDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFiscalDocument>>,
+        TError,
+        {id: number;data: BodyType<FiscalDocumentInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateFiscalDocumentMutationOptions(options));
+    }
+
+export const getDeleteFiscalDocumentUrl = (id: number,) => {
+
+
+
+
+  return `/api/fiscal/documents/${id}`
+}
+
+/**
+ * @summary Delete a fiscal document entry
+ */
+export const deleteFiscalDocument = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteFiscalDocumentUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteFiscalDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFiscalDocument>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFiscalDocument>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteFiscalDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFiscalDocument>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteFiscalDocument(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFiscalDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFiscalDocument>>>
+
+    export type DeleteFiscalDocumentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a fiscal document entry
+ */
+export const useDeleteFiscalDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFiscalDocument>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFiscalDocument>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteFiscalDocumentMutationOptions(options));
+    }
+
+export const getGetFiscalTaxSummaryUrl = (params?: GetFiscalTaxSummaryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/fiscal/tax-summary?${stringifiedParams}` : `/api/fiscal/tax-summary`
+}
+
+/**
+ * @summary Monthly tax breakdown (ICMS, PIS, COFINS, ISS) for a given year
+ */
+export const getFiscalTaxSummary = async (params?: GetFiscalTaxSummaryParams, options?: RequestInit): Promise<FiscalTaxSummaryMonth[]> => {
+
+  return customFetch<FiscalTaxSummaryMonth[]>(getGetFiscalTaxSummaryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFiscalTaxSummaryQueryKey = (params?: GetFiscalTaxSummaryParams,) => {
+    return [
+    `/api/fiscal/tax-summary`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFiscalTaxSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getFiscalTaxSummary>>, TError = ErrorType<ErrorResponse>>(params?: GetFiscalTaxSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFiscalTaxSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFiscalTaxSummaryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFiscalTaxSummary>>> = ({ signal }) => getFiscalTaxSummary(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFiscalTaxSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFiscalTaxSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getFiscalTaxSummary>>>
+export type GetFiscalTaxSummaryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Monthly tax breakdown (ICMS, PIS, COFINS, ISS) for a given year
+ */
+
+export function useGetFiscalTaxSummary<TData = Awaited<ReturnType<typeof getFiscalTaxSummary>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetFiscalTaxSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFiscalTaxSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFiscalTaxSummaryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFiscalDashboardUrl = () => {
+
+
+
+
+  return `/api/fiscal/dashboard`
+}
+
+/**
+ * @summary Fiscal module dashboard totals
+ */
+export const getFiscalDashboard = async ( options?: RequestInit): Promise<FiscalDashboard> => {
+
+  return customFetch<FiscalDashboard>(getGetFiscalDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFiscalDashboardQueryKey = () => {
+    return [
+    `/api/fiscal/dashboard`
+    ] as const;
+    }
+
+
+export const getGetFiscalDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getFiscalDashboard>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFiscalDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFiscalDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFiscalDashboard>>> = ({ signal }) => getFiscalDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFiscalDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFiscalDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getFiscalDashboard>>>
+export type GetFiscalDashboardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Fiscal module dashboard totals
+ */
+
+export function useGetFiscalDashboard<TData = Awaited<ReturnType<typeof getFiscalDashboard>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFiscalDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFiscalDashboardQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

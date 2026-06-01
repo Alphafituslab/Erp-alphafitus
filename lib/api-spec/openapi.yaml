@@ -26,6 +26,8 @@ tags:
     description: Human resources - employees, departments, attendance
   - name: projetos
     description: Project management - projects and tasks
+  - name: fiscal
+    description: Fiscal documents registry — NF-e, NFS-e, NF entrada
 paths:
   /healthz:
     get:
@@ -2504,6 +2506,199 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Fiscal: Documents ─────────────────────────────────────────────────────
+
+  /fiscal/documents:
+    get:
+      operationId: listFiscalDocuments
+      tags: [fiscal]
+      summary: List fiscal documents with optional filters
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [nfe, nfse, nf_entrada]
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [entrada, saida]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [issued, cancelled]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of fiscal documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FiscalDocument"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createFiscalDocument
+      tags: [fiscal]
+      summary: Create a new fiscal document entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FiscalDocumentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalDocument"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /fiscal/documents/{id}:
+    put:
+      operationId: updateFiscalDocument
+      tags: [fiscal]
+      summary: Update a fiscal document entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FiscalDocumentInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalDocument"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFiscalDocument
+      tags: [fiscal]
+      summary: Delete a fiscal document entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /fiscal/tax-summary:
+    get:
+      operationId: getFiscalTaxSummary
+      tags: [fiscal]
+      summary: Monthly tax breakdown (ICMS, PIS, COFINS, ISS) for a given year
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly tax summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FiscalTaxSummaryMonth"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /fiscal/dashboard:
+    get:
+      operationId: getFiscalDashboard
+      tags: [fiscal]
+      summary: Fiscal module dashboard totals
+      responses:
+        "200":
+          description: Dashboard totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -4095,3 +4290,210 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Project"
+
+    FiscalDocument:
+      type: object
+      required:
+        - id
+        - type
+        - direction
+        - emitter
+        - recipient
+        - issueDate
+        - totalAmount
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [nfe, nfse, nf_entrada]
+        direction:
+          type: string
+          enum: [entrada, saida]
+        number:
+          type: string
+          nullable: true
+        emitter:
+          type: string
+        recipient:
+          type: string
+        emitterDocument:
+          type: string
+          nullable: true
+        recipientDocument:
+          type: string
+          nullable: true
+        issueDate:
+          type: string
+          format: date-time
+        totalAmount:
+          type: string
+        cfop:
+          type: string
+          nullable: true
+        icmsAmount:
+          type: string
+          nullable: true
+        pisAmount:
+          type: string
+          nullable: true
+        cofinsAmount:
+          type: string
+          nullable: true
+        issAmount:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [issued, cancelled]
+        referenceOrderId:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FiscalDocumentInput:
+      type: object
+      required:
+        - type
+        - direction
+        - emitter
+        - recipient
+        - issueDate
+        - totalAmount
+        - status
+      properties:
+        type:
+          type: string
+          enum: [nfe, nfse, nf_entrada]
+        direction:
+          type: string
+          enum: [entrada, saida]
+        number:
+          type: string
+          nullable: true
+        emitter:
+          type: string
+        recipient:
+          type: string
+        emitterDocument:
+          type: string
+          nullable: true
+        recipientDocument:
+          type: string
+          nullable: true
+        issueDate:
+          type: string
+          format: date-time
+        totalAmount:
+          type: string
+        cfop:
+          type: string
+          nullable: true
+        icmsAmount:
+          type: string
+          nullable: true
+        pisAmount:
+          type: string
+          nullable: true
+        cofinsAmount:
+          type: string
+          nullable: true
+        issAmount:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [issued, cancelled]
+        referenceOrderId:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    FiscalTaxSummaryMonth:
+      type: object
+      required:
+        - year
+        - month
+        - monthLabel
+        - totalAmount
+        - icmsTotal
+        - pisTotal
+        - cofinsTotal
+        - issTotal
+        - documentCount
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        monthLabel:
+          type: string
+        totalAmount:
+          type: string
+        icmsTotal:
+          type: string
+        pisTotal:
+          type: string
+        cofinsTotal:
+          type: string
+        issTotal:
+          type: string
+        documentCount:
+          type: integer
+
+    FiscalDashboard:
+      type: object
+      required:
+        - totalDocuments
+        - issuedCount
+        - cancelledCount
+        - totalAmount
+        - totalIcms
+        - totalPis
+        - totalCofins
+        - totalIss
+        - byType
+      properties:
+        totalDocuments:
+          type: integer
+        issuedCount:
+          type: integer
+        cancelledCount:
+          type: integer
+        totalAmount:
+          type: string
+        totalIcms:
+          type: string
+        totalPis:
+          type: string
+        totalCofins:
+          type: string
+        totalIss:
+          type: string
+        byType:
+          type: array
+          items:
+            type: object
+            required:
+              - type
+              - count
+              - totalAmount
+            properties:
+              type:
+                type: string
+              count:
+                type: integer
+              totalAmount:
+                type: string
