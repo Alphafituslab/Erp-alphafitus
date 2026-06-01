@@ -1,9 +1,21 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, like, sql, desc } from "drizzle-orm";
-import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, productsTable } from "@workspace/db";
+import { and, eq, gte, lte, sql, desc, isNotNull } from "drizzle-orm";
+import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable } from "@workspace/db";
 import type { Request, Response } from "express";
 
 const router: IRouter = Router();
+
+const ALL_STATUSES = [
+  "draft", "sent", "client_approved", "client_rejected",
+  "financial_review", "financial_rejected",
+  "technical_review", "technical_rejected",
+  "pcp_released", "in_production", "quality_check",
+  "billing", "shipped", "delivered", "cancelled",
+] as const;
+
+const OPEN_STATUSES = ALL_STATUSES.filter(
+  (s) => !["delivered", "cancelled", "client_rejected", "financial_rejected", "technical_rejected"].includes(s)
+);
 
 function requireAuth(req: Request, res: Response): boolean {
   if (!req.session.userId) {
@@ -153,7 +165,17 @@ router.get("/vendas/orders", async (req: Request, res: Response): Promise<void> 
       status: salesOrdersTable.status,
       totalAmount: salesOrdersTable.totalAmount,
       validUntil: salesOrdersTable.validUntil,
+      deliveryDate: salesOrdersTable.deliveryDate,
       notes: salesOrdersTable.notes,
+      paymentTerms: salesOrdersTable.paymentTerms,
+      commission: salesOrdersTable.commission,
+      freightValue: salesOrdersTable.freightValue,
+      carrier: salesOrdersTable.carrier,
+      formula: salesOrdersTable.formula,
+      formulaVersion: salesOrdersTable.formulaVersion,
+      packagingType: salesOrdersTable.packagingType,
+      labelRef: salesOrdersTable.labelRef,
+      technicalNotes: salesOrdersTable.technicalNotes,
       createdAt: salesOrdersTable.createdAt,
       updatedAt: salesOrdersTable.updatedAt,
     })
@@ -168,7 +190,12 @@ router.get("/vendas/orders", async (req: Request, res: Response): Promise<void> 
 router.post("/vendas/orders", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { clientId, type, status, validUntil, notes, items } = req.body;
+  const {
+    clientId, type, status, validUntil, deliveryDate, notes,
+    paymentTerms, commission, freightValue, carrier,
+    formula, formulaVersion, packagingType, labelRef, technicalNotes,
+    items,
+  } = req.body;
 
   if (!type || !["quote", "order"].includes(type)) {
     res.status(400).json({ error: "Tipo inválido (quote ou order)" });
@@ -184,15 +211,27 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
     return sum + Number(item.quantity) * Number(item.unitPrice);
   }, 0);
 
+  const initialStatus = status ?? "draft";
+
   const [order] = await db
     .insert(salesOrdersTable)
     .values({
       clientId: clientId ? parseInt(clientId) : null,
       type,
-      status: status ?? "draft",
+      status: initialStatus,
       totalAmount: totalAmount.toFixed(2),
       validUntil: validUntil ? new Date(validUntil) : null,
-      notes,
+      deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
+      notes: notes ?? null,
+      paymentTerms: paymentTerms ?? null,
+      commission: commission != null ? String(commission) : null,
+      freightValue: freightValue != null ? String(freightValue) : null,
+      carrier: carrier ?? null,
+      formula: formula ?? null,
+      formulaVersion: formulaVersion ?? null,
+      packagingType: packagingType ?? null,
+      labelRef: labelRef ?? null,
+      technicalNotes: technicalNotes ?? null,
     })
     .returning();
 
@@ -206,6 +245,14 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
       totalPrice: (Number(item.quantity) * Number(item.unitPrice)).toFixed(2),
     }))
   );
+
+  await db.insert(salesOrderLogsTable).values({
+    salesOrderId: order.id,
+    fromStatus: null,
+    toStatus: initialStatus,
+    userId: req.session.userId ?? null,
+    notes: "Pedido criado",
+  });
 
   const clientName = clientId
     ? (await db.select({ name: clientsTable.name }).from(clientsTable).where(eq(clientsTable.id, parseInt(clientId))))[0]?.name ?? null
@@ -235,7 +282,12 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
   const id = parseId(req.params.id, res);
   if (!id) return;
 
-  const { clientId, type, status, validUntil, notes, items } = req.body;
+  const {
+    clientId, type, validUntil, deliveryDate, notes,
+    paymentTerms, commission, freightValue, carrier,
+    formula, formulaVersion, packagingType, labelRef, technicalNotes,
+    items,
+  } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Pelo menos um item é obrigatório" });
@@ -251,10 +303,19 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
     .set({
       clientId: clientId ? parseInt(clientId) : null,
       type,
-      status: status ?? "draft",
       totalAmount: totalAmount.toFixed(2),
       validUntil: validUntil ? new Date(validUntil) : null,
-      notes,
+      deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
+      notes: notes ?? null,
+      paymentTerms: paymentTerms ?? null,
+      commission: commission != null ? String(commission) : null,
+      freightValue: freightValue != null ? String(freightValue) : null,
+      carrier: carrier ?? null,
+      formula: formula ?? null,
+      formulaVersion: formulaVersion ?? null,
+      packagingType: packagingType ?? null,
+      labelRef: labelRef ?? null,
+      technicalNotes: technicalNotes ?? null,
     })
     .where(eq(salesOrdersTable.id, id))
     .returning();
@@ -264,7 +325,6 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  // Replace items
   await db.delete(salesOrderItemsTable).where(eq(salesOrderItemsTable.salesOrderId, id));
   await db.insert(salesOrderItemsTable).values(
     items.map((item: any) => ({
@@ -290,6 +350,7 @@ router.delete("/vendas/orders/:id", async (req: Request, res: Response): Promise
   const id = parseId(req.params.id, res);
   if (!id) return;
 
+  await db.delete(salesOrderLogsTable).where(eq(salesOrderLogsTable.salesOrderId, id));
   await db.delete(salesOrderItemsTable).where(eq(salesOrderItemsTable.salesOrderId, id));
   const [deleted] = await db.delete(salesOrdersTable).where(eq(salesOrdersTable.id, id)).returning();
 
@@ -319,9 +380,17 @@ router.post("/vendas/orders/:id/convert", async (req: Request, res: Response): P
 
   const [updated] = await db
     .update(salesOrdersTable)
-    .set({ type: "order", status: "confirmed" })
+    .set({ type: "order", status: "sent" })
     .where(eq(salesOrdersTable.id, id))
     .returning();
+
+  await db.insert(salesOrderLogsTable).values({
+    salesOrderId: id,
+    fromStatus: order.status,
+    toStatus: "sent",
+    userId: req.session.userId ?? null,
+    notes: "Orçamento convertido em pedido",
+  });
 
   const clientName = updated.clientId
     ? (await db.select({ name: clientsTable.name }).from(clientsTable).where(eq(clientsTable.id, updated.clientId)))[0]?.name ?? null
@@ -336,9 +405,15 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
   const id = parseId(req.params.id, res);
   if (!id) return;
 
-  const { status } = req.body;
-  if (!status || !["draft", "confirmed", "delivered", "cancelled"].includes(status)) {
-    res.status(400).json({ error: "Status inválido" });
+  const { status, notes } = req.body;
+  if (!status || !ALL_STATUSES.includes(status as any)) {
+    res.status(400).json({ error: `Status inválido. Valores aceitos: ${ALL_STATUSES.join(", ")}` });
+    return;
+  }
+
+  const [current] = await db.select({ status: salesOrdersTable.status }).from(salesOrdersTable).where(eq(salesOrdersTable.id, id));
+  if (!current) {
+    res.status(404).json({ error: "Pedido não encontrado" });
     return;
   }
 
@@ -353,11 +428,40 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
     return;
   }
 
+  await db.insert(salesOrderLogsTable).values({
+    salesOrderId: id,
+    fromStatus: current.status,
+    toStatus: status,
+    userId: req.session.userId ?? null,
+    notes: notes ?? null,
+  });
+
   const clientName = updated.clientId
     ? (await db.select({ name: clientsTable.name }).from(clientsTable).where(eq(clientsTable.id, updated.clientId)))[0]?.name ?? null
     : null;
 
   res.json({ ...updated, clientName });
+});
+
+router.get("/vendas/orders/:id/logs", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (!id) return;
+
+  const [order] = await db.select({ id: salesOrdersTable.id }).from(salesOrdersTable).where(eq(salesOrdersTable.id, id));
+  if (!order) {
+    res.status(404).json({ error: "Pedido não encontrado" });
+    return;
+  }
+
+  const logs = await db
+    .select()
+    .from(salesOrderLogsTable)
+    .where(eq(salesOrderLogsTable.salesOrderId, id))
+    .orderBy(desc(salesOrderLogsTable.createdAt));
+
+  res.json(logs);
 });
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
@@ -370,7 +474,8 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  // Total this month (orders only, not cancelled)
+  const CANCELLED_SQL = `status NOT IN ('cancelled', 'client_rejected', 'financial_rejected', 'technical_rejected')`;
+
   const [monthlyStats] = await db
     .select({
       total: sql<number>`COALESCE(SUM(total_amount::numeric), 0)`,
@@ -380,7 +485,7 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
     .where(
       and(
         eq(salesOrdersTable.type, "order"),
-        sql`status != 'cancelled'`,
+        sql`${sql.raw(CANCELLED_SQL)}`,
         gte(salesOrdersTable.createdAt, monthStart),
         lte(salesOrdersTable.createdAt, monthEnd),
       )
@@ -388,7 +493,6 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
 
   const ordersThisMonth = Number(monthlyStats?.count ?? 0);
 
-  // Conversion rate — both counts scoped to the same year for fair comparison
   const [quoteStats] = await db
     .select({ total: sql<number>`COUNT(*)::int` })
     .from(salesOrdersTable)
@@ -401,12 +505,43 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
 
   const totalQuotes = Number(quoteStats?.total ?? 0);
   const totalOrdersYear = Number(orderStats?.total ?? 0);
-  // Conversion rate: orders / (quotes + orders) gives the share that became orders
   const conversionRate = (totalQuotes + totalOrdersYear) > 0
     ? Math.round((totalOrdersYear / (totalQuotes + totalOrdersYear)) * 100)
     : 0;
 
-  // Monthly chart
+  const NOT_TERMINAL_SQL = `status NOT IN ('delivered', 'cancelled', 'client_rejected', 'financial_rejected', 'technical_rejected')`;
+
+  const [openStats] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(salesOrdersTable)
+    .where(and(eq(salesOrdersTable.type, "order"), sql`${sql.raw(NOT_TERMINAL_SQL)}`));
+  const openOrders = Number(openStats?.count ?? 0);
+
+  const [overdueStats] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(salesOrdersTable)
+    .where(
+      and(
+        eq(salesOrdersTable.type, "order"),
+        sql`${sql.raw(NOT_TERMINAL_SQL)}`,
+        isNotNull(salesOrdersTable.deliveryDate),
+        lte(salesOrdersTable.deliveryDate, now),
+      )
+    );
+  const overdueOrders = Number(overdueStats?.count ?? 0);
+
+  const [avgStats] = await db
+    .select({ avg: sql<number>`COALESCE(AVG(total_amount::numeric), 0)` })
+    .from(salesOrdersTable)
+    .where(
+      and(
+        eq(salesOrdersTable.type, "order"),
+        sql`${sql.raw(CANCELLED_SQL)}`,
+        sql`EXTRACT(YEAR FROM created_at) = ${year}`,
+      )
+    );
+  const avgTicket = Number(avgStats?.avg ?? 0);
+
   const monthlyRows = await db
     .select({
       month: sql<number>`EXTRACT(MONTH FROM created_at)::int`,
@@ -418,7 +553,7 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
     .where(
       and(
         eq(salesOrdersTable.type, "order"),
-        sql`status != 'cancelled'`,
+        sql`${sql.raw(CANCELLED_SQL)}`,
         sql`EXTRACT(YEAR FROM created_at) = ${year}`,
       )
     )
@@ -431,7 +566,6 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
     monthlyChart.push({ month: m, year, total: Number(row?.total ?? 0), count: Number(row?.count ?? 0) });
   }
 
-  // Top clients
   const topClientsRows = await db
     .select({
       clientId: clientsTable.id,
@@ -441,16 +575,37 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
     })
     .from(salesOrdersTable)
     .innerJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
-    .where(and(eq(salesOrdersTable.type, "order"), sql`${salesOrdersTable.status} != 'cancelled'`))
+    .where(and(
+      eq(salesOrdersTable.type, "order"),
+      sql`${salesOrdersTable.status} NOT IN ('cancelled', 'client_rejected', 'financial_rejected', 'technical_rejected')`
+    ))
     .groupBy(clientsTable.id, clientsTable.name)
     .orderBy(desc(sql`SUM(${salesOrdersTable.totalAmount}::numeric)`))
     .limit(5);
+
+  const pipelineRows = await db
+    .select({
+      status: salesOrdersTable.status,
+      count: sql<number>`COUNT(*)::int`,
+      total: sql<number>`COALESCE(SUM(total_amount::numeric), 0)`,
+    })
+    .from(salesOrdersTable)
+    .where(eq(salesOrdersTable.type, "order"))
+    .groupBy(salesOrdersTable.status);
+
+  const pipelineByStatus = OPEN_STATUSES.map((s) => {
+    const row = pipelineRows.find((r) => r.status === s);
+    return { status: s, count: Number(row?.count ?? 0), total: Number(row?.total ?? 0) };
+  });
 
   res.json({
     totalThisMonth: Number(monthlyStats?.total ?? 0),
     ordersThisMonth,
     totalQuotes,
     conversionRate,
+    openOrders,
+    overdueOrders,
+    avgTicket,
     monthlyChart,
     topClients: topClientsRows.map((r) => ({
       clientId: r.clientId,
@@ -458,6 +613,7 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
       total: Number(r.total),
       orderCount: Number(r.orderCount),
     })),
+    pipelineByStatus,
   });
 });
 

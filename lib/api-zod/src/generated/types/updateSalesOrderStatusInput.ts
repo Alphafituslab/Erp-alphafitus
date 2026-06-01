@@ -9,4 +9,5 @@ import type { UpdateSalesOrderStatusInputStatus } from './updateSalesOrderStatus
 
 export interface UpdateSalesOrderStatusInput {
   status: UpdateSalesOrderStatusInputStatus;
+  notes?: string | null;
 }

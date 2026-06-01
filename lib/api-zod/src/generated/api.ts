@@ -282,7 +282,7 @@ export const DeleteClientResponse = zod.object({
  */
 export const ListSalesOrdersQueryParams = zod.object({
   "type": zod.enum(['quote', 'order']).optional(),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']).optional(),
   "clientId": zod.coerce.number().optional(),
   "startDate": zod.date().optional(),
   "endDate": zod.date().optional()
@@ -293,10 +293,20 @@ export const ListSalesOrdersResponseItem = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -309,9 +319,19 @@ export const ListSalesOrdersResponse = zod.array(ListSalesOrdersResponseItem)
 export const CreateSalesOrderBody = zod.object({
   "clientId": zod.number().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']).optional(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
   "description": zod.string(),
@@ -333,10 +353,20 @@ export const GetSalesOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "items": zod.array(zod.object({
@@ -361,9 +391,19 @@ export const UpdateSalesOrderParams = zod.object({
 export const UpdateSalesOrderBody = zod.object({
   "clientId": zod.number().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']).optional(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
   "description": zod.string(),
@@ -377,10 +417,20 @@ export const UpdateSalesOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -399,6 +449,26 @@ export const DeleteSalesOrderResponse = zod.object({
 
 
 /**
+ * @summary Get status transition history for a sales order
+ */
+export const ListSalesOrderLogsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListSalesOrderLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "salesOrderId": zod.number(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string(),
+  "userId": zod.number().nullish(),
+  "userName": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListSalesOrderLogsResponse = zod.array(ListSalesOrderLogsResponseItem)
+
+
+/**
  * @summary Convert a quote to a sales order
  */
 export const ConvertQuoteToOrderParams = zod.object({
@@ -410,10 +480,20 @@ export const ConvertQuoteToOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -427,7 +507,8 @@ export const UpdateSalesOrderStatusParams = zod.object({
 })
 
 export const UpdateSalesOrderStatusBody = zod.object({
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled'])
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
+  "notes": zod.string().nullish()
 })
 
 export const UpdateSalesOrderStatusResponse = zod.object({
@@ -435,10 +516,20 @@ export const UpdateSalesOrderStatusResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'client_approved', 'client_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'pcp_released', 'in_production', 'quality_check', 'billing', 'shipped', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
+  "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "commission": zod.string().nullish(),
+  "freightValue": zod.string().nullish(),
+  "carrier": zod.string().nullish(),
+  "formula": zod.string().nullish(),
+  "formulaVersion": zod.string().nullish(),
+  "packagingType": zod.string().nullish(),
+  "labelRef": zod.string().nullish(),
+  "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1217,6 +1308,9 @@ export const GetVendasDashboardResponse = zod.object({
   "ordersThisMonth": zod.number(),
   "totalQuotes": zod.number(),
   "conversionRate": zod.number(),
+  "openOrders": zod.number(),
+  "overdueOrders": zod.number(),
+  "avgTicket": zod.number(),
   "monthlyChart": zod.array(zod.object({
   "month": zod.number(),
   "year": zod.number(),
@@ -1228,6 +1322,11 @@ export const GetVendasDashboardResponse = zod.object({
   "clientName": zod.string(),
   "total": zod.number(),
   "orderCount": zod.number()
+})),
+  "pipelineByStatus": zod.array(zod.object({
+  "status": zod.string(),
+  "count": zod.number(),
+  "total": zod.number()
 }))
 })
 

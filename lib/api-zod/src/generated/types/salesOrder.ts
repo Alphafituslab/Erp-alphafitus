@@ -16,7 +16,17 @@ export interface SalesOrder {
   status: SalesOrderStatus;
   totalAmount: string;
   validUntil?: Date | null;
+  deliveryDate?: Date | null;
   notes?: string | null;
+  paymentTerms?: string | null;
+  commission?: string | null;
+  freightValue?: string | null;
+  carrier?: string | null;
+  formula?: string | null;
+  formulaVersion?: string | null;
+  packagingType?: string | null;
+  labelRef?: string | null;
+  technicalNotes?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

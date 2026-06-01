@@ -11,7 +11,18 @@ export type SalesOrderInputStatus = typeof SalesOrderInputStatus[keyof typeof Sa
 
 export const SalesOrderInputStatus = {
   draft: 'draft',
-  confirmed: 'confirmed',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  pcp_released: 'pcp_released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  billing: 'billing',
+  shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;

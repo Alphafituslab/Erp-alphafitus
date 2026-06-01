@@ -85,6 +85,7 @@ import type {
   RhDashboard,
   SalesOrder,
   SalesOrderInput,
+  SalesOrderLog,
   SalesOrderWithItems,
   StockMovement,
   StockMovementInput,
@@ -1527,6 +1528,83 @@ export const useDeleteSalesOrder = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteSalesOrderMutationOptions(options));
     }
+
+export const getListSalesOrderLogsUrl = (id: number,) => {
+
+
+
+
+  return `/api/vendas/orders/${id}/logs`
+}
+
+/**
+ * @summary Get status transition history for a sales order
+ */
+export const listSalesOrderLogs = async (id: number, options?: RequestInit): Promise<SalesOrderLog[]> => {
+
+  return customFetch<SalesOrderLog[]>(getListSalesOrderLogsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSalesOrderLogsQueryKey = (id: number,) => {
+    return [
+    `/api/vendas/orders/${id}/logs`
+    ] as const;
+    }
+
+
+export const getListSalesOrderLogsQueryOptions = <TData = Awaited<ReturnType<typeof listSalesOrderLogs>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSalesOrderLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSalesOrderLogsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSalesOrderLogs>>> = ({ signal }) => listSalesOrderLogs(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSalesOrderLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSalesOrderLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listSalesOrderLogs>>>
+export type ListSalesOrderLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get status transition history for a sales order
+ */
+
+export function useListSalesOrderLogs<TData = Awaited<ReturnType<typeof listSalesOrderLogs>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSalesOrderLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSalesOrderLogsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getConvertQuoteToOrderUrl = (id: number,) => {
 

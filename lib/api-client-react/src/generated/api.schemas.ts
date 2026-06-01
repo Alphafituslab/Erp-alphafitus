@@ -157,6 +157,17 @@ export interface SalesOrderItemInput {
   unitPrice: string;
 }
 
+export interface SalesOrderLog {
+  id: number;
+  salesOrderId: number;
+  fromStatus?: string | null;
+  toStatus: string;
+  userId?: number | null;
+  userName?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
 export type SalesOrderType = typeof SalesOrderType[keyof typeof SalesOrderType];
 
 
@@ -170,7 +181,18 @@ export type SalesOrderStatus = typeof SalesOrderStatus[keyof typeof SalesOrderSt
 
 export const SalesOrderStatus = {
   draft: 'draft',
-  confirmed: 'confirmed',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  pcp_released: 'pcp_released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  billing: 'billing',
+  shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;
@@ -183,7 +205,17 @@ export interface SalesOrder {
   status: SalesOrderStatus;
   totalAmount: string;
   validUntil?: string | null;
+  deliveryDate?: string | null;
   notes?: string | null;
+  paymentTerms?: string | null;
+  commission?: string | null;
+  freightValue?: string | null;
+  carrier?: string | null;
+  formula?: string | null;
+  formulaVersion?: string | null;
+  packagingType?: string | null;
+  labelRef?: string | null;
+  technicalNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -201,7 +233,18 @@ export type SalesOrderWithItemsStatus = typeof SalesOrderWithItemsStatus[keyof t
 
 export const SalesOrderWithItemsStatus = {
   draft: 'draft',
-  confirmed: 'confirmed',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  pcp_released: 'pcp_released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  billing: 'billing',
+  shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;
@@ -214,7 +257,17 @@ export interface SalesOrderWithItems {
   status: SalesOrderWithItemsStatus;
   totalAmount: string;
   validUntil?: string | null;
+  deliveryDate?: string | null;
   notes?: string | null;
+  paymentTerms?: string | null;
+  commission?: string | null;
+  freightValue?: string | null;
+  carrier?: string | null;
+  formula?: string | null;
+  formulaVersion?: string | null;
+  packagingType?: string | null;
+  labelRef?: string | null;
+  technicalNotes?: string | null;
   createdAt: string;
   updatedAt: string;
   items: SalesOrderItem[];
@@ -233,7 +286,18 @@ export type SalesOrderInputStatus = typeof SalesOrderInputStatus[keyof typeof Sa
 
 export const SalesOrderInputStatus = {
   draft: 'draft',
-  confirmed: 'confirmed',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  pcp_released: 'pcp_released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  billing: 'billing',
+  shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;
@@ -243,7 +307,17 @@ export interface SalesOrderInput {
   type: SalesOrderInputType;
   status?: SalesOrderInputStatus;
   validUntil?: string | null;
+  deliveryDate?: string | null;
   notes?: string | null;
+  paymentTerms?: string | null;
+  commission?: string | null;
+  freightValue?: string | null;
+  carrier?: string | null;
+  formula?: string | null;
+  formulaVersion?: string | null;
+  packagingType?: string | null;
+  labelRef?: string | null;
+  technicalNotes?: string | null;
   items: SalesOrderItemInput[];
 }
 
@@ -252,13 +326,25 @@ export type UpdateSalesOrderStatusInputStatus = typeof UpdateSalesOrderStatusInp
 
 export const UpdateSalesOrderStatusInputStatus = {
   draft: 'draft',
-  confirmed: 'confirmed',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  pcp_released: 'pcp_released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  billing: 'billing',
+  shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;
 
 export interface UpdateSalesOrderStatusInput {
   status: UpdateSalesOrderStatusInputStatus;
+  notes?: string | null;
 }
 
 export interface VendasDashboardMonth {
@@ -275,13 +361,23 @@ export interface VendasTopClient {
   orderCount: number;
 }
 
+export interface VendasPipelineStage {
+  status: string;
+  count: number;
+  total: number;
+}
+
 export interface VendasDashboard {
   totalThisMonth: number;
   ordersThisMonth: number;
   totalQuotes: number;
   conversionRate: number;
+  openOrders: number;
+  overdueOrders: number;
+  avgTicket: number;
   monthlyChart: VendasDashboardMonth[];
   topClients: VendasTopClient[];
+  pipelineByStatus: VendasPipelineStage[];
 }
 
 export interface Product {
@@ -1117,7 +1213,18 @@ export type ListSalesOrdersStatus = typeof ListSalesOrdersStatus[keyof typeof Li
 
 export const ListSalesOrdersStatus = {
   draft: 'draft',
-  confirmed: 'confirmed',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  pcp_released: 'pcp_released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  billing: 'billing',
+  shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;

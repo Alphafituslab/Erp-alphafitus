@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VendasDashboardMonth } from './vendasDashboardMonth';
+import type { VendasPipelineStage } from './vendasPipelineStage';
 import type { VendasTopClient } from './vendasTopClient';
 
 export interface VendasDashboard {
@@ -13,6 +14,10 @@ export interface VendasDashboard {
   ordersThisMonth: number;
   totalQuotes: number;
   conversionRate: number;
+  openOrders: number;
+  overdueOrders: number;
+  avgTicket: number;
   monthlyChart: VendasDashboardMonth[];
   topClients: VendasTopClient[];
+  pipelineByStatus: VendasPipelineStage[];
 }

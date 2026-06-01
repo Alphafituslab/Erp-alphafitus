@@ -451,7 +451,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [draft, confirmed, delivered, cancelled]
+            enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
         - name: clientId
           in: query
           schema:
@@ -593,6 +593,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vendas/orders/{id}/logs:
+    get:
+      operationId: listSalesOrderLogs
+      tags: [vendas]
+      summary: Get status transition history for a sales order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SalesOrderLog"
         "404":
           description: Not found
           content:
@@ -3068,6 +3101,36 @@ components:
         unitPrice:
           type: string
 
+    SalesOrderLog:
+      type: object
+      required:
+        - id
+        - salesOrderId
+        - toStatus
+        - createdAt
+      properties:
+        id:
+          type: integer
+        salesOrderId:
+          type: integer
+        fromStatus:
+          type: string
+          nullable: true
+        toStatus:
+          type: string
+        userId:
+          type: integer
+          nullable: true
+        userName:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
     SalesOrder:
       type: object
       required:
@@ -3091,14 +3154,45 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, confirmed, delivered, cancelled]
+          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
         totalAmount:
           type: string
         validUntil:
           type: string
           format: date-time
           nullable: true
+        deliveryDate:
+          type: string
+          format: date-time
+          nullable: true
         notes:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: string
+          nullable: true
+        commission:
+          type: string
+          nullable: true
+        freightValue:
+          type: string
+          nullable: true
+        carrier:
+          type: string
+          nullable: true
+        formula:
+          type: string
+          nullable: true
+        formulaVersion:
+          type: string
+          nullable: true
+        packagingType:
+          type: string
+          nullable: true
+        labelRef:
+          type: string
+          nullable: true
+        technicalNotes:
           type: string
           nullable: true
         createdAt:
@@ -3132,14 +3226,45 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, confirmed, delivered, cancelled]
+          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
         totalAmount:
           type: string
         validUntil:
           type: string
           format: date-time
           nullable: true
+        deliveryDate:
+          type: string
+          format: date-time
+          nullable: true
         notes:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: string
+          nullable: true
+        commission:
+          type: string
+          nullable: true
+        freightValue:
+          type: string
+          nullable: true
+        carrier:
+          type: string
+          nullable: true
+        formula:
+          type: string
+          nullable: true
+        formulaVersion:
+          type: string
+          nullable: true
+        packagingType:
+          type: string
+          nullable: true
+        labelRef:
+          type: string
+          nullable: true
+        technicalNotes:
           type: string
           nullable: true
         createdAt:
@@ -3167,12 +3292,43 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, confirmed, delivered, cancelled]
+          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
         validUntil:
           type: string
           format: date-time
           nullable: true
+        deliveryDate:
+          type: string
+          format: date-time
+          nullable: true
         notes:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: string
+          nullable: true
+        commission:
+          type: string
+          nullable: true
+        freightValue:
+          type: string
+          nullable: true
+        carrier:
+          type: string
+          nullable: true
+        formula:
+          type: string
+          nullable: true
+        formulaVersion:
+          type: string
+          nullable: true
+        packagingType:
+          type: string
+          nullable: true
+        labelRef:
+          type: string
+          nullable: true
+        technicalNotes:
           type: string
           nullable: true
         items:
@@ -3187,7 +3343,10 @@ components:
       properties:
         status:
           type: string
-          enum: [draft, confirmed, delivered, cancelled]
+          enum: [draft, sent, client_approved, client_rejected, financial_review, financial_rejected, technical_review, technical_rejected, pcp_released, in_production, quality_check, billing, shipped, delivered, cancelled]
+        notes:
+          type: string
+          nullable: true
 
     VendasDashboardMonth:
       type: object
@@ -3223,6 +3382,20 @@ components:
         orderCount:
           type: integer
 
+    VendasPipelineStage:
+      type: object
+      required:
+        - status
+        - count
+        - total
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+        total:
+          type: number
+
     VendasDashboard:
       type: object
       required:
@@ -3230,8 +3403,12 @@ components:
         - ordersThisMonth
         - totalQuotes
         - conversionRate
+        - openOrders
+        - overdueOrders
+        - avgTicket
         - monthlyChart
         - topClients
+        - pipelineByStatus
       properties:
         totalThisMonth:
           type: number
@@ -3241,6 +3418,12 @@ components:
           type: integer
         conversionRate:
           type: number
+        openOrders:
+          type: integer
+        overdueOrders:
+          type: integer
+        avgTicket:
+          type: number
         monthlyChart:
           type: array
           items:
@@ -3249,6 +3432,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VendasTopClient"
+        pipelineByStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendasPipelineStage"
 
     # ── Estoque schemas ─────────────────────────────────────────────────────────
 
