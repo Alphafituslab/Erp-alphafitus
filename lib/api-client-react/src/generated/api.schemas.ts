@@ -284,6 +284,80 @@ export interface VendasDashboard {
   topClients: VendasTopClient[];
 }
 
+export interface Product {
+  id: number;
+  sku?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  unit: string;
+  costPrice?: string | null;
+  salePrice?: string | null;
+  currentStock: number;
+  minStock: number;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductInput {
+  sku?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  costPrice?: string | null;
+  salePrice?: string | null;
+  minStock?: number | null;
+  currentStock?: number | null;
+}
+
+export type StockMovementType = typeof StockMovementType[keyof typeof StockMovementType];
+
+
+export const StockMovementType = {
+  input: 'input',
+  output: 'output',
+} as const;
+
+export interface StockMovement {
+  id: number;
+  productId: number;
+  productName?: string | null;
+  type: StockMovementType;
+  quantity: number;
+  reason?: string | null;
+  referenceId?: number | null;
+  referenceType?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type StockMovementInputType = typeof StockMovementInputType[keyof typeof StockMovementInputType];
+
+
+export const StockMovementInputType = {
+  input: 'input',
+  output: 'output',
+} as const;
+
+export interface StockMovementInput {
+  productId: number;
+  type: StockMovementInputType;
+  quantity: number;
+  reason?: string | null;
+  notes?: string | null;
+}
+
+export interface EstoqueDashboard {
+  totalProducts: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  totalStockValue: number;
+  lowStockProducts: Product[];
+  recentMovements: StockMovement[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -351,6 +425,43 @@ export const ListSalesOrdersStatus = {
   confirmed: 'confirmed',
   delivered: 'delivered',
   cancelled: 'cancelled',
+} as const;
+
+export type ListProductsParams = {
+search?: string;
+category?: string;
+active?: ListProductsActive;
+lowStock?: ListProductsLowStock;
+};
+
+export type ListProductsActive = typeof ListProductsActive[keyof typeof ListProductsActive];
+
+
+export const ListProductsActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type ListProductsLowStock = typeof ListProductsLowStock[keyof typeof ListProductsLowStock];
+
+
+export const ListProductsLowStock = {
+  true: 'true',
+} as const;
+
+export type ListStockMovementsParams = {
+productId?: number;
+type?: ListStockMovementsType;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListStockMovementsType = typeof ListStockMovementsType[keyof typeof ListStockMovementsType];
+
+
+export const ListStockMovementsType = {
+  input: 'input',
+  output: 'output',
 } as const;
 
 export type GetVendasDashboardParams = {

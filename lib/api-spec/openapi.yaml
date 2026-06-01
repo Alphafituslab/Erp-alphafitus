@@ -16,6 +16,8 @@ tags:
     description: Financial entries (accounts payable/receivable)
   - name: vendas
     description: Sales module - clients, quotes, orders
+  - name: estoque
+    description: Inventory module - products and stock movements
 paths:
   /healthz:
     get:
@@ -666,6 +668,236 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Estoque: Products ────────────────────────────────────────────────────────
+
+  /estoque/products:
+    get:
+      operationId: listProducts
+      tags: [estoque]
+      summary: List products with optional filters
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: lowStock
+          in: query
+          schema:
+            type: string
+            enum: ["true"]
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProduct
+      tags: [estoque]
+      summary: Create a new product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /estoque/products/{id}:
+    put:
+      operationId: updateProduct
+      tags: [estoque]
+      summary: Update a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProduct
+      tags: [estoque]
+      summary: Soft-delete a product (set active=false)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Estoque: Stock Movements ─────────────────────────────────────────────────
+
+  /estoque/movements:
+    get:
+      operationId: listStockMovements
+      tags: [estoque]
+      summary: List stock movements with optional filters
+      parameters:
+        - name: productId
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [input, output]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of stock movements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockMovement"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createStockMovement
+      tags: [estoque]
+      summary: Register a stock movement (updates product stock level)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockMovementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMovement"
+        "400":
+          description: Validation error or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Estoque: Dashboard ───────────────────────────────────────────────────────
+
+  /estoque/dashboard:
+    get:
+      operationId: getEstoqueDashboard
+      tags: [estoque]
+      summary: Inventory dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstoqueDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vendas/dashboard:
     get:
       operationId: getVendasDashboard
@@ -1155,3 +1387,168 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VendasTopClient"
+
+    # ── Estoque schemas ─────────────────────────────────────────────────────────
+
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - unit
+        - currentStock
+        - minStock
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        sku:
+          type: string
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        costPrice:
+          type: string
+          nullable: true
+        salePrice:
+          type: string
+          nullable: true
+        currentStock:
+          type: integer
+        minStock:
+          type: integer
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductInput:
+      type: object
+      required:
+        - name
+      properties:
+        sku:
+          type: string
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        costPrice:
+          type: string
+          nullable: true
+        salePrice:
+          type: string
+          nullable: true
+        minStock:
+          type: integer
+          nullable: true
+        currentStock:
+          type: integer
+          nullable: true
+
+    StockMovement:
+      type: object
+      required:
+        - id
+        - productId
+        - type
+        - quantity
+        - createdAt
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [input, output]
+        quantity:
+          type: integer
+        reason:
+          type: string
+          nullable: true
+        referenceId:
+          type: integer
+          nullable: true
+        referenceType:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    StockMovementInput:
+      type: object
+      required:
+        - productId
+        - type
+        - quantity
+      properties:
+        productId:
+          type: integer
+        type:
+          type: string
+          enum: [input, output]
+        quantity:
+          type: integer
+        reason:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    EstoqueDashboard:
+      type: object
+      required:
+        - totalProducts
+        - lowStockCount
+        - outOfStockCount
+        - totalStockValue
+        - lowStockProducts
+        - recentMovements
+      properties:
+        totalProducts:
+          type: integer
+        lowStockCount:
+          type: integer
+        outOfStockCount:
+          type: integer
+        totalStockValue:
+          type: number
+        lowStockProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        recentMovements:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockMovement"

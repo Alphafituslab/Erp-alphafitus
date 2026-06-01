@@ -445,6 +445,173 @@ export const UpdateSalesOrderStatusResponse = zod.object({
 
 
 /**
+ * @summary List products with optional filters
+ */
+export const ListProductsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "category": zod.coerce.string().optional(),
+  "active": zod.enum(['true', 'false']).optional(),
+  "lowStock": zod.enum(['true']).optional()
+})
+
+export const ListProductsResponseItem = zod.object({
+  "id": zod.number(),
+  "sku": zod.string().nullish(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "unit": zod.string(),
+  "costPrice": zod.string().nullish(),
+  "salePrice": zod.string().nullish(),
+  "currentStock": zod.number(),
+  "minStock": zod.number(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProductsResponse = zod.array(ListProductsResponseItem)
+
+
+/**
+ * @summary Create a new product
+ */
+export const CreateProductBody = zod.object({
+  "sku": zod.string().nullish(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "costPrice": zod.string().nullish(),
+  "salePrice": zod.string().nullish(),
+  "minStock": zod.number().nullish(),
+  "currentStock": zod.number().nullish()
+})
+
+
+/**
+ * @summary Update a product
+ */
+export const UpdateProductParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProductBody = zod.object({
+  "sku": zod.string().nullish(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "costPrice": zod.string().nullish(),
+  "salePrice": zod.string().nullish(),
+  "minStock": zod.number().nullish(),
+  "currentStock": zod.number().nullish()
+})
+
+export const UpdateProductResponse = zod.object({
+  "id": zod.number(),
+  "sku": zod.string().nullish(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "unit": zod.string(),
+  "costPrice": zod.string().nullish(),
+  "salePrice": zod.string().nullish(),
+  "currentStock": zod.number(),
+  "minStock": zod.number(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Soft-delete a product (set active=false)
+ */
+export const DeleteProductParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProductResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List stock movements with optional filters
+ */
+export const ListStockMovementsQueryParams = zod.object({
+  "productId": zod.coerce.number().optional(),
+  "type": zod.enum(['input', 'output']).optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional()
+})
+
+export const ListStockMovementsResponseItem = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "type": zod.enum(['input', 'output']),
+  "quantity": zod.number(),
+  "reason": zod.string().nullish(),
+  "referenceId": zod.number().nullish(),
+  "referenceType": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListStockMovementsResponse = zod.array(ListStockMovementsResponseItem)
+
+
+/**
+ * @summary Register a stock movement (updates product stock level)
+ */
+export const CreateStockMovementBody = zod.object({
+  "productId": zod.number(),
+  "type": zod.enum(['input', 'output']),
+  "quantity": zod.number(),
+  "reason": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Inventory dashboard stats
+ */
+export const GetEstoqueDashboardResponse = zod.object({
+  "totalProducts": zod.number(),
+  "lowStockCount": zod.number(),
+  "outOfStockCount": zod.number(),
+  "totalStockValue": zod.number(),
+  "lowStockProducts": zod.array(zod.object({
+  "id": zod.number(),
+  "sku": zod.string().nullish(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "unit": zod.string(),
+  "costPrice": zod.string().nullish(),
+  "salePrice": zod.string().nullish(),
+  "currentStock": zod.number(),
+  "minStock": zod.number(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "recentMovements": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "type": zod.enum(['input', 'output']),
+  "quantity": zod.number(),
+  "reason": zod.string().nullish(),
+  "referenceId": zod.number().nullish(),
+  "referenceType": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Sales dashboard stats and monthly chart data
  */
 export const GetVendasDashboardQueryParams = zod.object({

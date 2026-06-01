@@ -9,6 +9,7 @@ import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
 import FinanceiroPage from "@/pages/financeiro";
 import VendasPage from "@/pages/vendas";
+import EstoquePage from "@/pages/estoque";
 import ModulePlaceholderPage from "@/pages/module";
 
 const queryClient = new QueryClient();
@@ -44,7 +45,13 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/:module(estoque|compras|rh|projetos|fiscal|relatorios)">
+      <Route path="/estoque">
+        <ProtectedRoute>
+          <EstoquePage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/:module(compras|rh|projetos|fiscal|relatorios)">
         <ProtectedRoute>
           <ModulePlaceholderPage />
         </ProtectedRoute>
