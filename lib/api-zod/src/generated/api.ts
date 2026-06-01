@@ -1532,3 +1532,267 @@ export const GetRhDashboardResponse = zod.object({
 })
 
 
+/**
+ * @summary List projects with optional filters
+ */
+export const ListProjectsQueryParams = zod.object({
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']).optional(),
+  "clientId": zod.coerce.number().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListProjectsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "taskCount": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
+
+
+/**
+ * @summary Create a new project
+ */
+export const CreateProjectBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Get a single project with task stats
+ */
+export const GetProjectParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetProjectResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "taskCount": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a project
+ */
+export const UpdateProjectParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProjectBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish()
+})
+
+export const UpdateProjectResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "taskCount": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a project (and its tasks)
+ */
+export const DeleteProjectParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProjectResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List project tasks with optional filters
+ */
+export const ListProjectTasksQueryParams = zod.object({
+  "projectId": zod.coerce.number().optional(),
+  "status": zod.enum(['todo', 'in_progress', 'done']).optional(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  "assigneeId": zod.coerce.string().optional()
+})
+
+export const ListProjectTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "assigneeId": zod.string().nullish(),
+  "assigneeName": zod.string().nullish(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['todo', 'in_progress', 'done']),
+  "dueDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListProjectTasksResponse = zod.array(ListProjectTasksResponseItem)
+
+
+/**
+ * @summary Create a new project task
+ */
+export const CreateProjectTaskBody = zod.object({
+  "projectId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "assigneeId": zod.string().nullish(),
+  "assigneeName": zod.string().nullish(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['todo', 'in_progress', 'done']),
+  "dueDate": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update a project task
+ */
+export const UpdateProjectTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProjectTaskBody = zod.object({
+  "projectId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "assigneeId": zod.string().nullish(),
+  "assigneeName": zod.string().nullish(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['todo', 'in_progress', 'done']),
+  "dueDate": zod.coerce.date().nullish()
+})
+
+export const UpdateProjectTaskResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "assigneeId": zod.string().nullish(),
+  "assigneeName": zod.string().nullish(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['todo', 'in_progress', 'done']),
+  "dueDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a project task
+ */
+export const DeleteProjectTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProjectTaskResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Update only the status of a task (for kanban)
+ */
+export const UpdateProjectTaskStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProjectTaskStatusBody = zod.object({
+  "status": zod.enum(['todo', 'in_progress', 'done'])
+})
+
+export const UpdateProjectTaskStatusResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "assigneeId": zod.string().nullish(),
+  "assigneeName": zod.string().nullish(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['todo', 'in_progress', 'done']),
+  "dueDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Get all tasks assigned to the current user
+ */
+export const GetMyTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "assigneeId": zod.string().nullish(),
+  "assigneeName": zod.string().nullish(),
+  "priority": zod.enum(['low', 'medium', 'high', 'urgent']),
+  "status": zod.enum(['todo', 'in_progress', 'done']),
+  "dueDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const GetMyTasksResponse = zod.array(GetMyTasksResponseItem)
+
+
+/**
+ * @summary Projects overview dashboard stats
+ */
+export const GetProjectsDashboardResponse = zod.object({
+  "totalProjects": zod.number(),
+  "activeProjects": zod.number(),
+  "completedProjects": zod.number(),
+  "totalTasks": zod.number(),
+  "myPendingTasks": zod.number(),
+  "overdueTasksCount": zod.number(),
+  "recentProjects": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "status": zod.enum(['planning', 'active', 'on_hold', 'completed']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "taskCount": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+

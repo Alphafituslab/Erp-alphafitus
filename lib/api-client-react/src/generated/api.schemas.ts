@@ -755,6 +755,136 @@ export interface RhDashboard {
   recentEmployees: Employee[];
 }
 
+export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus];
+
+
+export const ProjectStatus = {
+  planning: 'planning',
+  active: 'active',
+  on_hold: 'on_hold',
+  completed: 'completed',
+} as const;
+
+export interface Project {
+  id: number;
+  name: string;
+  description?: string | null;
+  clientId?: number | null;
+  clientName?: string | null;
+  status: ProjectStatus;
+  startDate?: string | null;
+  endDate?: string | null;
+  taskCount: number;
+  completedCount: number;
+  createdAt: string;
+}
+
+export type ProjectInputStatus = typeof ProjectInputStatus[keyof typeof ProjectInputStatus];
+
+
+export const ProjectInputStatus = {
+  planning: 'planning',
+  active: 'active',
+  on_hold: 'on_hold',
+  completed: 'completed',
+} as const;
+
+export interface ProjectInput {
+  name: string;
+  description?: string | null;
+  clientId?: number | null;
+  status: ProjectInputStatus;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export type ProjectTaskPriority = typeof ProjectTaskPriority[keyof typeof ProjectTaskPriority];
+
+
+export const ProjectTaskPriority = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  urgent: 'urgent',
+} as const;
+
+export type ProjectTaskStatus = typeof ProjectTaskStatus[keyof typeof ProjectTaskStatus];
+
+
+export const ProjectTaskStatus = {
+  todo: 'todo',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+export interface ProjectTask {
+  id: number;
+  projectId: number;
+  projectName?: string | null;
+  title: string;
+  description?: string | null;
+  assigneeId?: string | null;
+  assigneeName?: string | null;
+  priority: ProjectTaskPriority;
+  status: ProjectTaskStatus;
+  dueDate?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type ProjectTaskInputPriority = typeof ProjectTaskInputPriority[keyof typeof ProjectTaskInputPriority];
+
+
+export const ProjectTaskInputPriority = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  urgent: 'urgent',
+} as const;
+
+export type ProjectTaskInputStatus = typeof ProjectTaskInputStatus[keyof typeof ProjectTaskInputStatus];
+
+
+export const ProjectTaskInputStatus = {
+  todo: 'todo',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+export interface ProjectTaskInput {
+  projectId: number;
+  title: string;
+  description?: string | null;
+  assigneeId?: string | null;
+  assigneeName?: string | null;
+  priority: ProjectTaskInputPriority;
+  status: ProjectTaskInputStatus;
+  dueDate?: string | null;
+}
+
+export type ProjectTaskStatusInputStatus = typeof ProjectTaskStatusInputStatus[keyof typeof ProjectTaskStatusInputStatus];
+
+
+export const ProjectTaskStatusInputStatus = {
+  todo: 'todo',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+export interface ProjectTaskStatusInput {
+  status: ProjectTaskStatusInputStatus;
+}
+
+export interface ProjectsDashboard {
+  totalProjects: number;
+  activeProjects: number;
+  completedProjects: number;
+  totalTasks: number;
+  myPendingTasks: number;
+  overdueTasksCount: number;
+  recentProjects: Project[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -967,4 +1097,46 @@ employeeId?: string;
  */
 month?: string;
 };
+
+export type ListProjectsParams = {
+status?: ListProjectsStatus;
+clientId?: number;
+search?: string;
+};
+
+export type ListProjectsStatus = typeof ListProjectsStatus[keyof typeof ListProjectsStatus];
+
+
+export const ListProjectsStatus = {
+  planning: 'planning',
+  active: 'active',
+  on_hold: 'on_hold',
+  completed: 'completed',
+} as const;
+
+export type ListProjectTasksParams = {
+projectId?: number;
+status?: ListProjectTasksStatus;
+priority?: ListProjectTasksPriority;
+assigneeId?: string;
+};
+
+export type ListProjectTasksStatus = typeof ListProjectTasksStatus[keyof typeof ListProjectTasksStatus];
+
+
+export const ListProjectTasksStatus = {
+  todo: 'todo',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+export type ListProjectTasksPriority = typeof ListProjectTasksPriority[keyof typeof ListProjectTasksPriority];
+
+
+export const ListProjectTasksPriority = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  urgent: 'urgent',
+} as const;
 

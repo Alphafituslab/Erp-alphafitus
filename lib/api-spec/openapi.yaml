@@ -24,6 +24,8 @@ tags:
     description: Quality control - inspections and non-conformance reports
   - name: rh
     description: Human resources - employees, departments, attendance
+  - name: projetos
+    description: Project management - projects and tasks
 paths:
   /healthz:
     get:
@@ -2127,6 +2129,381 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Projetos: Projects ───────────────────────────────────────────────────
+
+  /projetos/projects:
+    get:
+      operationId: listProjects
+      tags: [projetos]
+      summary: List projects with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planning, active, on_hold, completed]
+        - name: clientId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProject
+      tags: [projetos]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projetos/projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projetos]
+      summary: Get a single project with task stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateProject
+      tags: [projetos]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProject
+      tags: [projetos]
+      summary: Delete a project (and its tasks)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Projetos: Tasks ──────────────────────────────────────────────────────
+
+  /projetos/tasks:
+    get:
+      operationId: listProjectTasks
+      tags: [projetos]
+      summary: List project tasks with optional filters
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [todo, in_progress, done]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+        - name: assigneeId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectTask"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProjectTask
+      tags: [projetos]
+      summary: Create a new project task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectTaskInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectTask"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projetos/tasks/{id}:
+    put:
+      operationId: updateProjectTask
+      tags: [projetos]
+      summary: Update a project task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectTaskInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectTask"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProjectTask
+      tags: [projetos]
+      summary: Delete a project task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projetos/tasks/{id}/status:
+    patch:
+      operationId: updateProjectTaskStatus
+      tags: [projetos]
+      summary: Update only the status of a task (for kanban)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectTaskStatusInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectTask"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projetos/my-tasks:
+    get:
+      operationId: getMyTasks
+      tags: [projetos]
+      summary: Get all tasks assigned to the current user
+      responses:
+        "200":
+          description: My tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectTask"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projetos/dashboard:
+    get:
+      operationId: getProjectsDashboard
+      tags: [projetos]
+      summary: Projects overview dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectsDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -3534,3 +3911,187 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Employee"
+
+  # ─── Projetos schemas ─────────────────────────────────────────────────────
+
+    Project:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - createdAt
+        - taskCount
+        - completedCount
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planning, active, on_hold, completed]
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        taskCount:
+          type: integer
+        completedCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ProjectInput:
+      type: object
+      required:
+        - name
+        - status
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [planning, active, on_hold, completed]
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    ProjectTask:
+      type: object
+      required:
+        - id
+        - projectId
+        - title
+        - priority
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        assigneeId:
+          type: string
+          nullable: true
+        assigneeName:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProjectTaskInput:
+      type: object
+      required:
+        - projectId
+        - title
+        - priority
+        - status
+      properties:
+        projectId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        assigneeId:
+          type: string
+          nullable: true
+        assigneeName:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    ProjectTaskStatusInput:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [todo, in_progress, done]
+
+    ProjectsDashboard:
+      type: object
+      required:
+        - totalProjects
+        - activeProjects
+        - completedProjects
+        - totalTasks
+        - myPendingTasks
+        - overdueTasksCount
+        - recentProjects
+      properties:
+        totalProjects:
+          type: integer
+        activeProjects:
+          type: integer
+        completedProjects:
+          type: integer
+        totalTasks:
+          type: integer
+        myPendingTasks:
+          type: integer
+        overdueTasksCount:
+          type: integer
+        recentProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"

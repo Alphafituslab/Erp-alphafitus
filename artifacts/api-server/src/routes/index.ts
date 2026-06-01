@@ -7,6 +7,7 @@ import estoqueRouter from "./estoque";
 import comprasRouter from "./compras";
 import qualidadeRouter from "./qualidade";
 import rhRouter from "./rh";
+import projetosRouter from "./projetos";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(estoqueRouter);
 router.use(comprasRouter);
 router.use(qualidadeRouter);
 router.use(rhRouter);
+router.use(projetosRouter);
 
 export default router;
