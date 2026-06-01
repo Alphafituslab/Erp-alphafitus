@@ -138,6 +138,7 @@ export * from './purchaseRequestInput';
 export * from './purchaseRequestInputPriority';
 export * from './purchaseRequestInputStatus';
 export * from './purchaseRequestPriority';
+export * from './purchaseRequestRejectionInput';
 export * from './purchaseRequestStatus';
 export * from './qualidadeDashboard';
 export * from './qualityInspection';

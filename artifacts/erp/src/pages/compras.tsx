@@ -21,6 +21,8 @@ import {
   useListPurchaseRequests,
   useCreatePurchaseRequest,
   useUpdatePurchaseRequest,
+  useApprovePurchaseRequest,
+  useRejectPurchaseRequest,
   useListQuotations,
   useCreateQuotation,
   useUpdateQuotation,
@@ -1398,6 +1400,8 @@ export default function ComprasPage() {
   const statusM = useUpdatePurchaseOrderStatus();
   const receiveM = useReceivePurchaseOrder();
   const updateReqM = useUpdatePurchaseRequest();
+  const approveReqM = useApprovePurchaseRequest();
+  const rejectReqM = useRejectPurchaseRequest();
 
   const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active === "true"), [suppliers]);
   const activeProducts = useMemo(() => products.filter((p) => p.active === "true"), [products]);
@@ -1447,9 +1451,16 @@ export default function ComprasPage() {
     statusM.mutate({ id, data: { status: status as any } }, { onSuccess: () => { invalidateAll(); setViewPoId(null); } });
   };
 
-  const handleApproveRequest = (req: PurchaseRequest, newStatus: "approved" | "rejected") => {
-    updateReqM.mutate(
-      { id: req.id, data: { description: req.description, quantity: parseFloat(req.quantity), status: newStatus } },
+  const handleApproveRequest = (req: PurchaseRequest) => {
+    approveReqM.mutate(
+      { id: req.id },
+      { onSuccess: () => qc.invalidateQueries({ queryKey: getListPurchaseRequestsQueryKey() }) }
+    );
+  };
+
+  const handleRejectRequest = (req: PurchaseRequest) => {
+    rejectReqM.mutate(
+      { id: req.id, data: {} },
       { onSuccess: () => qc.invalidateQueries({ queryKey: getListPurchaseRequestsQueryKey() }) }
     );
   };
@@ -1795,11 +1806,11 @@ export default function ComprasPage() {
                             {r.status === "pending" && (
                               <>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" title="Aprovar"
-                                  onClick={() => handleApproveRequest(r, "approved")}>
+                                  onClick={() => handleApproveRequest(r)}>
                                   <CheckCircle2 className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Rejeitar"
-                                  onClick={() => handleApproveRequest(r, "rejected")}>
+                                  onClick={() => handleRejectRequest(r)}>
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar"

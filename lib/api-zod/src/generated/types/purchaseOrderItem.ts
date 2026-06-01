@@ -12,6 +12,7 @@ export interface PurchaseOrderItem {
   productId: number;
   description: string;
   quantity: string;
+  receivedQty: string;
   unitPrice: string;
   totalPrice: string;
   createdAt: Date;

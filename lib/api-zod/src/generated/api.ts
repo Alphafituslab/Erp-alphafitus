@@ -1146,7 +1146,7 @@ export const DeleteSupplierResponse = zod.object({
  * @summary List purchase orders with optional filters
  */
 export const ListPurchaseOrdersQueryParams = zod.object({
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']).optional(),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']).optional(),
   "supplierId": zod.coerce.number().optional(),
   "startDate": zod.date().optional(),
   "endDate": zod.date().optional()
@@ -1156,7 +1156,7 @@ export const ListPurchaseOrdersResponseItem = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1198,7 +1198,7 @@ export const GetPurchaseOrderResponse = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1215,6 +1215,7 @@ export const GetPurchaseOrderResponse = zod.object({
   "productId": zod.number(),
   "description": zod.string(),
   "quantity": zod.string(),
+  "receivedQty": zod.string(),
   "unitPrice": zod.string(),
   "totalPrice": zod.string(),
   "createdAt": zod.coerce.date()
@@ -1245,7 +1246,7 @@ export const UpdatePurchaseOrderResponse = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1262,6 +1263,7 @@ export const UpdatePurchaseOrderResponse = zod.object({
   "productId": zod.number(),
   "description": zod.string(),
   "quantity": zod.string(),
+  "receivedQty": zod.string(),
   "unitPrice": zod.string(),
   "totalPrice": zod.string(),
   "createdAt": zod.coerce.date()
@@ -1289,14 +1291,14 @@ export const UpdatePurchaseOrderStatusParams = zod.object({
 })
 
 export const UpdatePurchaseOrderStatusBody = zod.object({
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled'])
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled'])
 })
 
 export const UpdatePurchaseOrderStatusResponse = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1335,7 +1337,7 @@ export const ReceivePurchaseOrderResponse = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1352,6 +1354,7 @@ export const ReceivePurchaseOrderResponse = zod.object({
   "productId": zod.number(),
   "description": zod.string(),
   "quantity": zod.string(),
+  "receivedQty": zod.string(),
   "unitPrice": zod.string(),
   "totalPrice": zod.string(),
   "createdAt": zod.coerce.date()
@@ -1375,7 +1378,7 @@ export const GetComprasDashboardResponse = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1401,7 +1404,7 @@ export const GetComprasDashboardResponse = zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'sent', 'received', 'cancelled']),
+  "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']),
   "totalAmount": zod.string(),
   "freightCost": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -1477,6 +1480,64 @@ export const UpdatePurchaseRequestBody = zod.object({
 })
 
 export const UpdatePurchaseRequestResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "priority": zod.enum(['normal', 'urgent', 'critical']),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'converted']),
+  "purchaseOrderId": zod.number().nullish(),
+  "requestedById": zod.number().nullish(),
+  "requestedByName": zod.string().nullish(),
+  "approvedById": zod.number().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve a purchase request (admin/manager only)
+ */
+export const ApprovePurchaseRequestParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApprovePurchaseRequestResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "priority": zod.enum(['normal', 'urgent', 'critical']),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'converted']),
+  "purchaseOrderId": zod.number().nullish(),
+  "requestedById": zod.number().nullish(),
+  "requestedByName": zod.string().nullish(),
+  "approvedById": zod.number().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Reject a purchase request (admin/manager only)
+ */
+export const RejectPurchaseRequestParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RejectPurchaseRequestBody = zod.object({
+  "notes": zod.string().nullish()
+})
+
+export const RejectPurchaseRequestResponse = zod.object({
   "id": zod.number(),
   "productId": zod.number().nullish(),
   "productName": zod.string().nullish(),

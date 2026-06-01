@@ -815,6 +815,7 @@ export interface PurchaseOrderItem {
   productId: number;
   description: string;
   quantity: string;
+  receivedQty: string;
   unitPrice: string;
   totalPrice: string;
   createdAt: string;
@@ -833,6 +834,7 @@ export type PurchaseOrderStatus = typeof PurchaseOrderStatus[keyof typeof Purcha
 export const PurchaseOrderStatus = {
   draft: 'draft',
   sent: 'sent',
+  partially_received: 'partially_received',
   received: 'received',
   cancelled: 'cancelled',
 } as const;
@@ -860,6 +862,7 @@ export type PurchaseOrderWithItemsStatus = typeof PurchaseOrderWithItemsStatus[k
 export const PurchaseOrderWithItemsStatus = {
   draft: 'draft',
   sent: 'sent',
+  partially_received: 'partially_received',
   received: 'received',
   cancelled: 'cancelled',
 } as const;
@@ -895,6 +898,7 @@ export type UpdatePurchaseOrderStatusInputStatus = typeof UpdatePurchaseOrderSta
 export const UpdatePurchaseOrderStatusInputStatus = {
   draft: 'draft',
   sent: 'sent',
+  partially_received: 'partially_received',
   received: 'received',
   cancelled: 'cancelled',
 } as const;
@@ -1105,6 +1109,10 @@ export const SupplierApprovalInputApprovalStatus = {
 
 export interface SupplierApprovalInput {
   approvalStatus: SupplierApprovalInputApprovalStatus;
+}
+
+export interface PurchaseRequestRejectionInput {
+  notes?: string | null;
 }
 
 export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
@@ -1714,6 +1722,7 @@ export type ListPurchaseOrdersStatus = typeof ListPurchaseOrdersStatus[keyof typ
 export const ListPurchaseOrdersStatus = {
   draft: 'draft',
   sent: 'sent',
+  partially_received: 'partially_received',
   received: 'received',
   cancelled: 'cancelled',
 } as const;

@@ -12,6 +12,7 @@ export type PurchaseOrderStatus = typeof PurchaseOrderStatus[keyof typeof Purcha
 export const PurchaseOrderStatus = {
   draft: 'draft',
   sent: 'sent',
+  partially_received: 'partially_received',
   received: 'received',
   cancelled: 'cancelled',
 } as const;

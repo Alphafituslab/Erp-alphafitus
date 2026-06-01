@@ -89,6 +89,7 @@ import type {
   PurchaseOrderWithItems,
   PurchaseRequest,
   PurchaseRequestInput,
+  PurchaseRequestRejectionInput,
   QualidadeDashboard,
   QualityInspection,
   QualityInspectionInput,
@@ -4167,6 +4168,148 @@ export const useUpdatePurchaseRequest = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdatePurchaseRequestMutationOptions(options));
+    }
+
+export const getApprovePurchaseRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/requests/${id}/approve`
+}
+
+/**
+ * @summary Approve a purchase request (admin/manager only)
+ */
+export const approvePurchaseRequest = async (id: number, options?: RequestInit): Promise<PurchaseRequest> => {
+
+  return customFetch<PurchaseRequest>(getApprovePurchaseRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getApprovePurchaseRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approvePurchaseRequest>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approvePurchaseRequest>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['approvePurchaseRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approvePurchaseRequest>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approvePurchaseRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApprovePurchaseRequestMutationResult = NonNullable<Awaited<ReturnType<typeof approvePurchaseRequest>>>
+
+    export type ApprovePurchaseRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Approve a purchase request (admin/manager only)
+ */
+export const useApprovePurchaseRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approvePurchaseRequest>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approvePurchaseRequest>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getApprovePurchaseRequestMutationOptions(options));
+    }
+
+export const getRejectPurchaseRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/requests/${id}/reject`
+}
+
+/**
+ * @summary Reject a purchase request (admin/manager only)
+ */
+export const rejectPurchaseRequest = async (id: number,
+    purchaseRequestRejectionInput?: PurchaseRequestRejectionInput, options?: RequestInit): Promise<PurchaseRequest> => {
+
+  return customFetch<PurchaseRequest>(getRejectPurchaseRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      purchaseRequestRejectionInput,)
+  }
+);}
+
+
+
+
+export const getRejectPurchaseRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectPurchaseRequest>>, TError,{id: number;data?: BodyType<PurchaseRequestRejectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectPurchaseRequest>>, TError,{id: number;data?: BodyType<PurchaseRequestRejectionInput>}, TContext> => {
+
+const mutationKey = ['rejectPurchaseRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectPurchaseRequest>>, {id: number;data?: BodyType<PurchaseRequestRejectionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  rejectPurchaseRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectPurchaseRequestMutationResult = NonNullable<Awaited<ReturnType<typeof rejectPurchaseRequest>>>
+    export type RejectPurchaseRequestMutationBody = BodyType<PurchaseRequestRejectionInput> | undefined
+    export type RejectPurchaseRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Reject a purchase request (admin/manager only)
+ */
+export const useRejectPurchaseRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectPurchaseRequest>>, TError,{id: number;data?: BodyType<PurchaseRequestRejectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectPurchaseRequest>>,
+        TError,
+        {id: number;data?: BodyType<PurchaseRequestRejectionInput>},
+        TContext
+      > => {
+      return useMutation(getRejectPurchaseRequestMutationOptions(options));
     }
 
 export const getListQuotationsUrl = (params?: ListQuotationsParams,) => {

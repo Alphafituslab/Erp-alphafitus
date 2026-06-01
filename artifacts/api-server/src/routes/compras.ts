@@ -584,43 +584,48 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
 
   try {
     await db.transaction(async (tx) => {
-      const updated = await tx
-        .update(purchaseOrdersTable)
-        .set({
-          status: "received",
-          receivedAt: new Date(),
-          nfNumber: receiveInput.nfNumber || null,
-          carrier: receiveInput.carrier || null,
-          freightCost: receiveInput.freightCost != null
-            ? String(parseFloat(String(receiveInput.freightCost)).toFixed(2))
-            : null,
-        })
-        .where(and(eq(purchaseOrdersTable.id, id), eq(purchaseOrdersTable.status, "sent")))
-        .returning({ id: purchaseOrdersTable.id });
+      // Lock the row first; fail fast if already processed
+      const [locked] = await tx
+        .select({ status: purchaseOrdersTable.status })
+        .from(purchaseOrdersTable)
+        .where(eq(purchaseOrdersTable.id, id))
+        .for("update");
 
-      if (updated.length === 0) {
+      if (!locked || locked.status !== "sent") {
         throw new Error("ALREADY_PROCESSED");
       }
 
+      // Process each item: create quarantine lot + record lot movement.
+      // NOTE: do NOT increment product.currentStock here.
+      // Stock is only released when CQ approves the lot (done in the estoque module).
+      let anyReceived = false;
+      let allReceived = true;
+
       for (const item of poItems) {
-        if (!item.productId || item.productId === 0) continue;
+        if (!item.productId || item.productId === 0) {
+          allReceived = false;
+          continue;
+        }
 
         const ri = receiveMap.get(item.id);
-        const qty = ri ? Math.round(ri.receivedQty) : Math.round(parseFloat(String(item.quantity)));
-        if (qty <= 0) continue;
+        const orderedQty = Math.round(parseFloat(String(item.quantity)));
+        const receivedQty = ri ? Math.round(ri.receivedQty) : orderedQty;
 
-        const [product] = await tx
-          .select({ id: productsTable.id, sku: productsTable.sku })
-          .from(productsTable)
-          .where(eq(productsTable.id, item.productId));
+        // Update received quantity on the item
+        await tx
+          .update(purchaseOrderItemsTable)
+          .set({ receivedQty: String(receivedQty) })
+          .where(eq(purchaseOrderItemsTable.id, item.id));
 
-        if (!product) continue;
+        if (receivedQty < orderedQty) allReceived = false;
+        if (receivedQty <= 0) continue;
 
-        // Generate an internal lot number
-        const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
+        anyReceived = true;
+
         const warehouseId = ri?.warehouseId ?? defaultWarehouse?.id ?? null;
+        const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
 
-        // Create lot in quarantine
+        // Create lot in quarantine (CQ approval will release to available stock)
         const [lot] = await tx
           .insert(productLotsTable)
           .values({
@@ -628,44 +633,46 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
             internalLot,
             supplierLot: ri?.supplierLot || null,
             cqStatus: "quarantine",
-            totalQty: qty,
-            availableQty: 0,
+            totalQty: receivedQty,
+            availableQty: 0,        // Zero until CQ releases the lot
             warehouseId: warehouseId ?? undefined,
             expirationDate: ri?.expiryDate ? ri.expiryDate.slice(0, 10) : null,
             manufacturingDate: ri?.manufactureDate ? ri.manufactureDate.slice(0, 10) : null,
+            notes: `Aguardando CQ. Recebimento PC #${id}.`,
           })
           .returning();
 
-        // Record lot movement
+        // Record lot movement (physical receipt — does NOT change available stock)
         await tx.insert(lotMovementsTable).values({
           lotId: lot!.id,
           productId: item.productId,
           warehouseId: warehouseId ?? undefined,
           type: "input",
-          quantity: qty,
-          reason: `Recebimento PC #${id}`,
+          quantity: receivedQty,
+          reason: `Recebimento físico PC #${id} — aguarda CQ`,
           referenceId: id,
           referenceType: "purchase_order",
-        });
-
-        // Update product stock
-        await tx
-          .update(productsTable)
-          .set({ currentStock: sql`${productsTable.currentStock} + ${qty}` })
-          .where(eq(productsTable.id, item.productId));
-
-        // Record stock movement (linked to lot)
-        await tx.insert(stockMovementsTable).values({
-          productId: item.productId,
-          type: "input",
-          quantity: qty,
-          reason: `Recebimento PC #${id}${ri?.supplierLot ? ` – Lote ${ri.supplierLot}` : ""}`,
-          referenceId: id,
-          referenceType: "purchase_order",
-          lotId: lot!.id,
-          notes: item.description,
         });
       }
+
+      // Determine PO final status:
+      //   - all items received at ordered qty  → "received"
+      //   - at least one item received but not all → "partially_received"
+      //   - nothing received → stay "sent"
+      const newStatus = allReceived ? "received" : anyReceived ? "partially_received" : "sent";
+
+      await tx
+        .update(purchaseOrdersTable)
+        .set({
+          status: newStatus,
+          receivedAt: anyReceived ? new Date() : null,
+          nfNumber: receiveInput.nfNumber || null,
+          carrier: receiveInput.carrier || null,
+          freightCost: receiveInput.freightCost != null
+            ? String(parseFloat(String(receiveInput.freightCost)).toFixed(2))
+            : null,
+        })
+        .where(eq(purchaseOrdersTable.id, id));
     });
   } catch (err: any) {
     if (err?.message === "ALREADY_PROCESSED") {
@@ -790,12 +797,14 @@ router.put("/compras/requests/:id", async (req: Request, res: Response): Promise
     return;
   }
 
-  const { productId, description, quantity, unit, priority, status, notes } = req.body;
+  if (existing.status !== "pending") {
+    res.status(400).json({ error: "Apenas solicitações pendentes podem ser editadas. Use os endpoints /approve ou /reject para mudar o status." });
+    return;
+  }
 
-  // Approval/rejection logic
-  const newStatus = status || existing.status;
-  const isApprovalAction = newStatus === "approved" || newStatus === "rejected";
+  const { productId, description, quantity, unit, priority, notes } = req.body;
 
+  // status changes are NOT allowed via PUT — use dedicated /approve and /reject
   const [updated] = await db
     .update(purchaseRequestsTable)
     .set({
@@ -804,9 +813,6 @@ router.put("/compras/requests/:id", async (req: Request, res: Response): Promise
       quantity: quantity ? String(parseFloat(quantity)) : existing.quantity,
       unit: unit || existing.unit,
       priority: priority || existing.priority,
-      status: newStatus,
-      approvedById: isApprovalAction ? (req.session.userId ?? null) : existing.approvedById,
-      approvedAt: isApprovalAction ? new Date() : existing.approvedAt,
       notes: notes !== undefined ? (notes || null) : existing.notes,
     })
     .where(eq(purchaseRequestsTable.id, id))
@@ -836,6 +842,106 @@ router.put("/compras/requests/:id", async (req: Request, res: Response): Promise
     .leftJoin(usersTable, eq(purchaseRequestsTable.requestedById, usersTable.id))
     .where(eq(purchaseRequestsTable.id, updated!.id));
 
+  res.json(full);
+});
+
+// ─── Purchase Request Approve/Reject (admin/manager only) ────────────────────
+
+async function getPurchaseRequestFull(id: number) {
+  const [full] = await db
+    .select({
+      id: purchaseRequestsTable.id,
+      productId: purchaseRequestsTable.productId,
+      productName: productsTable.name,
+      description: purchaseRequestsTable.description,
+      quantity: purchaseRequestsTable.quantity,
+      unit: purchaseRequestsTable.unit,
+      priority: purchaseRequestsTable.priority,
+      status: purchaseRequestsTable.status,
+      purchaseOrderId: purchaseRequestsTable.purchaseOrderId,
+      requestedById: purchaseRequestsTable.requestedById,
+      requestedByName: usersTable.name,
+      approvedById: purchaseRequestsTable.approvedById,
+      approvedAt: purchaseRequestsTable.approvedAt,
+      notes: purchaseRequestsTable.notes,
+      createdAt: purchaseRequestsTable.createdAt,
+      updatedAt: purchaseRequestsTable.updatedAt,
+    })
+    .from(purchaseRequestsTable)
+    .leftJoin(productsTable, eq(purchaseRequestsTable.productId, productsTable.id))
+    .leftJoin(usersTable, eq(purchaseRequestsTable.requestedById, usersTable.id))
+    .where(eq(purchaseRequestsTable.id, id));
+  return full ?? null;
+}
+
+router.post("/compras/requests/:id/approve", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [existing] = await db
+    .select()
+    .from(purchaseRequestsTable)
+    .where(eq(purchaseRequestsTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Solicitação não encontrada" });
+    return;
+  }
+
+  if (existing.status !== "pending") {
+    res.status(400).json({ error: `Solicitação já tem status "${existing.status}" e não pode ser aprovada` });
+    return;
+  }
+
+  await db
+    .update(purchaseRequestsTable)
+    .set({
+      status: "approved",
+      approvedById: req.session.userId ?? null,
+      approvedAt: new Date(),
+    })
+    .where(eq(purchaseRequestsTable.id, id));
+
+  const full = await getPurchaseRequestFull(id);
+  res.json(full);
+});
+
+router.post("/compras/requests/:id/reject", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [existing] = await db
+    .select()
+    .from(purchaseRequestsTable)
+    .where(eq(purchaseRequestsTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Solicitação não encontrada" });
+    return;
+  }
+
+  if (existing.status !== "pending") {
+    res.status(400).json({ error: `Solicitação já tem status "${existing.status}" e não pode ser rejeitada` });
+    return;
+  }
+
+  const { notes } = req.body as { notes?: string };
+
+  await db
+    .update(purchaseRequestsTable)
+    .set({
+      status: "rejected",
+      approvedById: req.session.userId ?? null,
+      approvedAt: new Date(),
+      notes: notes || existing.notes,
+    })
+    .where(eq(purchaseRequestsTable.id, id));
+
+  const full = await getPurchaseRequestFull(id);
   res.json(full);
 });
 

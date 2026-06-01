@@ -20,7 +20,8 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   released:     { label: "Liberado",       variant: "green",  icon: CheckCircle2 },
   confirmed:    { label: "Confirmado",     variant: "green",  icon: CheckCircle2 },
   resolved:     { label: "Resolvida",      variant: "green",  icon: ShieldCheck },
-  received:     { label: "Recebido",       variant: "green",  icon: Package },
+  received:           { label: "Recebido",        variant: "green",  icon: Package },
+  partially_received: { label: "Rec. Parcial",    variant: "orange", icon: Package },
   issued:       { label: "Emitida",        variant: "green",  icon: CheckCircle2 },
   present:      { label: "Presente",       variant: "green",  icon: UserCheck },
   /* In-progress / blue */

@@ -1442,7 +1442,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [draft, sent, received, cancelled]
+            enum: [draft, sent, partially_received, received, cancelled]
         - name: supplierId
           in: query
           schema:
@@ -1811,6 +1811,61 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/requests/{id}/approve:
+    post:
+      operationId: approvePurchaseRequest
+      tags: [compras]
+      summary: Approve a purchase request (admin/manager only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseRequest"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/requests/{id}/reject:
+    post:
+      operationId: rejectPurchaseRequest
+      tags: [compras]
+      summary: Reject a purchase request (admin/manager only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequestRejectionInput"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseRequest"
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -4889,6 +4944,7 @@ components:
         - productId
         - description
         - quantity
+        - receivedQty
         - unitPrice
         - totalPrice
         - createdAt
@@ -4902,6 +4958,8 @@ components:
         description:
           type: string
         quantity:
+          type: string
+        receivedQty:
           type: string
         unitPrice:
           type: string
@@ -4947,7 +5005,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, sent, received, cancelled]
+          enum: [draft, sent, partially_received, received, cancelled]
         totalAmount:
           type: string
         freightCost:
@@ -5000,7 +5058,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, sent, received, cancelled]
+          enum: [draft, sent, partially_received, received, cancelled]
         totalAmount:
           type: string
         freightCost:
@@ -5064,7 +5122,7 @@ components:
       properties:
         status:
           type: string
-          enum: [draft, sent, received, cancelled]
+          enum: [draft, sent, partially_received, received, cancelled]
 
     TopSupplier:
       type: object
@@ -5451,6 +5509,13 @@ components:
         approvalStatus:
           type: string
           enum: [approved, pending, blocked]
+
+    PurchaseRequestRejectionInput:
+      type: object
+      properties:
+        notes:
+          type: string
+          nullable: true
 
     Employee:
       type: object
