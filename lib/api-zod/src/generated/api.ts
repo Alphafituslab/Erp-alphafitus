@@ -189,3 +189,285 @@ export const GetCashflowResponseItem = zod.object({
 export const GetCashflowResponse = zod.array(GetCashflowResponseItem)
 
 
+/**
+ * @summary List clients with optional search
+ */
+export const ListClientsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "active": zod.enum(['true', 'false']).optional()
+})
+
+export const ListClientsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListClientsResponse = zod.array(ListClientsResponseItem)
+
+
+/**
+ * @summary Create a new client
+ */
+export const CreateClientBody = zod.object({
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "active": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a client
+ */
+export const UpdateClientParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateClientBody = zod.object({
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "active": zod.string().nullish()
+})
+
+export const UpdateClientResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Soft-delete a client (set active=false)
+ */
+export const DeleteClientParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteClientResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List sales orders/quotes with optional filters
+ */
+export const ListSalesOrdersQueryParams = zod.object({
+  "type": zod.enum(['quote', 'order']).optional(),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']).optional(),
+  "clientId": zod.coerce.number().optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional()
+})
+
+export const ListSalesOrdersResponseItem = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "totalAmount": zod.string(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSalesOrdersResponse = zod.array(ListSalesOrdersResponseItem)
+
+
+/**
+ * @summary Create a quote or sales order
+ */
+export const CreateSalesOrderBody = zod.object({
+  "clientId": zod.number().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']).optional(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().nullish(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string()
+}))
+})
+
+
+/**
+ * @summary Get a single sales order with items
+ */
+export const GetSalesOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSalesOrderResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "totalAmount": zod.string(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "salesOrderId": zod.number(),
+  "productId": zod.number().nullish(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string(),
+  "totalPrice": zod.string()
+}))
+})
+
+
+/**
+ * @summary Update a sales order (replaces items)
+ */
+export const UpdateSalesOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSalesOrderBody = zod.object({
+  "clientId": zod.number().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']).optional(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().nullish(),
+  "description": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string()
+}))
+})
+
+export const UpdateSalesOrderResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "totalAmount": zod.string(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Cancel (delete) a sales order
+ */
+export const DeleteSalesOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteSalesOrderResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Convert a quote to a sales order
+ */
+export const ConvertQuoteToOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ConvertQuoteToOrderResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "totalAmount": zod.string(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update status of a sales order
+ */
+export const UpdateSalesOrderStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSalesOrderStatusBody = zod.object({
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled'])
+})
+
+export const UpdateSalesOrderStatusResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number().nullish(),
+  "clientName": zod.string().nullish(),
+  "type": zod.enum(['quote', 'order']),
+  "status": zod.enum(['draft', 'confirmed', 'delivered', 'cancelled']),
+  "totalAmount": zod.string(),
+  "validUntil": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Sales dashboard stats and monthly chart data
+ */
+export const GetVendasDashboardQueryParams = zod.object({
+  "year": zod.coerce.number().optional()
+})
+
+export const GetVendasDashboardResponse = zod.object({
+  "totalThisMonth": zod.number(),
+  "ordersThisMonth": zod.number(),
+  "totalQuotes": zod.number(),
+  "conversionRate": zod.number(),
+  "monthlyChart": zod.array(zod.object({
+  "month": zod.number(),
+  "year": zod.number(),
+  "total": zod.number(),
+  "count": zod.number()
+})),
+  "topClients": zod.array(zod.object({
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "total": zod.number(),
+  "orderCount": zod.number()
+}))
+})
+
+

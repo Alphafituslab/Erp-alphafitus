@@ -113,6 +113,177 @@ export interface CashflowMonth {
   balance: number;
 }
 
+export interface Client {
+  id: number;
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientInput {
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
+  active?: string | null;
+}
+
+export interface SalesOrderItem {
+  id: number;
+  salesOrderId: number;
+  productId?: number | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+}
+
+export interface SalesOrderItemInput {
+  productId?: number | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+}
+
+export type SalesOrderType = typeof SalesOrderType[keyof typeof SalesOrderType];
+
+
+export const SalesOrderType = {
+  quote: 'quote',
+  order: 'order',
+} as const;
+
+export type SalesOrderStatus = typeof SalesOrderStatus[keyof typeof SalesOrderStatus];
+
+
+export const SalesOrderStatus = {
+  draft: 'draft',
+  confirmed: 'confirmed',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SalesOrder {
+  id: number;
+  clientId?: number | null;
+  clientName?: string | null;
+  type: SalesOrderType;
+  status: SalesOrderStatus;
+  totalAmount: string;
+  validUntil?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SalesOrderWithItemsType = typeof SalesOrderWithItemsType[keyof typeof SalesOrderWithItemsType];
+
+
+export const SalesOrderWithItemsType = {
+  quote: 'quote',
+  order: 'order',
+} as const;
+
+export type SalesOrderWithItemsStatus = typeof SalesOrderWithItemsStatus[keyof typeof SalesOrderWithItemsStatus];
+
+
+export const SalesOrderWithItemsStatus = {
+  draft: 'draft',
+  confirmed: 'confirmed',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SalesOrderWithItems {
+  id: number;
+  clientId?: number | null;
+  clientName?: string | null;
+  type: SalesOrderWithItemsType;
+  status: SalesOrderWithItemsStatus;
+  totalAmount: string;
+  validUntil?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: SalesOrderItem[];
+}
+
+export type SalesOrderInputType = typeof SalesOrderInputType[keyof typeof SalesOrderInputType];
+
+
+export const SalesOrderInputType = {
+  quote: 'quote',
+  order: 'order',
+} as const;
+
+export type SalesOrderInputStatus = typeof SalesOrderInputStatus[keyof typeof SalesOrderInputStatus];
+
+
+export const SalesOrderInputStatus = {
+  draft: 'draft',
+  confirmed: 'confirmed',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SalesOrderInput {
+  clientId?: number | null;
+  type: SalesOrderInputType;
+  status?: SalesOrderInputStatus;
+  validUntil?: string | null;
+  notes?: string | null;
+  items: SalesOrderItemInput[];
+}
+
+export type UpdateSalesOrderStatusInputStatus = typeof UpdateSalesOrderStatusInputStatus[keyof typeof UpdateSalesOrderStatusInputStatus];
+
+
+export const UpdateSalesOrderStatusInputStatus = {
+  draft: 'draft',
+  confirmed: 'confirmed',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface UpdateSalesOrderStatusInput {
+  status: UpdateSalesOrderStatusInputStatus;
+}
+
+export interface VendasDashboardMonth {
+  month: number;
+  year: number;
+  total: number;
+  count: number;
+}
+
+export interface VendasTopClient {
+  clientId: number;
+  clientName: string;
+  total: number;
+  orderCount: number;
+}
+
+export interface VendasDashboard {
+  totalThisMonth: number;
+  ordersThisMonth: number;
+  totalQuotes: number;
+  conversionRate: number;
+  monthlyChart: VendasDashboardMonth[];
+  topClients: VendasTopClient[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -140,6 +311,49 @@ export const ListFinancialEntriesStatus = {
 } as const;
 
 export type GetCashflowParams = {
+year?: number;
+};
+
+export type ListClientsParams = {
+search?: string;
+active?: ListClientsActive;
+};
+
+export type ListClientsActive = typeof ListClientsActive[keyof typeof ListClientsActive];
+
+
+export const ListClientsActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type ListSalesOrdersParams = {
+type?: ListSalesOrdersType;
+status?: ListSalesOrdersStatus;
+clientId?: number;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListSalesOrdersType = typeof ListSalesOrdersType[keyof typeof ListSalesOrdersType];
+
+
+export const ListSalesOrdersType = {
+  quote: 'quote',
+  order: 'order',
+} as const;
+
+export type ListSalesOrdersStatus = typeof ListSalesOrdersStatus[keyof typeof ListSalesOrdersStatus];
+
+
+export const ListSalesOrdersStatus = {
+  draft: 'draft',
+  confirmed: 'confirmed',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export type GetVendasDashboardParams = {
 year?: number;
 };
 

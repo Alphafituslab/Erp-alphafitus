@@ -14,6 +14,8 @@ tags:
     description: Authentication operations
   - name: financeiro
     description: Financial entries (accounts payable/receivable)
+  - name: vendas
+    description: Sales module - clients, quotes, orders
 paths:
   /healthz:
     get:
@@ -290,6 +292,404 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Vendas: Clients ───────────────────────────────────────────────────────
+
+  /vendas/clients:
+    get:
+      operationId: listClients
+      tags: [vendas]
+      summary: List clients with optional search
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createClient
+      tags: [vendas]
+      summary: Create a new client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vendas/clients/{id}:
+    put:
+      operationId: updateClient
+      tags: [vendas]
+      summary: Update a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteClient
+      tags: [vendas]
+      summary: Soft-delete a client (set active=false)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Vendas: Sales Orders ──────────────────────────────────────────────────
+
+  /vendas/orders:
+    get:
+      operationId: listSalesOrders
+      tags: [vendas]
+      summary: List sales orders/quotes with optional filters
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [quote, order]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, confirmed, delivered, cancelled]
+        - name: clientId
+          in: query
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of sales orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SalesOrder"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createSalesOrder
+      tags: [vendas]
+      summary: Create a quote or sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SalesOrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vendas/orders/{id}:
+    get:
+      operationId: getSalesOrder
+      tags: [vendas]
+      summary: Get a single sales order with items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sales order with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrderWithItems"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateSalesOrder
+      tags: [vendas]
+      summary: Update a sales order (replaces items)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SalesOrderInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSalesOrder
+      tags: [vendas]
+      summary: Cancel (delete) a sales order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vendas/orders/{id}/convert:
+    post:
+      operationId: convertQuoteToOrder
+      tags: [vendas]
+      summary: Convert a quote to a sales order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Converted to order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+        "400":
+          description: Not a quote or already converted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vendas/orders/{id}/status:
+    post:
+      operationId: updateSalesOrderStatus
+      tags: [vendas]
+      summary: Update status of a sales order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSalesOrderStatusInput"
+      responses:
+        "200":
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /vendas/dashboard:
+    get:
+      operationId: getVendasDashboard
+      tags: [vendas]
+      summary: Sales dashboard stats and monthly chart data
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendasDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -453,3 +853,305 @@ components:
           type: number
         balance:
           type: number
+
+    # ── Vendas schemas ──────────────────────────────────────────────────────
+
+    Client:
+      type: object
+      required:
+        - id
+        - name
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ClientInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        active:
+          type: string
+          nullable: true
+
+    SalesOrderItem:
+      type: object
+      required:
+        - id
+        - salesOrderId
+        - description
+        - quantity
+        - unitPrice
+        - totalPrice
+      properties:
+        id:
+          type: integer
+        salesOrderId:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: string
+        unitPrice:
+          type: string
+        totalPrice:
+          type: string
+
+    SalesOrderItemInput:
+      type: object
+      required:
+        - description
+        - quantity
+        - unitPrice
+      properties:
+        productId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: string
+        unitPrice:
+          type: string
+
+    SalesOrder:
+      type: object
+      required:
+        - id
+        - type
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [quote, order]
+        status:
+          type: string
+          enum: [draft, confirmed, delivered, cancelled]
+        totalAmount:
+          type: string
+        validUntil:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SalesOrderWithItems:
+      type: object
+      required:
+        - id
+        - type
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+        - items
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [quote, order]
+        status:
+          type: string
+          enum: [draft, confirmed, delivered, cancelled]
+        totalAmount:
+          type: string
+        validUntil:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesOrderItem"
+
+    SalesOrderInput:
+      type: object
+      required:
+        - type
+        - items
+      properties:
+        clientId:
+          type: integer
+          nullable: true
+        type:
+          type: string
+          enum: [quote, order]
+        status:
+          type: string
+          enum: [draft, confirmed, delivered, cancelled]
+        validUntil:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesOrderItemInput"
+
+    UpdateSalesOrderStatusInput:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [draft, confirmed, delivered, cancelled]
+
+    VendasDashboardMonth:
+      type: object
+      required:
+        - month
+        - year
+        - total
+        - count
+      properties:
+        month:
+          type: integer
+        year:
+          type: integer
+        total:
+          type: number
+        count:
+          type: integer
+
+    VendasTopClient:
+      type: object
+      required:
+        - clientId
+        - clientName
+        - total
+        - orderCount
+      properties:
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        total:
+          type: number
+        orderCount:
+          type: integer
+
+    VendasDashboard:
+      type: object
+      required:
+        - totalThisMonth
+        - ordersThisMonth
+        - totalQuotes
+        - conversionRate
+        - monthlyChart
+        - topClients
+      properties:
+        totalThisMonth:
+          type: number
+        ordersThisMonth:
+          type: integer
+        totalQuotes:
+          type: integer
+        conversionRate:
+          type: number
+        monthlyChart:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendasDashboardMonth"
+        topClients:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendasTopClient"
