@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "wouter";
 import { AppLayout } from "@/components/layout";
 import { useAuth } from "@/contexts/auth";
@@ -34,6 +34,7 @@ import {
   AlertTriangle,
   Loader2,
   ArrowUpRight,
+  Download,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -47,6 +48,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useGetExecutiveDashboard, useGetMyTasks } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -258,6 +260,9 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 
 function ExecutiveDashboard() {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
+  const [exporting, setExporting] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const { data, isLoading } = useGetExecutiveDashboard({ period });
 
@@ -270,10 +275,59 @@ function ExecutiveDashboard() {
   const expTrend = kpis ? fmtPct(kpis.expenseTotal, kpis.expenseLastPeriod) : null;
   const netVal = kpis ? parseFloat(kpis.netBalance) : 0;
 
+  async function handleExportPdf() {
+    if (!printRef.current || isLoading) return;
+    setExporting(true);
+    try {
+      const [{ toPng }, { jsPDF }] = await Promise.all([
+        import("html-to-image"),
+        import("jspdf"),
+      ]);
+
+      const elW = printRef.current.offsetWidth;
+      const elH = printRef.current.offsetHeight;
+
+      const imgData = await toPng(printRef.current, {
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentW = pageW - margin * 2;
+      const imgH = (elH * contentW) / elW;
+
+      const periodSlug = (data?.periodLabel ?? period)
+        .toLowerCase()
+        .replace(/\//g, "-")
+        .replace(/\s+/g, "-");
+      const filename = `relatorio-executivo-${periodSlug}.pdf`;
+
+      let yOffset = 0;
+      while (yOffset < imgH) {
+        if (yOffset > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", margin, margin - yOffset, contentW, imgH);
+        yOffset += pageH - margin * 2;
+      }
+
+      pdf.save(filename);
+    } catch {
+      toast({
+        title: "Erro ao exportar PDF",
+        description: "Não foi possível gerar o relatório. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Period selector */}
-      <div className="flex items-center gap-3">
+      {/* Period selector + Export button */}
+      <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm text-muted-foreground">Período:</span>
         <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
           <SelectTrigger className="w-44">
@@ -288,6 +342,20 @@ function ExecutiveDashboard() {
         {data?.periodLabel && (
           <span className="text-sm text-muted-foreground">({data.periodLabel})</span>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          onClick={handleExportPdf}
+          disabled={isLoading || exporting}
+        >
+          {exporting ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Download className="h-4 w-4 mr-2" />
+          )}
+          {exporting ? "Gerando PDF…" : "Exportar PDF"}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -296,6 +364,8 @@ function ExecutiveDashboard() {
         </div>
       ) : (
         <>
+          {/* Printable area — captured by html2canvas for PDF export */}
+          <div ref={printRef} className="space-y-6 bg-white">
           {/* KPI Cards — financial */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KpiCard
@@ -478,6 +548,7 @@ function ExecutiveDashboard() {
               </CardContent>
             </Card>
           </div>
+          </div>{/* end printRef */}
 
           {/* Quick links */}
           <Card>
