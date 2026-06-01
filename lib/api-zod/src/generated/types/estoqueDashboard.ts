@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Product } from './product';
+import type { ProductLot } from './productLot';
 import type { StockMovement } from './stockMovement';
 
 export interface EstoqueDashboard {
@@ -15,4 +16,10 @@ export interface EstoqueDashboard {
   totalStockValue: number;
   lowStockProducts: Product[];
   recentMovements: StockMovement[];
+  expiringLots30?: number;
+  expiringLots60?: number;
+  expiringLots90?: number;
+  quarantineLots?: number;
+  expiringLotsList?: ProductLot[];
+  quarantineLotsList?: ProductLot[];
 }

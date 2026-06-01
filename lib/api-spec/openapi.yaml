@@ -943,6 +943,361 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Estoque: Warehouses ─────────────────────────────────────────────────────
+
+  /estoque/warehouses:
+    get:
+      operationId: listWarehouses
+      tags: [estoque]
+      summary: List warehouses (depósitos)
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: List of warehouses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Warehouse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createWarehouse
+      tags: [estoque]
+      summary: Create a new warehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /estoque/warehouses/{id}:
+    put:
+      operationId: updateWarehouse
+      tags: [estoque]
+      summary: Update a warehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warehouse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Estoque: Product Lots ────────────────────────────────────────────────────
+
+  /estoque/lots:
+    get:
+      operationId: listProductLots
+      tags: [estoque]
+      summary: List product lots with optional filters
+      parameters:
+        - name: productId
+          in: query
+          schema:
+            type: integer
+        - name: warehouseId
+          in: query
+          schema:
+            type: integer
+        - name: cqStatus
+          in: query
+          schema:
+            type: string
+            enum: [quarantine, approved, rejected, blocked]
+        - name: expiringDays
+          in: query
+          description: Filter lots expiring within N days
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of product lots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductLot"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProductLot
+      tags: [estoque]
+      summary: Create a new product lot (entrada de lote)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductLotInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductLot"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /estoque/lots/{id}:
+    get:
+      operationId: getProductLot
+      tags: [estoque]
+      summary: Get lot details with movements (rastreabilidade)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lot details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductLot"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateProductLot
+      tags: [estoque]
+      summary: Update lot CQ status or metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductLotUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductLot"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /estoque/lots/{id}/adjust:
+    post:
+      operationId: adjustLotInventory
+      tags: [estoque]
+      summary: Inventory adjustment for a lot (requires justification)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LotAdjustInput"
+      responses:
+        "200":
+          description: Adjusted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductLot"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /estoque/lots/{id}/transfer:
+    post:
+      operationId: transferLot
+      tags: [estoque]
+      summary: Transfer quantity from one warehouse to another
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LotTransferInput"
+      responses:
+        "200":
+          description: Transferred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductLot"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /estoque/lots/{id}/movements:
+    get:
+      operationId: getLotMovements
+      tags: [estoque]
+      summary: Get movement history for a lot (rastreabilidade)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of lot movements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LotMovement"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Compras: Fornecedores ────────────────────────────────────────────────────
 
   /compras/suppliers:
@@ -3601,6 +3956,254 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StockMovement"
+        expiringLots30:
+          type: integer
+        expiringLots60:
+          type: integer
+        expiringLots90:
+          type: integer
+        quarantineLots:
+          type: integer
+        expiringLotsList:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductLot"
+        quarantineLotsList:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductLot"
+
+    # ── Estoque: Lotes e Depósitos schemas ──────────────────────────────────────
+
+    Warehouse:
+      type: object
+      required: [id, name, code, active, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        code:
+          type: string
+        description:
+          type: string
+          nullable: true
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    WarehouseInput:
+      type: object
+      required: [name, code]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        description:
+          type: string
+          nullable: true
+        active:
+          type: string
+          nullable: true
+
+    ProductLot:
+      type: object
+      required: [id, productId, internalLot, cqStatus, totalQty, availableQty, reservedQty, blockedQty, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+          nullable: true
+        productUnit:
+          type: string
+          nullable: true
+        internalLot:
+          type: string
+        supplierLot:
+          type: string
+          nullable: true
+        warehouseId:
+          type: integer
+          nullable: true
+        warehouseName:
+          type: string
+          nullable: true
+        manufacturingDate:
+          type: string
+          nullable: true
+        expirationDate:
+          type: string
+          nullable: true
+        cqStatus:
+          type: string
+          enum: [quarantine, approved, rejected, blocked]
+        totalQty:
+          type: integer
+        availableQty:
+          type: integer
+        reservedQty:
+          type: integer
+        blockedQty:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductLotInput:
+      type: object
+      required: [productId, internalLot, totalQty]
+      properties:
+        productId:
+          type: integer
+        internalLot:
+          type: string
+        supplierLot:
+          type: string
+          nullable: true
+        warehouseId:
+          type: integer
+          nullable: true
+        manufacturingDate:
+          type: string
+          nullable: true
+        expirationDate:
+          type: string
+          nullable: true
+        cqStatus:
+          type: string
+          nullable: true
+        totalQty:
+          type: integer
+        availableQty:
+          type: integer
+          nullable: true
+        reservedQty:
+          type: integer
+          nullable: true
+        blockedQty:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    ProductLotUpdateInput:
+      type: object
+      properties:
+        cqStatus:
+          type: string
+          enum: [quarantine, approved, rejected, blocked]
+          nullable: true
+        warehouseId:
+          type: integer
+          nullable: true
+        manufacturingDate:
+          type: string
+          nullable: true
+        expirationDate:
+          type: string
+          nullable: true
+        supplierLot:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    LotAdjustInput:
+      type: object
+      required: [newAvailableQty, reason]
+      properties:
+        newAvailableQty:
+          type: integer
+          description: New available quantity after adjustment
+        reason:
+          type: string
+          description: Mandatory justification for the adjustment
+        notes:
+          type: string
+          nullable: true
+
+    LotTransferInput:
+      type: object
+      required: [toWarehouseId, quantity, reason]
+      properties:
+        toWarehouseId:
+          type: integer
+          description: Destination warehouse
+        quantity:
+          type: integer
+          description: Quantity to transfer
+        reason:
+          type: string
+          description: Reason for transfer
+        notes:
+          type: string
+          nullable: true
+
+    LotMovement:
+      type: object
+      required: [id, lotId, productId, type, quantity, createdAt]
+      properties:
+        id:
+          type: integer
+        lotId:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+          nullable: true
+        internalLot:
+          type: string
+          nullable: true
+        warehouseId:
+          type: integer
+          nullable: true
+        warehouseName:
+          type: string
+          nullable: true
+        toWarehouseId:
+          type: integer
+          nullable: true
+        toWarehouseName:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [input, output, transfer, adjustment]
+        quantity:
+          type: integer
+        reason:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        userId:
+          type: integer
+          nullable: true
+        referenceId:
+          type: integer
+          nullable: true
+        referenceType:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
 
     # ── Qualidade schemas ───────────────────────────────────────────────────────
 

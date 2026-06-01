@@ -485,6 +485,37 @@ export interface StockMovementInput {
   notes?: string | null;
 }
 
+export type ProductLotCqStatus = typeof ProductLotCqStatus[keyof typeof ProductLotCqStatus];
+
+
+export const ProductLotCqStatus = {
+  quarantine: 'quarantine',
+  approved: 'approved',
+  rejected: 'rejected',
+  blocked: 'blocked',
+} as const;
+
+export interface ProductLot {
+  id: number;
+  productId: number;
+  productName?: string | null;
+  productUnit?: string | null;
+  internalLot: string;
+  supplierLot?: string | null;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
+  manufacturingDate?: string | null;
+  expirationDate?: string | null;
+  cqStatus: ProductLotCqStatus;
+  totalQty: number;
+  availableQty: number;
+  reservedQty: number;
+  blockedQty: number;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EstoqueDashboard {
   totalProducts: number;
   lowStockCount: number;
@@ -492,6 +523,110 @@ export interface EstoqueDashboard {
   totalStockValue: number;
   lowStockProducts: Product[];
   recentMovements: StockMovement[];
+  expiringLots30?: number;
+  expiringLots60?: number;
+  expiringLots90?: number;
+  quarantineLots?: number;
+  expiringLotsList?: ProductLot[];
+  quarantineLotsList?: ProductLot[];
+}
+
+export interface Warehouse {
+  id: number;
+  name: string;
+  code: string;
+  description?: string | null;
+  active: string;
+  createdAt: string;
+}
+
+export interface WarehouseInput {
+  name: string;
+  code: string;
+  description?: string | null;
+  active?: string | null;
+}
+
+export interface ProductLotInput {
+  productId: number;
+  internalLot: string;
+  supplierLot?: string | null;
+  warehouseId?: number | null;
+  manufacturingDate?: string | null;
+  expirationDate?: string | null;
+  cqStatus?: string | null;
+  totalQty: number;
+  availableQty?: number | null;
+  reservedQty?: number | null;
+  blockedQty?: number | null;
+  notes?: string | null;
+}
+
+export type ProductLotUpdateInputCqStatus = typeof ProductLotUpdateInputCqStatus[keyof typeof ProductLotUpdateInputCqStatus] | null;
+
+
+export const ProductLotUpdateInputCqStatus = {
+  quarantine: 'quarantine',
+  approved: 'approved',
+  rejected: 'rejected',
+  blocked: 'blocked',
+} as const;
+
+export interface ProductLotUpdateInput {
+  cqStatus?: ProductLotUpdateInputCqStatus;
+  warehouseId?: number | null;
+  manufacturingDate?: string | null;
+  expirationDate?: string | null;
+  supplierLot?: string | null;
+  notes?: string | null;
+}
+
+export interface LotAdjustInput {
+  /** New available quantity after adjustment */
+  newAvailableQty: number;
+  /** Mandatory justification for the adjustment */
+  reason: string;
+  notes?: string | null;
+}
+
+export interface LotTransferInput {
+  /** Destination warehouse */
+  toWarehouseId: number;
+  /** Quantity to transfer */
+  quantity: number;
+  /** Reason for transfer */
+  reason: string;
+  notes?: string | null;
+}
+
+export type LotMovementType = typeof LotMovementType[keyof typeof LotMovementType];
+
+
+export const LotMovementType = {
+  input: 'input',
+  output: 'output',
+  transfer: 'transfer',
+  adjustment: 'adjustment',
+} as const;
+
+export interface LotMovement {
+  id: number;
+  lotId: number;
+  productId: number;
+  productName?: string | null;
+  internalLot?: string | null;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
+  toWarehouseId?: number | null;
+  toWarehouseName?: string | null;
+  type: LotMovementType;
+  quantity: number;
+  reason?: string | null;
+  notes?: string | null;
+  userId?: number | null;
+  referenceId?: number | null;
+  referenceType?: string | null;
+  createdAt: string;
 }
 
 export type QualityInspectionResult = typeof QualityInspectionResult[keyof typeof QualityInspectionResult];
@@ -1314,6 +1449,39 @@ export type ListStockMovementsType = typeof ListStockMovementsType[keyof typeof 
 export const ListStockMovementsType = {
   input: 'input',
   output: 'output',
+} as const;
+
+export type ListWarehousesParams = {
+active?: ListWarehousesActive;
+};
+
+export type ListWarehousesActive = typeof ListWarehousesActive[keyof typeof ListWarehousesActive];
+
+
+export const ListWarehousesActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type ListProductLotsParams = {
+productId?: number;
+warehouseId?: number;
+cqStatus?: ListProductLotsCqStatus;
+/**
+ * Filter lots expiring within N days
+ */
+expiringDays?: number;
+search?: string;
+};
+
+export type ListProductLotsCqStatus = typeof ListProductLotsCqStatus[keyof typeof ListProductLotsCqStatus];
+
+
+export const ListProductLotsCqStatus = {
+  quarantine: 'quarantine',
+  approved: 'approved',
+  rejected: 'rejected',
+  blocked: 'blocked',
 } as const;
 
 export type ListSuppliersParams = {

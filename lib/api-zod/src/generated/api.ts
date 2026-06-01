@@ -698,8 +698,325 @@ export const GetEstoqueDashboardResponse = zod.object({
   "referenceType": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "expiringLots30": zod.number().optional(),
+  "expiringLots60": zod.number().optional(),
+  "expiringLots90": zod.number().optional(),
+  "quarantineLots": zod.number().optional(),
+  "expiringLotsList": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).optional(),
+  "quarantineLotsList": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).optional()
 })
+
+
+/**
+ * @summary List warehouses (depósitos)
+ */
+export const ListWarehousesQueryParams = zod.object({
+  "active": zod.enum(['true', 'false']).optional()
+})
+
+export const ListWarehousesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListWarehousesResponse = zod.array(ListWarehousesResponseItem)
+
+
+/**
+ * @summary Create a new warehouse
+ */
+export const CreateWarehouseBody = zod.object({
+  "name": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a warehouse
+ */
+export const UpdateWarehouseParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateWarehouseBody = zod.object({
+  "name": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string().nullish()
+})
+
+export const UpdateWarehouseResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List product lots with optional filters
+ */
+export const ListProductLotsQueryParams = zod.object({
+  "productId": zod.coerce.number().optional(),
+  "warehouseId": zod.coerce.number().optional(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']).optional(),
+  "expiringDays": zod.coerce.number().optional().describe('Filter lots expiring within N days'),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListProductLotsResponseItem = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProductLotsResponse = zod.array(ListProductLotsResponseItem)
+
+
+/**
+ * @summary Create a new product lot (entrada de lote)
+ */
+export const CreateProductLotBody = zod.object({
+  "productId": zod.number(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.string().nullish(),
+  "totalQty": zod.number(),
+  "availableQty": zod.number().nullish(),
+  "reservedQty": zod.number().nullish(),
+  "blockedQty": zod.number().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get lot details with movements (rastreabilidade)
+ */
+export const GetProductLotParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetProductLotResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update lot CQ status or metadata
+ */
+export const UpdateProductLotParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProductLotBody = zod.object({
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']).nullish(),
+  "warehouseId": zod.number().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "supplierLot": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateProductLotResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Inventory adjustment for a lot (requires justification)
+ */
+export const AdjustLotInventoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdjustLotInventoryBody = zod.object({
+  "newAvailableQty": zod.number().describe('New available quantity after adjustment'),
+  "reason": zod.string().describe('Mandatory justification for the adjustment'),
+  "notes": zod.string().nullish()
+})
+
+export const AdjustLotInventoryResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Transfer quantity from one warehouse to another
+ */
+export const TransferLotParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const TransferLotBody = zod.object({
+  "toWarehouseId": zod.number().describe('Destination warehouse'),
+  "quantity": zod.number().describe('Quantity to transfer'),
+  "reason": zod.string().describe('Reason for transfer'),
+  "notes": zod.string().nullish()
+})
+
+export const TransferLotResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productUnit": zod.string().nullish(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "cqStatus": zod.enum(['quarantine', 'approved', 'rejected', 'blocked']),
+  "totalQty": zod.number(),
+  "availableQty": zod.number(),
+  "reservedQty": zod.number(),
+  "blockedQty": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get movement history for a lot (rastreabilidade)
+ */
+export const GetLotMovementsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLotMovementsResponseItem = zod.object({
+  "id": zod.number(),
+  "lotId": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "warehouseId": zod.number().nullish(),
+  "warehouseName": zod.string().nullish(),
+  "toWarehouseId": zod.number().nullish(),
+  "toWarehouseName": zod.string().nullish(),
+  "type": zod.enum(['input', 'output', 'transfer', 'adjustment']),
+  "quantity": zod.number(),
+  "reason": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "userId": zod.number().nullish(),
+  "referenceId": zod.number().nullish(),
+  "referenceType": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const GetLotMovementsResponse = zod.array(GetLotMovementsResponseItem)
 
 
 /**
