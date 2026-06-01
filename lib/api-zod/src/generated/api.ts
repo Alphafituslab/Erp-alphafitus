@@ -55,3 +55,137 @@ export const GetMeResponse = zod.object({
 })
 
 
+/**
+ * @summary List financial entries with optional filters
+ */
+export const ListFinancialEntriesQueryParams = zod.object({
+  "type": zod.enum(['income', 'expense']).optional(),
+  "status": zod.enum(['pending', 'paid', 'overdue', 'cancelled']).optional(),
+  "category": zod.coerce.string().optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional()
+})
+
+export const ListFinancialEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "description": zod.string(),
+  "type": zod.enum(['income', 'expense']),
+  "category": zod.string().nullish(),
+  "amount": zod.string(),
+  "dueDate": zod.coerce.date(),
+  "paidAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['pending', 'paid', 'overdue', 'cancelled']),
+  "referenceId": zod.string().nullish(),
+  "referenceType": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListFinancialEntriesResponse = zod.array(ListFinancialEntriesResponseItem)
+
+
+/**
+ * @summary Create a new financial entry
+ */
+export const CreateFinancialEntryBody = zod.object({
+  "description": zod.string(),
+  "type": zod.enum(['income', 'expense']),
+  "category": zod.string().nullish(),
+  "amount": zod.string(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'paid', 'overdue', 'cancelled']),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a financial entry
+ */
+export const UpdateFinancialEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateFinancialEntryBody = zod.object({
+  "description": zod.string(),
+  "type": zod.enum(['income', 'expense']),
+  "category": zod.string().nullish(),
+  "amount": zod.string(),
+  "dueDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'paid', 'overdue', 'cancelled']),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateFinancialEntryResponse = zod.object({
+  "id": zod.number(),
+  "description": zod.string(),
+  "type": zod.enum(['income', 'expense']),
+  "category": zod.string().nullish(),
+  "amount": zod.string(),
+  "dueDate": zod.coerce.date(),
+  "paidAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['pending', 'paid', 'overdue', 'cancelled']),
+  "referenceId": zod.string().nullish(),
+  "referenceType": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a financial entry
+ */
+export const DeleteFinancialEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteFinancialEntryResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Mark a financial entry as paid
+ */
+export const MarkFinancialEntryPaidParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkFinancialEntryPaidBody = zod.object({
+  "paidAt": zod.coerce.date().nullish()
+})
+
+export const MarkFinancialEntryPaidResponse = zod.object({
+  "id": zod.number(),
+  "description": zod.string(),
+  "type": zod.enum(['income', 'expense']),
+  "category": zod.string().nullish(),
+  "amount": zod.string(),
+  "dueDate": zod.coerce.date(),
+  "paidAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['pending', 'paid', 'overdue', 'cancelled']),
+  "referenceId": zod.string().nullish(),
+  "referenceType": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get monthly cash flow aggregated data
+ */
+export const GetCashflowQueryParams = zod.object({
+  "year": zod.coerce.number().optional()
+})
+
+export const GetCashflowResponseItem = zod.object({
+  "month": zod.number(),
+  "year": zod.number(),
+  "income": zod.number(),
+  "expense": zod.number(),
+  "balance": zod.number()
+})
+export const GetCashflowResponse = zod.array(GetCashflowResponseItem)
+
+

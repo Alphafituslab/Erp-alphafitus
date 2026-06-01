@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/auth";
 import { ProtectedRoute } from "@/components/layout";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
+import FinanceiroPage from "@/pages/financeiro";
 import ModulePlaceholderPage from "@/pages/module";
 
 const queryClient = new QueryClient();
@@ -30,7 +31,13 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/:module(financeiro|vendas|estoque|compras|rh|projetos|fiscal|relatorios)">
+      <Route path="/financeiro">
+        <ProtectedRoute>
+          <FinanceiroPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/:module(vendas|estoque|compras|rh|projetos|fiscal|relatorios)">
         <ProtectedRoute>
           <ModulePlaceholderPage />
         </ProtectedRoute>

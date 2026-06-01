@@ -39,3 +39,107 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type FinancialEntryType = typeof FinancialEntryType[keyof typeof FinancialEntryType];
+
+
+export const FinancialEntryType = {
+  income: 'income',
+  expense: 'expense',
+} as const;
+
+export type FinancialEntryStatus = typeof FinancialEntryStatus[keyof typeof FinancialEntryStatus];
+
+
+export const FinancialEntryStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  overdue: 'overdue',
+  cancelled: 'cancelled',
+} as const;
+
+export interface FinancialEntry {
+  id: number;
+  description: string;
+  type: FinancialEntryType;
+  category?: string | null;
+  amount: string;
+  dueDate: string;
+  paidAt?: string | null;
+  status: FinancialEntryStatus;
+  referenceId?: string | null;
+  referenceType?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FinancialEntryInputType = typeof FinancialEntryInputType[keyof typeof FinancialEntryInputType];
+
+
+export const FinancialEntryInputType = {
+  income: 'income',
+  expense: 'expense',
+} as const;
+
+export type FinancialEntryInputStatus = typeof FinancialEntryInputStatus[keyof typeof FinancialEntryInputStatus];
+
+
+export const FinancialEntryInputStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  overdue: 'overdue',
+  cancelled: 'cancelled',
+} as const;
+
+export interface FinancialEntryInput {
+  description: string;
+  type: FinancialEntryInputType;
+  category?: string | null;
+  amount: string;
+  dueDate: string;
+  status: FinancialEntryInputStatus;
+  notes?: string | null;
+}
+
+export interface MarkPaidInput {
+  paidAt?: string | null;
+}
+
+export interface CashflowMonth {
+  month: number;
+  year: number;
+  income: number;
+  expense: number;
+  balance: number;
+}
+
+export type ListFinancialEntriesParams = {
+type?: ListFinancialEntriesType;
+status?: ListFinancialEntriesStatus;
+category?: string;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListFinancialEntriesType = typeof ListFinancialEntriesType[keyof typeof ListFinancialEntriesType];
+
+
+export const ListFinancialEntriesType = {
+  income: 'income',
+  expense: 'expense',
+} as const;
+
+export type ListFinancialEntriesStatus = typeof ListFinancialEntriesStatus[keyof typeof ListFinancialEntriesStatus];
+
+
+export const ListFinancialEntriesStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  overdue: 'overdue',
+  cancelled: 'cancelled',
+} as const;
+
+export type GetCashflowParams = {
+year?: number;
+};
+

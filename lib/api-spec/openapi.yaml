@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: auth
     description: Authentication operations
+  - name: financeiro
+    description: Financial entries (accounts payable/receivable)
 paths:
   /healthz:
     get:
@@ -84,6 +86,210 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /financeiro/entries:
+    get:
+      operationId: listFinancialEntries
+      tags: [financeiro]
+      summary: List financial entries with optional filters
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, overdue, cancelled]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of financial entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinancialEntry"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createFinancialEntry
+      tags: [financeiro]
+      summary: Create a new financial entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancialEntryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialEntry"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /financeiro/entries/{id}:
+    put:
+      operationId: updateFinancialEntry
+      tags: [financeiro]
+      summary: Update a financial entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancialEntryInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialEntry"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFinancialEntry
+      tags: [financeiro]
+      summary: Delete a financial entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /financeiro/entries/{id}/pay:
+    post:
+      operationId: markFinancialEntryPaid
+      tags: [financeiro]
+      summary: Mark a financial entry as paid
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkPaidInput"
+      responses:
+        "200":
+          description: Marked as paid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialEntry"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /financeiro/cashflow:
+    get:
+      operationId: getCashflow
+      tags: [financeiro]
+      summary: Get monthly cash flow aggregated data
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly cash flow data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CashflowMonth"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -140,3 +346,110 @@ components:
       properties:
         error:
           type: string
+
+    FinancialEntry:
+      type: object
+      required:
+        - id
+        - description
+        - type
+        - amount
+        - dueDate
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        description:
+          type: string
+        type:
+          type: string
+          enum: [income, expense]
+        category:
+          type: string
+          nullable: true
+        amount:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [pending, paid, overdue, cancelled]
+        referenceId:
+          type: string
+          nullable: true
+        referenceType:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FinancialEntryInput:
+      type: object
+      required:
+        - description
+        - type
+        - amount
+        - dueDate
+        - status
+      properties:
+        description:
+          type: string
+        type:
+          type: string
+          enum: [income, expense]
+        category:
+          type: string
+          nullable: true
+        amount:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, paid, overdue, cancelled]
+        notes:
+          type: string
+          nullable: true
+
+    MarkPaidInput:
+      type: object
+      properties:
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CashflowMonth:
+      type: object
+      required:
+        - month
+        - year
+        - income
+        - expense
+        - balance
+      properties:
+        month:
+          type: integer
+        year:
+          type: integer
+        income:
+          type: number
+        expense:
+          type: number
+        balance:
+          type: number

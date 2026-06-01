@@ -54,7 +54,7 @@ Tables defined (all in `lib/db/src/schema/`):
 |-------|--------|--------|
 | /login | Login | Done |
 | /dashboard | Home dashboard | Done |
-| /financeiro | Financeiro | Placeholder |
+| /financeiro | Financeiro | Done |
 | /vendas | Vendas/Comercial | Placeholder |
 | /estoque | Estoque | Placeholder |
 | /compras | Compras | Placeholder |
