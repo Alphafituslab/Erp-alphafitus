@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, sql, lt } from "drizzle-orm";
-import { db, projectsTable, projectTasksTable, clientsTable } from "@workspace/db";
+import { db, projectsTable, projectTasksTable, clientsTable, usersTable, employeesTable } from "@workspace/db";
 import type { Request, Response } from "express";
 
 const router: IRouter = Router();
@@ -328,17 +328,39 @@ router.delete("/projetos/tasks/:id", async (req: Request, res: Response): Promis
   res.json({ ok: true });
 });
 
+// ── Helper: resolve employee ID for the logged-in user (matches by email) ─────
+// Tasks store assigneeId as String(employee.id). Users and employees are
+// separate tables linked by email address.
+async function resolveMyEmployeeId(userId: number): Promise<string | null> {
+  const [user] = await db
+    .select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  if (!user) return null;
+
+  const [employee] = await db
+    .select({ id: employeesTable.id })
+    .from(employeesTable)
+    .where(eq(employeesTable.email, user.email));
+  return employee ? String(employee.id) : null;
+}
+
 // ─── My Tasks ─────────────────────────────────────────────────────────────────
 
 router.get("/projetos/my-tasks", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const userId = req.session.userId;
+  const myEmpId = await resolveMyEmployeeId(req.session.userId!);
+  if (!myEmpId) {
+    // No employee record linked to this user — return empty list
+    res.json([]);
+    return;
+  }
 
   const tasks = await db
     .select()
     .from(projectTasksTable)
-    .where(eq(projectTasksTable.assigneeId, String(userId)))
+    .where(eq(projectTasksTable.assigneeId, myEmpId))
     .orderBy(projectTasksTable.status, desc(projectTasksTable.createdAt));
 
   const enriched = await Promise.all(tasks.map(enrichTask));
@@ -350,8 +372,8 @@ router.get("/projetos/my-tasks", async (req: Request, res: Response): Promise<vo
 router.get("/projetos/dashboard", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const userId = req.session.userId;
   const now = new Date();
+  const myEmpId = await resolveMyEmployeeId(req.session.userId!);
 
   const [totalProjects] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
@@ -371,15 +393,17 @@ router.get("/projetos/dashboard", async (req: Request, res: Response): Promise<v
     .select({ count: sql<number>`COUNT(*)::int` })
     .from(projectTasksTable);
 
-  const [myPendingTasks] = await db
-    .select({ count: sql<number>`COUNT(*)::int` })
-    .from(projectTasksTable)
-    .where(
-      and(
-        eq(projectTasksTable.assigneeId, String(userId)),
-        sql`${projectTasksTable.status} != 'done'`
-      )
-    );
+  const [myPendingTasks] = myEmpId
+    ? await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(projectTasksTable)
+        .where(
+          and(
+            eq(projectTasksTable.assigneeId, myEmpId),
+            sql`${projectTasksTable.status} != 'done'`
+          )
+        )
+    : [{ count: 0 }];
 
   const [overdueTasksCount] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
