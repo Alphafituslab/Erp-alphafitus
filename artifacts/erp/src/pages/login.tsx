@@ -28,7 +28,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const queryClient = useQueryClient();
   
   const form = useForm<LoginFormValues>({
@@ -42,14 +42,16 @@ export default function LoginPage() {
   const loginMutation = useLogin();
 
   if (isAuthenticated) {
-    return <Redirect to="/dashboard" />;
+    const home = user?.role === "employee" ? "/dashboard" : "/relatorios";
+    return <Redirect to={home} />;
   }
 
   function onSubmit(data: LoginFormValues) {
     loginMutation.mutate({ data }, {
       onSuccess: (response) => {
         queryClient.setQueryData(getGetMeQueryKey(), response);
-        setLocation("/dashboard");
+        const home = response.role === "employee" ? "/dashboard" : "/relatorios";
+        setLocation(home);
       },
       onError: (error) => {
         toast({
