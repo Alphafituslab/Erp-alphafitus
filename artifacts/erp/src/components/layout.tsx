@@ -17,8 +17,9 @@ import {
   LayoutDashboard
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useLogout } from "@workspace/api-client-react";
+import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -50,10 +51,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const logoutMutation = useLogout();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
+        queryClient.removeQueries({ queryKey: getGetMeQueryKey() });
         setLocation("/login");
       }
     });
