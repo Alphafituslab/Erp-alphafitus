@@ -13,6 +13,10 @@ export interface PurchaseOrder {
   supplierName?: string | null;
   status: PurchaseOrderStatus;
   totalAmount: string;
+  freightCost?: string | null;
+  carrier?: string | null;
+  nfNumber?: string | null;
+  purchaseRequestId?: number | null;
   expectedDeliveryDate?: Date | null;
   receivedAt?: Date | null;
   notes?: string | null;

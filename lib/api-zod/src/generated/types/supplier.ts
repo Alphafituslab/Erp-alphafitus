@@ -5,6 +5,7 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SupplierApprovalStatus } from './supplierApprovalStatus';
 
 export interface Supplier {
   id: number;
@@ -19,6 +20,7 @@ export interface Supplier {
   paymentTerms?: string | null;
   notes?: string | null;
   active: string;
+  approvalStatus: SupplierApprovalStatus;
   createdAt: Date;
   updatedAt: Date;
 }

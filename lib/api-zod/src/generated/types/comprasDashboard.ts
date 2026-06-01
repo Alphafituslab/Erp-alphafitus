@@ -15,6 +15,9 @@ export interface ComprasDashboard {
   sentCount: number;
   receivedCount: number;
   cancelledCount: number;
+  overdueCount: number;
+  pendingRequestsCount: number;
+  lotsInCqCount: number;
   pendingDeliveries: PurchaseOrder[];
   topSuppliers: TopSupplier[];
   monthlySpend: MonthlySpend[];

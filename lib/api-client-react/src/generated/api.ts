@@ -46,6 +46,7 @@ import type {
   GetCashflowParams,
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
+  GetPriceHistoryParams,
   GetVendasDashboardParams,
   HealthStatus,
   ListAttendanceLogsParams,
@@ -58,8 +59,10 @@ import type {
   ListProjectTasksParams,
   ListProjectsParams,
   ListPurchaseOrdersParams,
+  ListPurchaseRequestsParams,
   ListQualityInspectionsParams,
   ListQualityNcrsParams,
+  ListQuotationsParams,
   ListSalesOrdersParams,
   ListStockMovementsParams,
   ListSuppliersParams,
@@ -69,6 +72,7 @@ import type {
   LotMovement,
   LotTransferInput,
   MarkPaidInput,
+  PriceHistoryPoint,
   Product,
   ProductInput,
   ProductLot,
@@ -83,11 +87,16 @@ import type {
   PurchaseOrder,
   PurchaseOrderInput,
   PurchaseOrderWithItems,
+  PurchaseRequest,
+  PurchaseRequestInput,
   QualidadeDashboard,
   QualityInspection,
   QualityInspectionInput,
   QualityNcr,
   QualityNcrInput,
+  QuotationInput,
+  QuotationWithItems,
+  ReceivePurchaseOrderInput,
   RelatorioDashboard,
   ResolveNcrInput,
   RhDashboard,
@@ -95,10 +104,12 @@ import type {
   SalesOrderInput,
   SalesOrderLog,
   SalesOrderWithItems,
+  SelectQuotationWinnerInput,
   StockMovement,
   StockMovementInput,
   SuccessResponse,
   Supplier,
+  SupplierApprovalInput,
   SupplierInput,
   UpdatePurchaseOrderStatusInput,
   UpdateSalesOrderStatusInput,
@@ -3791,16 +3802,18 @@ export const getReceivePurchaseOrderUrl = (id: number,) => {
 }
 
 /**
- * @summary Mark a purchase order as received and generate stock input movements
+ * @summary Mark a purchase order as received, generate stock movements and quarantine lots
  */
-export const receivePurchaseOrder = async (id: number, options?: RequestInit): Promise<PurchaseOrderWithItems> => {
+export const receivePurchaseOrder = async (id: number,
+    receivePurchaseOrderInput?: ReceivePurchaseOrderInput, options?: RequestInit): Promise<PurchaseOrderWithItems> => {
 
   return customFetch<PurchaseOrderWithItems>(getReceivePurchaseOrderUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      receivePurchaseOrderInput,)
   }
 );}
 
@@ -3808,8 +3821,8 @@ export const receivePurchaseOrder = async (id: number, options?: RequestInit): P
 
 
 export const getReceivePurchaseOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receivePurchaseOrder>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof receivePurchaseOrder>>, TError,{id: number}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receivePurchaseOrder>>, TError,{id: number;data?: BodyType<ReceivePurchaseOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receivePurchaseOrder>>, TError,{id: number;data?: BodyType<ReceivePurchaseOrderInput>}, TContext> => {
 
 const mutationKey = ['receivePurchaseOrder'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3821,10 +3834,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receivePurchaseOrder>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receivePurchaseOrder>>, {id: number;data?: BodyType<ReceivePurchaseOrderInput>}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  receivePurchaseOrder(id,requestOptions)
+          return  receivePurchaseOrder(id,data,requestOptions)
         }
 
 
@@ -3835,18 +3848,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ReceivePurchaseOrderMutationResult = NonNullable<Awaited<ReturnType<typeof receivePurchaseOrder>>>
-
+    export type ReceivePurchaseOrderMutationBody = BodyType<ReceivePurchaseOrderInput> | undefined
     export type ReceivePurchaseOrderMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Mark a purchase order as received and generate stock input movements
+ * @summary Mark a purchase order as received, generate stock movements and quarantine lots
  */
 export const useReceivePurchaseOrder = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receivePurchaseOrder>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receivePurchaseOrder>>, TError,{id: number;data?: BodyType<ReceivePurchaseOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof receivePurchaseOrder>>,
         TError,
-        {id: number},
+        {id: number;data?: BodyType<ReceivePurchaseOrderInput>},
         TContext
       > => {
       return useMutation(getReceivePurchaseOrderMutationOptions(options));
@@ -3928,6 +3941,765 @@ export function useGetComprasDashboard<TData = Awaited<ReturnType<typeof getComp
 
 
 
+
+export const getListPurchaseRequestsUrl = (params?: ListPurchaseRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/compras/requests?${stringifiedParams}` : `/api/compras/requests`
+}
+
+/**
+ * @summary List purchase requests
+ */
+export const listPurchaseRequests = async (params?: ListPurchaseRequestsParams, options?: RequestInit): Promise<PurchaseRequest[]> => {
+
+  return customFetch<PurchaseRequest[]>(getListPurchaseRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPurchaseRequestsQueryKey = (params?: ListPurchaseRequestsParams,) => {
+    return [
+    `/api/compras/requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPurchaseRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listPurchaseRequests>>, TError = ErrorType<ErrorResponse>>(params?: ListPurchaseRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPurchaseRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPurchaseRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPurchaseRequests>>> = ({ signal }) => listPurchaseRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPurchaseRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPurchaseRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listPurchaseRequests>>>
+export type ListPurchaseRequestsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List purchase requests
+ */
+
+export function useListPurchaseRequests<TData = Awaited<ReturnType<typeof listPurchaseRequests>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListPurchaseRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPurchaseRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPurchaseRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreatePurchaseRequestUrl = () => {
+
+
+
+
+  return `/api/compras/requests`
+}
+
+/**
+ * @summary Create a purchase request
+ */
+export const createPurchaseRequest = async (purchaseRequestInput: PurchaseRequestInput, options?: RequestInit): Promise<PurchaseRequest> => {
+
+  return customFetch<PurchaseRequest>(getCreatePurchaseRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      purchaseRequestInput,)
+  }
+);}
+
+
+
+
+export const getCreatePurchaseRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPurchaseRequest>>, TError,{data: BodyType<PurchaseRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPurchaseRequest>>, TError,{data: BodyType<PurchaseRequestInput>}, TContext> => {
+
+const mutationKey = ['createPurchaseRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPurchaseRequest>>, {data: BodyType<PurchaseRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPurchaseRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePurchaseRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createPurchaseRequest>>>
+    export type CreatePurchaseRequestMutationBody = BodyType<PurchaseRequestInput>
+    export type CreatePurchaseRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a purchase request
+ */
+export const useCreatePurchaseRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPurchaseRequest>>, TError,{data: BodyType<PurchaseRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPurchaseRequest>>,
+        TError,
+        {data: BodyType<PurchaseRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePurchaseRequestMutationOptions(options));
+    }
+
+export const getUpdatePurchaseRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/requests/${id}`
+}
+
+/**
+ * @summary Update or approve/reject a purchase request
+ */
+export const updatePurchaseRequest = async (id: number,
+    purchaseRequestInput: PurchaseRequestInput, options?: RequestInit): Promise<PurchaseRequest> => {
+
+  return customFetch<PurchaseRequest>(getUpdatePurchaseRequestUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      purchaseRequestInput,)
+  }
+);}
+
+
+
+
+export const getUpdatePurchaseRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePurchaseRequest>>, TError,{id: number;data: BodyType<PurchaseRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePurchaseRequest>>, TError,{id: number;data: BodyType<PurchaseRequestInput>}, TContext> => {
+
+const mutationKey = ['updatePurchaseRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePurchaseRequest>>, {id: number;data: BodyType<PurchaseRequestInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePurchaseRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePurchaseRequestMutationResult = NonNullable<Awaited<ReturnType<typeof updatePurchaseRequest>>>
+    export type UpdatePurchaseRequestMutationBody = BodyType<PurchaseRequestInput>
+    export type UpdatePurchaseRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update or approve/reject a purchase request
+ */
+export const useUpdatePurchaseRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePurchaseRequest>>, TError,{id: number;data: BodyType<PurchaseRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePurchaseRequest>>,
+        TError,
+        {id: number;data: BodyType<PurchaseRequestInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePurchaseRequestMutationOptions(options));
+    }
+
+export const getListQuotationsUrl = (params?: ListQuotationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/compras/quotations?${stringifiedParams}` : `/api/compras/quotations`
+}
+
+/**
+ * @summary List quotations
+ */
+export const listQuotations = async (params?: ListQuotationsParams, options?: RequestInit): Promise<QuotationWithItems[]> => {
+
+  return customFetch<QuotationWithItems[]>(getListQuotationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQuotationsQueryKey = (params?: ListQuotationsParams,) => {
+    return [
+    `/api/compras/quotations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListQuotationsQueryOptions = <TData = Awaited<ReturnType<typeof listQuotations>>, TError = ErrorType<ErrorResponse>>(params?: ListQuotationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQuotations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQuotationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQuotations>>> = ({ signal }) => listQuotations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQuotations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQuotationsQueryResult = NonNullable<Awaited<ReturnType<typeof listQuotations>>>
+export type ListQuotationsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List quotations
+ */
+
+export function useListQuotations<TData = Awaited<ReturnType<typeof listQuotations>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListQuotationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQuotations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQuotationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateQuotationUrl = () => {
+
+
+
+
+  return `/api/compras/quotations`
+}
+
+/**
+ * @summary Create a new quotation
+ */
+export const createQuotation = async (quotationInput: QuotationInput, options?: RequestInit): Promise<QuotationWithItems> => {
+
+  return customFetch<QuotationWithItems>(getCreateQuotationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      quotationInput,)
+  }
+);}
+
+
+
+
+export const getCreateQuotationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQuotation>>, TError,{data: BodyType<QuotationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createQuotation>>, TError,{data: BodyType<QuotationInput>}, TContext> => {
+
+const mutationKey = ['createQuotation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createQuotation>>, {data: BodyType<QuotationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createQuotation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateQuotationMutationResult = NonNullable<Awaited<ReturnType<typeof createQuotation>>>
+    export type CreateQuotationMutationBody = BodyType<QuotationInput>
+    export type CreateQuotationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a new quotation
+ */
+export const useCreateQuotation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQuotation>>, TError,{data: BodyType<QuotationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createQuotation>>,
+        TError,
+        {data: BodyType<QuotationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateQuotationMutationOptions(options));
+    }
+
+export const getGetQuotationUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/quotations/${id}`
+}
+
+/**
+ * @summary Get a quotation with its items
+ */
+export const getQuotation = async (id: number, options?: RequestInit): Promise<QuotationWithItems> => {
+
+  return customFetch<QuotationWithItems>(getGetQuotationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQuotationQueryKey = (id: number,) => {
+    return [
+    `/api/compras/quotations/${id}`
+    ] as const;
+    }
+
+
+export const getGetQuotationQueryOptions = <TData = Awaited<ReturnType<typeof getQuotation>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQuotation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQuotationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQuotation>>> = ({ signal }) => getQuotation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQuotation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQuotationQueryResult = NonNullable<Awaited<ReturnType<typeof getQuotation>>>
+export type GetQuotationQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a quotation with its items
+ */
+
+export function useGetQuotation<TData = Awaited<ReturnType<typeof getQuotation>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQuotation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQuotationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateQuotationUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/quotations/${id}`
+}
+
+/**
+ * @summary Update a quotation (status or notes)
+ */
+export const updateQuotation = async (id: number,
+    quotationInput: QuotationInput, options?: RequestInit): Promise<QuotationWithItems> => {
+
+  return customFetch<QuotationWithItems>(getUpdateQuotationUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      quotationInput,)
+  }
+);}
+
+
+
+
+export const getUpdateQuotationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQuotation>>, TError,{id: number;data: BodyType<QuotationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQuotation>>, TError,{id: number;data: BodyType<QuotationInput>}, TContext> => {
+
+const mutationKey = ['updateQuotation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQuotation>>, {id: number;data: BodyType<QuotationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateQuotation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQuotationMutationResult = NonNullable<Awaited<ReturnType<typeof updateQuotation>>>
+    export type UpdateQuotationMutationBody = BodyType<QuotationInput>
+    export type UpdateQuotationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a quotation (status or notes)
+ */
+export const useUpdateQuotation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQuotation>>, TError,{id: number;data: BodyType<QuotationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQuotation>>,
+        TError,
+        {id: number;data: BodyType<QuotationInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateQuotationMutationOptions(options));
+    }
+
+export const getSelectQuotationWinnerUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/quotations/${id}/select`
+}
+
+/**
+ * @summary Select winning quotation item and generate a purchase order
+ */
+export const selectQuotationWinner = async (id: number,
+    selectQuotationWinnerInput: SelectQuotationWinnerInput, options?: RequestInit): Promise<PurchaseOrderWithItems> => {
+
+  return customFetch<PurchaseOrderWithItems>(getSelectQuotationWinnerUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      selectQuotationWinnerInput,)
+  }
+);}
+
+
+
+
+export const getSelectQuotationWinnerMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof selectQuotationWinner>>, TError,{id: number;data: BodyType<SelectQuotationWinnerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof selectQuotationWinner>>, TError,{id: number;data: BodyType<SelectQuotationWinnerInput>}, TContext> => {
+
+const mutationKey = ['selectQuotationWinner'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof selectQuotationWinner>>, {id: number;data: BodyType<SelectQuotationWinnerInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  selectQuotationWinner(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SelectQuotationWinnerMutationResult = NonNullable<Awaited<ReturnType<typeof selectQuotationWinner>>>
+    export type SelectQuotationWinnerMutationBody = BodyType<SelectQuotationWinnerInput>
+    export type SelectQuotationWinnerMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Select winning quotation item and generate a purchase order
+ */
+export const useSelectQuotationWinner = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof selectQuotationWinner>>, TError,{id: number;data: BodyType<SelectQuotationWinnerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof selectQuotationWinner>>,
+        TError,
+        {id: number;data: BodyType<SelectQuotationWinnerInput>},
+        TContext
+      > => {
+      return useMutation(getSelectQuotationWinnerMutationOptions(options));
+    }
+
+export const getGetPriceHistoryUrl = (params?: GetPriceHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/compras/price-history?${stringifiedParams}` : `/api/compras/price-history`
+}
+
+/**
+ * @summary Price history for a product and/or supplier from received POs
+ */
+export const getPriceHistory = async (params?: GetPriceHistoryParams, options?: RequestInit): Promise<PriceHistoryPoint[]> => {
+
+  return customFetch<PriceHistoryPoint[]>(getGetPriceHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPriceHistoryQueryKey = (params?: GetPriceHistoryParams,) => {
+    return [
+    `/api/compras/price-history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPriceHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getPriceHistory>>, TError = ErrorType<ErrorResponse>>(params?: GetPriceHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPriceHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPriceHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPriceHistory>>> = ({ signal }) => getPriceHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPriceHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPriceHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getPriceHistory>>>
+export type GetPriceHistoryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Price history for a product and/or supplier from received POs
+ */
+
+export function useGetPriceHistory<TData = Awaited<ReturnType<typeof getPriceHistory>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetPriceHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPriceHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPriceHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateSupplierApprovalUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/suppliers/${id}/approval`
+}
+
+/**
+ * @summary Set supplier approval status (approved/pending/blocked)
+ */
+export const updateSupplierApproval = async (id: number,
+    supplierApprovalInput: SupplierApprovalInput, options?: RequestInit): Promise<Supplier> => {
+
+  return customFetch<Supplier>(getUpdateSupplierApprovalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      supplierApprovalInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSupplierApprovalMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplierApproval>>, TError,{id: number;data: BodyType<SupplierApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSupplierApproval>>, TError,{id: number;data: BodyType<SupplierApprovalInput>}, TContext> => {
+
+const mutationKey = ['updateSupplierApproval'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSupplierApproval>>, {id: number;data: BodyType<SupplierApprovalInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSupplierApproval(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSupplierApprovalMutationResult = NonNullable<Awaited<ReturnType<typeof updateSupplierApproval>>>
+    export type UpdateSupplierApprovalMutationBody = BodyType<SupplierApprovalInput>
+    export type UpdateSupplierApprovalMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set supplier approval status (approved/pending/blocked)
+ */
+export const useUpdateSupplierApproval = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplierApproval>>, TError,{id: number;data: BodyType<SupplierApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSupplierApproval>>,
+        TError,
+        {id: number;data: BodyType<SupplierApprovalInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSupplierApprovalMutationOptions(options));
+    }
 
 export const getListQualityInspectionsUrl = (params?: ListQualityInspectionsParams,) => {
   const normalizedParams = new URLSearchParams();

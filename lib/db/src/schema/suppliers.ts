@@ -15,6 +15,7 @@ export const suppliersTable = pgTable("suppliers", {
   paymentTerms: text("payment_terms"),
   notes: text("notes"),
   active: text("active").notNull().default("true"),
+  approvalStatus: text("approval_status").notNull().default("approved"), // approved | pending | blocked
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

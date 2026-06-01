@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, lte, lt, sql } from "drizzle-orm";
 import {
   db,
   suppliersTable,
@@ -7,6 +7,13 @@ import {
   purchaseOrderItemsTable,
   productsTable,
   stockMovementsTable,
+  purchaseRequestsTable,
+  quotationsTable,
+  quotationItemsTable,
+  productLotsTable,
+  lotMovementsTable,
+  warehousesTable,
+  usersTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -15,6 +22,18 @@ const router: IRouter = Router();
 function requireAuth(req: Request, res: Response): boolean {
   if (!req.session.userId) {
     res.status(401).json({ error: "Não autenticado" });
+    return false;
+  }
+  return true;
+}
+
+function requireAdmin(req: Request, res: Response): boolean {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Não autenticado" });
+    return false;
+  }
+  if (req.session.role !== "admin" && req.session.role !== "manager") {
+    res.status(403).json({ error: "Permissão insuficiente" });
     return false;
   }
   return true;
@@ -86,6 +105,7 @@ router.post("/compras/suppliers", async (req: Request, res: Response): Promise<v
       paymentTerms: paymentTerms || null,
       notes: notes || null,
       active: "true",
+      approvalStatus: "approved",
     })
     .returning();
 
@@ -150,6 +170,35 @@ router.delete("/compras/suppliers/:id", async (req: Request, res: Response): Pro
   res.json({ ok: true });
 });
 
+// ─── Supplier Approval ────────────────────────────────────────────────────────
+
+router.post("/compras/suppliers/:id/approval", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const { approvalStatus } = req.body as { approvalStatus: string };
+  const validStatuses = ["approved", "pending", "blocked"];
+  if (!validStatuses.includes(approvalStatus)) {
+    res.status(400).json({ error: `Status inválido. Use: ${validStatuses.join(", ")}` });
+    return;
+  }
+
+  const [supplier] = await db
+    .update(suppliersTable)
+    .set({ approvalStatus })
+    .where(eq(suppliersTable.id, id))
+    .returning();
+
+  if (!supplier) {
+    res.status(404).json({ error: "Fornecedor não encontrado" });
+    return;
+  }
+
+  res.json(supplier);
+});
+
 // ─── Purchase Orders ──────────────────────────────────────────────────────────
 
 async function getPOWithItems(id: number) {
@@ -160,6 +209,10 @@ async function getPOWithItems(id: number) {
       supplierName: suppliersTable.name,
       status: purchaseOrdersTable.status,
       totalAmount: purchaseOrdersTable.totalAmount,
+      freightCost: purchaseOrdersTable.freightCost,
+      carrier: purchaseOrdersTable.carrier,
+      nfNumber: purchaseOrdersTable.nfNumber,
+      purchaseRequestId: purchaseOrdersTable.purchaseRequestId,
       expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
       receivedAt: purchaseOrdersTable.receivedAt,
       notes: purchaseOrdersTable.notes,
@@ -206,6 +259,10 @@ router.get("/compras/orders", async (req: Request, res: Response): Promise<void>
       supplierName: suppliersTable.name,
       status: purchaseOrdersTable.status,
       totalAmount: purchaseOrdersTable.totalAmount,
+      freightCost: purchaseOrdersTable.freightCost,
+      carrier: purchaseOrdersTable.carrier,
+      nfNumber: purchaseOrdersTable.nfNumber,
+      purchaseRequestId: purchaseOrdersTable.purchaseRequestId,
       expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
       receivedAt: purchaseOrdersTable.receivedAt,
       notes: purchaseOrdersTable.notes,
@@ -223,7 +280,7 @@ router.get("/compras/orders", async (req: Request, res: Response): Promise<void>
 router.post("/compras/orders", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { supplierId, expectedDeliveryDate, notes, items } = req.body;
+  const { supplierId, expectedDeliveryDate, notes, items, freightCost, carrier, purchaseRequestId } = req.body;
 
   if (!supplierId || isNaN(parseInt(supplierId))) {
     res.status(400).json({ error: "Fornecedor é obrigatório" });
@@ -236,7 +293,13 @@ router.post("/compras/orders", async (req: Request, res: Response): Promise<void
 
   const sid = parseInt(supplierId);
 
-  // Validate items
+  // Check supplier approval status — block if "blocked"
+  const [supplier] = await db.select().from(suppliersTable).where(eq(suppliersTable.id, sid));
+  if (supplier?.approvalStatus === "blocked") {
+    res.status(400).json({ error: "Fornecedor bloqueado. Não é possível criar pedidos para este fornecedor." });
+    return;
+  }
+
   for (const item of items) {
     if (!item.description || !item.quantity || !item.unitPrice) {
       res.status(400).json({ error: "Cada item deve ter descrição, quantidade e preço unitário" });
@@ -257,6 +320,9 @@ router.post("/compras/orders", async (req: Request, res: Response): Promise<void
         supplierId: sid,
         status: "draft",
         totalAmount: String(totalAmount.toFixed(2)),
+        freightCost: freightCost ? String(parseFloat(freightCost).toFixed(2)) : null,
+        carrier: carrier || null,
+        purchaseRequestId: purchaseRequestId ? parseInt(purchaseRequestId) : null,
         expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
         notes: notes || null,
       })
@@ -278,6 +344,14 @@ router.post("/compras/orders", async (req: Request, res: Response): Promise<void
     });
 
     await tx.insert(purchaseOrderItemsTable).values(itemValues);
+
+    // If linked to a purchase request, mark it as converted
+    if (purchaseRequestId) {
+      await tx
+        .update(purchaseRequestsTable)
+        .set({ status: "converted", purchaseOrderId: order!.id })
+        .where(eq(purchaseRequestsTable.id, parseInt(purchaseRequestId)));
+    }
   });
 
   const result = await getPOWithItems(newOrderId!);
@@ -305,7 +379,7 @@ router.put("/compras/orders/:id", async (req: Request, res: Response): Promise<v
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
-  const { supplierId, expectedDeliveryDate, notes, items } = req.body;
+  const { supplierId, expectedDeliveryDate, notes, items, freightCost, carrier } = req.body;
 
   const [existing] = await db
     .select()
@@ -337,12 +411,13 @@ router.put("/compras/orders/:id", async (req: Request, res: Response): Promise<v
       .set({
         supplierId: supplierId ? parseInt(supplierId) : existing.supplierId,
         totalAmount: String(totalAmount.toFixed(2)),
+        freightCost: freightCost ? String(parseFloat(freightCost).toFixed(2)) : null,
+        carrier: carrier || null,
         expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
         notes: notes || null,
       })
       .where(eq(purchaseOrdersTable.id, id));
 
-    // Replace all items
     await tx.delete(purchaseOrderItemsTable).where(eq(purchaseOrderItemsTable.purchaseOrderId, id));
 
     const itemValues = items.map((item: any) => {
@@ -404,7 +479,6 @@ router.post("/compras/orders/:id/status", async (req: Request, res: Response): P
 
   const { status } = req.body as { status: string };
 
-  // Receiving a PO must go through the /receive endpoint (generates stock movements)
   if (status === "received") {
     res.status(400).json({ error: "Para receber um pedido use POST /compras/orders/:id/receive" });
     return;
@@ -444,7 +518,7 @@ router.post("/compras/orders/:id/status", async (req: Request, res: Response): P
   res.json(updated);
 });
 
-// ─── Receive PO (auto-generate stock movements) ───────────────────────────────
+// ─── Receive PO (lot + stock) ─────────────────────────────────────────────────
 
 router.post("/compras/orders/:id/receive", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
@@ -473,18 +547,54 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
     return;
   }
 
-  const items = await db
+  // Receipt body: { nfNumber, carrier, freightCost, items: [{itemId, receivedQty, supplierLot, expiryDate, manufactureDate, warehouseId}] }
+  const receiveInput = req.body as {
+    nfNumber?: string;
+    carrier?: string;
+    freightCost?: number;
+    items?: Array<{
+      itemId: number;
+      receivedQty: number;
+      supplierLot?: string;
+      expiryDate?: string;
+      manufactureDate?: string;
+      warehouseId?: number;
+    }>;
+  };
+
+  const poItems = await db
     .select()
     .from(purchaseOrderItemsTable)
     .where(eq(purchaseOrderItemsTable.purchaseOrderId, id));
 
+  type ReceiveItemDetail = NonNullable<typeof receiveInput.items>[number];
+  // Build a map from itemId → receive details
+  const receiveMap = new Map<number, ReceiveItemDetail>();
+  for (const ri of receiveInput.items ?? []) {
+    receiveMap.set(ri.itemId, ri);
+  }
+
+  // Get default warehouse (first active one if not specified per item)
+  const [defaultWarehouse] = await db
+    .select()
+    .from(warehousesTable)
+    .where(eq(warehousesTable.active, "true"))
+    .orderBy(warehousesTable.id)
+    .limit(1);
+
   try {
     await db.transaction(async (tx) => {
-      // Atomic conditional update: only mark as received if still in 'sent' state
-      // This prevents duplicate processing under concurrent requests
       const updated = await tx
         .update(purchaseOrdersTable)
-        .set({ status: "received", receivedAt: new Date() })
+        .set({
+          status: "received",
+          receivedAt: new Date(),
+          nfNumber: receiveInput.nfNumber || null,
+          carrier: receiveInput.carrier || null,
+          freightCost: receiveInput.freightCost != null
+            ? String(parseFloat(String(receiveInput.freightCost)).toFixed(2))
+            : null,
+        })
         .where(and(eq(purchaseOrdersTable.id, id), eq(purchaseOrdersTable.status, "sent")))
         .returning({ id: purchaseOrdersTable.id });
 
@@ -492,35 +602,67 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
         throw new Error("ALREADY_PROCESSED");
       }
 
-      // For each item with a valid productId that exists in the DB, create a stock input movement
-      for (const item of items) {
+      for (const item of poItems) {
         if (!item.productId || item.productId === 0) continue;
 
-        const qty = Math.round(parseFloat(String(item.quantity)));
+        const ri = receiveMap.get(item.id);
+        const qty = ri ? Math.round(ri.receivedQty) : Math.round(parseFloat(String(item.quantity)));
         if (qty <= 0) continue;
 
-        // Only proceed if the product actually exists
         const [product] = await tx
-          .select({ id: productsTable.id })
+          .select({ id: productsTable.id, sku: productsTable.sku })
           .from(productsTable)
           .where(eq(productsTable.id, item.productId));
 
-        if (!product) continue; // product not in catalog, skip stock movement
+        if (!product) continue;
 
-        // Update stock
-        await tx
-          .update(productsTable)
-          .set({ currentStock: sql`${productsTable.currentStock} + ${qty}` })
-          .where(eq(productsTable.id, item.productId));
+        // Generate an internal lot number
+        const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
+        const warehouseId = ri?.warehouseId ?? defaultWarehouse?.id ?? null;
 
-        // Record movement
-        await tx.insert(stockMovementsTable).values({
+        // Create lot in quarantine
+        const [lot] = await tx
+          .insert(productLotsTable)
+          .values({
+            productId: item.productId,
+            internalLot,
+            supplierLot: ri?.supplierLot || null,
+            cqStatus: "quarantine",
+            totalQty: qty,
+            availableQty: 0,
+            warehouseId: warehouseId ?? undefined,
+            expirationDate: ri?.expiryDate ? ri.expiryDate.slice(0, 10) : null,
+            manufacturingDate: ri?.manufactureDate ? ri.manufactureDate.slice(0, 10) : null,
+          })
+          .returning();
+
+        // Record lot movement
+        await tx.insert(lotMovementsTable).values({
+          lotId: lot!.id,
           productId: item.productId,
+          warehouseId: warehouseId ?? undefined,
           type: "input",
           quantity: qty,
           reason: `Recebimento PC #${id}`,
           referenceId: id,
           referenceType: "purchase_order",
+        });
+
+        // Update product stock
+        await tx
+          .update(productsTable)
+          .set({ currentStock: sql`${productsTable.currentStock} + ${qty}` })
+          .where(eq(productsTable.id, item.productId));
+
+        // Record stock movement (linked to lot)
+        await tx.insert(stockMovementsTable).values({
+          productId: item.productId,
+          type: "input",
+          quantity: qty,
+          reason: `Recebimento PC #${id}${ri?.supplierLot ? ` – Lote ${ri.supplierLot}` : ""}`,
+          referenceId: id,
+          referenceType: "purchase_order",
+          lotId: lot!.id,
           notes: item.description,
         });
       }
@@ -538,6 +680,486 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
   res.json(result);
 });
 
+// ─── Purchase Requests ────────────────────────────────────────────────────────
+
+router.get("/compras/requests", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { status, priority } = req.query as Record<string, string>;
+  const filters = [];
+  if (status) filters.push(eq(purchaseRequestsTable.status, status));
+  if (priority) filters.push(eq(purchaseRequestsTable.priority, priority));
+
+  const requests = await db
+    .select({
+      id: purchaseRequestsTable.id,
+      productId: purchaseRequestsTable.productId,
+      productName: productsTable.name,
+      description: purchaseRequestsTable.description,
+      quantity: purchaseRequestsTable.quantity,
+      unit: purchaseRequestsTable.unit,
+      priority: purchaseRequestsTable.priority,
+      status: purchaseRequestsTable.status,
+      purchaseOrderId: purchaseRequestsTable.purchaseOrderId,
+      requestedById: purchaseRequestsTable.requestedById,
+      requestedByName: usersTable.name,
+      approvedById: purchaseRequestsTable.approvedById,
+      approvedAt: purchaseRequestsTable.approvedAt,
+      notes: purchaseRequestsTable.notes,
+      createdAt: purchaseRequestsTable.createdAt,
+      updatedAt: purchaseRequestsTable.updatedAt,
+    })
+    .from(purchaseRequestsTable)
+    .leftJoin(productsTable, eq(purchaseRequestsTable.productId, productsTable.id))
+    .leftJoin(usersTable, eq(purchaseRequestsTable.requestedById, usersTable.id))
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(purchaseRequestsTable.createdAt));
+
+  res.json(requests);
+});
+
+router.post("/compras/requests", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { productId, description, quantity, unit, priority, notes } = req.body;
+
+  if (!description || typeof description !== "string" || description.trim() === "") {
+    res.status(400).json({ error: "Descrição é obrigatória" });
+    return;
+  }
+  if (!quantity || isNaN(parseFloat(quantity))) {
+    res.status(400).json({ error: "Quantidade é obrigatória" });
+    return;
+  }
+
+  const [request] = await db
+    .insert(purchaseRequestsTable)
+    .values({
+      productId: productId ? parseInt(productId) : null,
+      description: description.trim(),
+      quantity: String(parseFloat(quantity)),
+      unit: unit || "un",
+      priority: priority || "normal",
+      status: "pending",
+      requestedById: req.session.userId ?? null,
+      notes: notes || null,
+    })
+    .returning();
+
+  // Join with product/user for the response
+  const [full] = await db
+    .select({
+      id: purchaseRequestsTable.id,
+      productId: purchaseRequestsTable.productId,
+      productName: productsTable.name,
+      description: purchaseRequestsTable.description,
+      quantity: purchaseRequestsTable.quantity,
+      unit: purchaseRequestsTable.unit,
+      priority: purchaseRequestsTable.priority,
+      status: purchaseRequestsTable.status,
+      purchaseOrderId: purchaseRequestsTable.purchaseOrderId,
+      requestedById: purchaseRequestsTable.requestedById,
+      requestedByName: usersTable.name,
+      approvedById: purchaseRequestsTable.approvedById,
+      approvedAt: purchaseRequestsTable.approvedAt,
+      notes: purchaseRequestsTable.notes,
+      createdAt: purchaseRequestsTable.createdAt,
+      updatedAt: purchaseRequestsTable.updatedAt,
+    })
+    .from(purchaseRequestsTable)
+    .leftJoin(productsTable, eq(purchaseRequestsTable.productId, productsTable.id))
+    .leftJoin(usersTable, eq(purchaseRequestsTable.requestedById, usersTable.id))
+    .where(eq(purchaseRequestsTable.id, request!.id));
+
+  res.status(201).json(full);
+});
+
+router.put("/compras/requests/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [existing] = await db
+    .select()
+    .from(purchaseRequestsTable)
+    .where(eq(purchaseRequestsTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Solicitação não encontrada" });
+    return;
+  }
+
+  const { productId, description, quantity, unit, priority, status, notes } = req.body;
+
+  // Approval/rejection logic
+  const newStatus = status || existing.status;
+  const isApprovalAction = newStatus === "approved" || newStatus === "rejected";
+
+  const [updated] = await db
+    .update(purchaseRequestsTable)
+    .set({
+      productId: productId !== undefined ? (productId ? parseInt(productId) : null) : existing.productId,
+      description: description ? description.trim() : existing.description,
+      quantity: quantity ? String(parseFloat(quantity)) : existing.quantity,
+      unit: unit || existing.unit,
+      priority: priority || existing.priority,
+      status: newStatus,
+      approvedById: isApprovalAction ? (req.session.userId ?? null) : existing.approvedById,
+      approvedAt: isApprovalAction ? new Date() : existing.approvedAt,
+      notes: notes !== undefined ? (notes || null) : existing.notes,
+    })
+    .where(eq(purchaseRequestsTable.id, id))
+    .returning();
+
+  const [full] = await db
+    .select({
+      id: purchaseRequestsTable.id,
+      productId: purchaseRequestsTable.productId,
+      productName: productsTable.name,
+      description: purchaseRequestsTable.description,
+      quantity: purchaseRequestsTable.quantity,
+      unit: purchaseRequestsTable.unit,
+      priority: purchaseRequestsTable.priority,
+      status: purchaseRequestsTable.status,
+      purchaseOrderId: purchaseRequestsTable.purchaseOrderId,
+      requestedById: purchaseRequestsTable.requestedById,
+      requestedByName: usersTable.name,
+      approvedById: purchaseRequestsTable.approvedById,
+      approvedAt: purchaseRequestsTable.approvedAt,
+      notes: purchaseRequestsTable.notes,
+      createdAt: purchaseRequestsTable.createdAt,
+      updatedAt: purchaseRequestsTable.updatedAt,
+    })
+    .from(purchaseRequestsTable)
+    .leftJoin(productsTable, eq(purchaseRequestsTable.productId, productsTable.id))
+    .leftJoin(usersTable, eq(purchaseRequestsTable.requestedById, usersTable.id))
+    .where(eq(purchaseRequestsTable.id, updated!.id));
+
+  res.json(full);
+});
+
+// ─── Quotations ───────────────────────────────────────────────────────────────
+
+async function getQuotationWithItems(id: number) {
+  const [quotation] = await db
+    .select()
+    .from(quotationsTable)
+    .where(eq(quotationsTable.id, id));
+
+  if (!quotation) return null;
+
+  const items = await db
+    .select({
+      id: quotationItemsTable.id,
+      quotationId: quotationItemsTable.quotationId,
+      supplierId: quotationItemsTable.supplierId,
+      supplierName: suppliersTable.name,
+      productId: quotationItemsTable.productId,
+      description: quotationItemsTable.description,
+      quantity: quotationItemsTable.quantity,
+      unitPrice: quotationItemsTable.unitPrice,
+      totalPrice: quotationItemsTable.totalPrice,
+      deliveryDays: quotationItemsTable.deliveryDays,
+      notes: quotationItemsTable.notes,
+      selected: quotationItemsTable.selected,
+      createdAt: quotationItemsTable.createdAt,
+    })
+    .from(quotationItemsTable)
+    .leftJoin(suppliersTable, eq(quotationItemsTable.supplierId, suppliersTable.id))
+    .where(eq(quotationItemsTable.quotationId, id))
+    .orderBy(quotationItemsTable.unitPrice);
+
+  return { ...quotation, items };
+}
+
+router.get("/compras/quotations", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { status } = req.query as Record<string, string>;
+  const filters = [];
+  if (status) filters.push(eq(quotationsTable.status, status));
+
+  const quotations = await db
+    .select()
+    .from(quotationsTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(quotationsTable.createdAt));
+
+  // Load items for each quotation
+  const results = await Promise.all(quotations.map((q) => getQuotationWithItems(q.id)));
+  res.json(results.filter(Boolean));
+});
+
+router.post("/compras/quotations", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { purchaseRequestId, title, status, notes, items } = req.body;
+
+  if (!title || typeof title !== "string" || title.trim() === "") {
+    res.status(400).json({ error: "Título é obrigatório" });
+    return;
+  }
+
+  let quotationId: number | undefined;
+
+  await db.transaction(async (tx) => {
+    const [quotation] = await tx
+      .insert(quotationsTable)
+      .values({
+        purchaseRequestId: purchaseRequestId ? parseInt(purchaseRequestId) : null,
+        title: title.trim(),
+        status: status || "open",
+        notes: notes || null,
+      })
+      .returning();
+
+    quotationId = quotation!.id;
+
+    if (Array.isArray(items) && items.length > 0) {
+      const itemValues = items.map((item: any) => {
+        const qty = parseFloat(item.quantity) || 1;
+        const price = parseFloat(item.unitPrice) || 0;
+        return {
+          quotationId: quotation!.id,
+          supplierId: parseInt(item.supplierId),
+          productId: item.productId ? parseInt(item.productId) : null,
+          description: String(item.description),
+          quantity: String(qty),
+          unitPrice: String(price.toFixed(2)),
+          totalPrice: String((qty * price).toFixed(2)),
+          deliveryDays: item.deliveryDays ? parseInt(item.deliveryDays) : null,
+          notes: item.notes || null,
+          selected: "false",
+        };
+      });
+      await tx.insert(quotationItemsTable).values(itemValues);
+    }
+  });
+
+  const result = await getQuotationWithItems(quotationId!);
+  res.status(201).json(result);
+});
+
+router.get("/compras/quotations/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const result = await getQuotationWithItems(id);
+  if (!result) {
+    res.status(404).json({ error: "Cotação não encontrada" });
+    return;
+  }
+
+  res.json(result);
+});
+
+router.put("/compras/quotations/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [existing] = await db.select().from(quotationsTable).where(eq(quotationsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Cotação não encontrada" });
+    return;
+  }
+
+  const { purchaseRequestId, title, status, notes, items } = req.body;
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(quotationsTable)
+      .set({
+        purchaseRequestId: purchaseRequestId !== undefined ? (purchaseRequestId ? parseInt(purchaseRequestId) : null) : existing.purchaseRequestId,
+        title: title ? title.trim() : existing.title,
+        status: status || existing.status,
+        notes: notes !== undefined ? (notes || null) : existing.notes,
+      })
+      .where(eq(quotationsTable.id, id));
+
+    if (Array.isArray(items)) {
+      await tx.delete(quotationItemsTable).where(eq(quotationItemsTable.quotationId, id));
+      if (items.length > 0) {
+        const itemValues = items.map((item: any) => {
+          const qty = parseFloat(item.quantity) || 1;
+          const price = parseFloat(item.unitPrice) || 0;
+          return {
+            quotationId: id,
+            supplierId: parseInt(item.supplierId),
+            productId: item.productId ? parseInt(item.productId) : null,
+            description: String(item.description),
+            quantity: String(qty),
+            unitPrice: String(price.toFixed(2)),
+            totalPrice: String((qty * price).toFixed(2)),
+            deliveryDays: item.deliveryDays ? parseInt(item.deliveryDays) : null,
+            notes: item.notes || null,
+            selected: item.selected === "true" ? "true" : "false",
+          };
+        });
+        await tx.insert(quotationItemsTable).values(itemValues);
+      }
+    }
+  });
+
+  const result = await getQuotationWithItems(id);
+  res.json(result);
+});
+
+// ─── Select Quotation Winner → Generate PO ────────────────────────────────────
+
+router.post("/compras/quotations/:id/select", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const quotationId = parseId(req.params.id, res);
+  if (quotationId === null) return;
+
+  const { quotationItemId, expectedDeliveryDate, notes } = req.body as {
+    quotationItemId: number;
+    expectedDeliveryDate?: string;
+    notes?: string;
+  };
+
+  if (!quotationItemId || isNaN(quotationItemId)) {
+    res.status(400).json({ error: "quotationItemId é obrigatório" });
+    return;
+  }
+
+  const [quotation] = await db.select().from(quotationsTable).where(eq(quotationsTable.id, quotationId));
+  if (!quotation) {
+    res.status(404).json({ error: "Cotação não encontrada" });
+    return;
+  }
+
+  if (quotation.status !== "open") {
+    res.status(400).json({ error: "Apenas cotações abertas podem ter um vencedor selecionado" });
+    return;
+  }
+
+  const [winnerItem] = await db
+    .select()
+    .from(quotationItemsTable)
+    .where(and(eq(quotationItemsTable.id, quotationItemId), eq(quotationItemsTable.quotationId, quotationId)));
+
+  if (!winnerItem) {
+    res.status(404).json({ error: "Item de cotação não encontrado" });
+    return;
+  }
+
+  // Check supplier is not blocked
+  const [supplier] = await db.select().from(suppliersTable).where(eq(suppliersTable.id, winnerItem.supplierId));
+  if (supplier?.approvalStatus === "blocked") {
+    res.status(400).json({ error: "Fornecedor vencedor está bloqueado. Selecione outro fornecedor." });
+    return;
+  }
+
+  let newOrderId: number | undefined;
+
+  await db.transaction(async (tx) => {
+    // Mark this item as selected
+    await tx
+      .update(quotationItemsTable)
+      .set({ selected: "true" })
+      .where(eq(quotationItemsTable.id, quotationItemId));
+
+    // Close quotation
+    await tx
+      .update(quotationsTable)
+      .set({ status: "closed" })
+      .where(eq(quotationsTable.id, quotationId));
+
+    // Create purchase order
+    const qty = parseFloat(String(winnerItem.quantity));
+    const price = parseFloat(String(winnerItem.unitPrice));
+    const total = qty * price;
+
+    const [order] = await tx
+      .insert(purchaseOrdersTable)
+      .values({
+        supplierId: winnerItem.supplierId,
+        status: "draft",
+        totalAmount: String(total.toFixed(2)),
+        expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
+        notes: notes || `Gerado via Cotação #${quotationId}`,
+        purchaseRequestId: quotation.purchaseRequestId,
+      })
+      .returning();
+
+    newOrderId = order!.id;
+
+    await tx.insert(purchaseOrderItemsTable).values({
+      purchaseOrderId: order!.id,
+      productId: winnerItem.productId || 0,
+      description: winnerItem.description,
+      quantity: String(qty),
+      unitPrice: String(price.toFixed(2)),
+      totalPrice: String(total.toFixed(2)),
+    });
+
+    // If linked to a purchase request, mark it as converted
+    if (quotation.purchaseRequestId) {
+      await tx
+        .update(purchaseRequestsTable)
+        .set({ status: "converted", purchaseOrderId: order!.id })
+        .where(eq(purchaseRequestsTable.id, quotation.purchaseRequestId));
+    }
+  });
+
+  const result = await getPOWithItems(newOrderId!);
+  res.status(201).json(result);
+});
+
+// ─── Price History ────────────────────────────────────────────────────────────
+
+router.get("/compras/price-history", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { productId, supplierId, months } = req.query as Record<string, string>;
+  const monthsBack = parseInt(months ?? "12") || 12;
+
+  const since = new Date();
+  since.setMonth(since.getMonth() - monthsBack);
+
+  const filters = [
+    eq(purchaseOrdersTable.status, "received"),
+    gte(purchaseOrdersTable.receivedAt, since),
+  ];
+
+  if (supplierId) {
+    const sid = parseInt(supplierId);
+    if (!isNaN(sid)) filters.push(eq(purchaseOrdersTable.supplierId, sid));
+  }
+
+  if (productId) {
+    const pid = parseInt(productId);
+    if (!isNaN(pid)) filters.push(eq(purchaseOrderItemsTable.productId, pid));
+  }
+
+  const rows = await db
+    .select({
+      orderId: purchaseOrdersTable.id,
+      supplierId: purchaseOrdersTable.supplierId,
+      supplierName: suppliersTable.name,
+      productId: purchaseOrderItemsTable.productId,
+      productName: productsTable.name,
+      description: purchaseOrderItemsTable.description,
+      date: purchaseOrdersTable.receivedAt,
+      unitPrice: purchaseOrderItemsTable.unitPrice,
+      quantity: purchaseOrderItemsTable.quantity,
+    })
+    .from(purchaseOrderItemsTable)
+    .innerJoin(purchaseOrdersTable, eq(purchaseOrderItemsTable.purchaseOrderId, purchaseOrdersTable.id))
+    .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+    .leftJoin(productsTable, eq(purchaseOrderItemsTable.productId, productsTable.id))
+    .where(and(...filters))
+    .orderBy(purchaseOrdersTable.receivedAt);
+
+  res.json(rows);
+});
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 router.get("/compras/dashboard", async (req: Request, res: Response): Promise<void> => {
@@ -547,7 +1169,6 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-  // Total spent this month (received orders)
   const [spentRow] = await db
     .select({
       total: sql<number>`COALESCE(SUM(total_amount::numeric), 0)`,
@@ -561,7 +1182,6 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
       )
     );
 
-  // Count by status
   const statusCounts = await db
     .select({
       status: purchaseOrdersTable.status,
@@ -572,7 +1192,30 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
 
   const byStatus = Object.fromEntries(statusCounts.map((r) => [r.status, r.count]));
 
-  // Pending deliveries (sent, not received yet, sorted by expected date)
+  // Overdue: sent orders with expectedDeliveryDate < now
+  const [overdueRow] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(purchaseOrdersTable)
+    .where(
+      and(
+        eq(purchaseOrdersTable.status, "sent"),
+        lt(purchaseOrdersTable.expectedDeliveryDate, now),
+        sql`${purchaseOrdersTable.expectedDeliveryDate} IS NOT NULL`
+      )
+    );
+
+  // Pending purchase requests
+  const [pendingReqRow] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(purchaseRequestsTable)
+    .where(eq(purchaseRequestsTable.status, "pending"));
+
+  // Lots in quarantine from purchase orders
+  const [lotsInCqRow] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(productLotsTable)
+    .where(eq(productLotsTable.cqStatus, "quarantine"));
+
   const pendingDeliveries = await db
     .select({
       id: purchaseOrdersTable.id,
@@ -580,6 +1223,10 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
       supplierName: suppliersTable.name,
       status: purchaseOrdersTable.status,
       totalAmount: purchaseOrdersTable.totalAmount,
+      freightCost: purchaseOrdersTable.freightCost,
+      carrier: purchaseOrdersTable.carrier,
+      nfNumber: purchaseOrdersTable.nfNumber,
+      purchaseRequestId: purchaseOrdersTable.purchaseRequestId,
       expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
       receivedAt: purchaseOrdersTable.receivedAt,
       notes: purchaseOrdersTable.notes,
@@ -592,7 +1239,6 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
     .orderBy(purchaseOrdersTable.expectedDeliveryDate)
     .limit(10);
 
-  // Top suppliers by total amount (all time, received orders only)
   const topSuppliers = await db
     .select({
       supplierId: purchaseOrdersTable.supplierId,
@@ -607,7 +1253,6 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
     .orderBy(desc(sql`SUM(${purchaseOrdersTable.totalAmount}::numeric)`))
     .limit(5);
 
-  // Monthly spend (last 6 months)
   const monthlySpend = await db
     .select({
       month: sql<string>`TO_CHAR(received_at, 'YYYY-MM')`,
@@ -623,7 +1268,6 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
     .groupBy(sql`TO_CHAR(received_at, 'YYYY-MM')`)
     .orderBy(sql`TO_CHAR(received_at, 'YYYY-MM')`);
 
-  // Recent orders
   const recentOrders = await db
     .select({
       id: purchaseOrdersTable.id,
@@ -631,6 +1275,10 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
       supplierName: suppliersTable.name,
       status: purchaseOrdersTable.status,
       totalAmount: purchaseOrdersTable.totalAmount,
+      freightCost: purchaseOrdersTable.freightCost,
+      carrier: purchaseOrdersTable.carrier,
+      nfNumber: purchaseOrdersTable.nfNumber,
+      purchaseRequestId: purchaseOrdersTable.purchaseRequestId,
       expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
       receivedAt: purchaseOrdersTable.receivedAt,
       notes: purchaseOrdersTable.notes,
@@ -648,6 +1296,9 @@ router.get("/compras/dashboard", async (req: Request, res: Response): Promise<vo
     sentCount: Number(byStatus["sent"] ?? 0),
     receivedCount: Number(byStatus["received"] ?? 0),
     cancelledCount: Number(byStatus["cancelled"] ?? 0),
+    overdueCount: Number(overdueRow?.count ?? 0),
+    pendingRequestsCount: Number(pendingReqRow?.count ?? 0),
+    lotsInCqCount: Number(lotsInCqRow?.count ?? 0),
     pendingDeliveries,
     topSuppliers,
     monthlySpend,

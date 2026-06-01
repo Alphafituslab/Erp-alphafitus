@@ -11,3 +11,4 @@ export * from "./fiscal";
 export * from "./projects";
 export * from "./quality";
 export * from "./lots";
+export * from "./purchasing";

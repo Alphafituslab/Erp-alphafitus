@@ -1656,13 +1656,19 @@ paths:
     post:
       operationId: receivePurchaseOrder
       tags: [compras]
-      summary: Mark a purchase order as received and generate stock input movements
+      summary: Mark a purchase order as received, generate stock movements and quarantine lots
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceivePurchaseOrderInput"
       responses:
         "200":
           description: Received — stock movements created
@@ -1703,6 +1709,348 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ComprasDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Purchase Requests ───────────────────────────────────────────────
+
+  /compras/requests:
+    get:
+      operationId: listPurchaseRequests
+      tags: [compras]
+      summary: List purchase requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, converted]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [normal, urgent, critical]
+      responses:
+        "200":
+          description: List of purchase requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseRequest"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPurchaseRequest
+      tags: [compras]
+      summary: Create a purchase request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequestInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseRequest"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/requests/{id}:
+    put:
+      operationId: updatePurchaseRequest
+      tags: [compras]
+      summary: Update or approve/reject a purchase request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequestInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseRequest"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Quotations ──────────────────────────────────────────────────────
+
+  /compras/quotations:
+    get:
+      operationId: listQuotations
+      tags: [compras]
+      summary: List quotations
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closed, cancelled]
+      responses:
+        "200":
+          description: List of quotations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuotationWithItems"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createQuotation
+      tags: [compras]
+      summary: Create a new quotation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuotationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotationWithItems"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/quotations/{id}:
+    get:
+      operationId: getQuotation
+      tags: [compras]
+      summary: Get a quotation with its items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quotation with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotationWithItems"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateQuotation
+      tags: [compras]
+      summary: Update a quotation (status or notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuotationInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotationWithItems"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/quotations/{id}/select:
+    post:
+      operationId: selectQuotationWinner
+      tags: [compras]
+      summary: Select winning quotation item and generate a purchase order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectQuotationWinnerInput"
+      responses:
+        "201":
+          description: Purchase order created from selected quotation item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderWithItems"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Price History ───────────────────────────────────────────────────
+
+  /compras/price-history:
+    get:
+      operationId: getPriceHistory
+      tags: [compras]
+      summary: Price history for a product and/or supplier from received POs
+      parameters:
+        - name: productId
+          in: query
+          schema:
+            type: integer
+        - name: supplierId
+          in: query
+          schema:
+            type: integer
+        - name: months
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Price history points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceHistoryPoint"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Compras: Supplier Approval ───────────────────────────────────────────────
+
+  /compras/suppliers/{id}/approval:
+    post:
+      operationId: updateSupplierApproval
+      tags: [compras]
+      summary: Set supplier approval status (approved/pending/blocked)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierApprovalInput"
+      responses:
+        "200":
+          description: Approval status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Not authenticated
           content:
@@ -4451,6 +4799,7 @@ components:
         - id
         - name
         - active
+        - approvalStatus
         - createdAt
         - updatedAt
       properties:
@@ -4487,6 +4836,9 @@ components:
           nullable: true
         active:
           type: string
+        approvalStatus:
+          type: string
+          enum: [approved, pending, blocked]
         createdAt:
           type: string
           format: date-time
@@ -4598,6 +4950,18 @@ components:
           enum: [draft, sent, received, cancelled]
         totalAmount:
           type: string
+        freightCost:
+          type: string
+          nullable: true
+        carrier:
+          type: string
+          nullable: true
+        nfNumber:
+          type: string
+          nullable: true
+        purchaseRequestId:
+          type: integer
+          nullable: true
         expectedDeliveryDate:
           type: string
           format: date-time
@@ -4639,6 +5003,18 @@ components:
           enum: [draft, sent, received, cancelled]
         totalAmount:
           type: string
+        freightCost:
+          type: string
+          nullable: true
+        carrier:
+          type: string
+          nullable: true
+        nfNumber:
+          type: string
+          nullable: true
+        purchaseRequestId:
+          type: integer
+          nullable: true
         expectedDeliveryDate:
           type: string
           format: date-time
@@ -4726,6 +5102,9 @@ components:
         - sentCount
         - receivedCount
         - cancelledCount
+        - overdueCount
+        - pendingRequestsCount
+        - lotsInCqCount
         - pendingDeliveries
         - topSuppliers
         - monthlySpend
@@ -4740,6 +5119,12 @@ components:
         receivedCount:
           type: integer
         cancelledCount:
+          type: integer
+        overdueCount:
+          type: integer
+        pendingRequestsCount:
+          type: integer
+        lotsInCqCount:
           type: integer
         pendingDeliveries:
           type: array
@@ -4757,6 +5142,315 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PurchaseOrder"
+
+    PurchaseRequest:
+      type: object
+      required:
+        - id
+        - description
+        - quantity
+        - unit
+        - priority
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: string
+        unit:
+          type: string
+        priority:
+          type: string
+          enum: [normal, urgent, critical]
+        status:
+          type: string
+          enum: [pending, approved, rejected, converted]
+        purchaseOrderId:
+          type: integer
+          nullable: true
+        requestedById:
+          type: integer
+          nullable: true
+        requestedByName:
+          type: string
+          nullable: true
+        approvedById:
+          type: integer
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PurchaseRequestInput:
+      type: object
+      required:
+        - description
+        - quantity
+      properties:
+        productId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          enum: [normal, urgent, critical]
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected, converted]
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    QuotationItem:
+      type: object
+      required:
+        - id
+        - quotationId
+        - supplierId
+        - description
+        - quantity
+        - unitPrice
+        - totalPrice
+        - selected
+        - createdAt
+      properties:
+        id:
+          type: integer
+        quotationId:
+          type: integer
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: string
+        unitPrice:
+          type: string
+        totalPrice:
+          type: string
+        deliveryDays:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        selected:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    QuotationItemInput:
+      type: object
+      required:
+        - supplierId
+        - description
+        - quantity
+        - unitPrice
+      properties:
+        supplierId:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        deliveryDays:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    QuotationWithItems:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - createdAt
+        - updatedAt
+        - items
+      properties:
+        id:
+          type: integer
+        purchaseRequestId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, cancelled]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotationItem"
+
+    QuotationInput:
+      type: object
+      required:
+        - title
+      properties:
+        purchaseRequestId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, cancelled]
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotationItemInput"
+
+    SelectQuotationWinnerInput:
+      type: object
+      required:
+        - quotationItemId
+      properties:
+        quotationItemId:
+          type: integer
+        expectedDeliveryDate:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    ReceiveItemInput:
+      type: object
+      required:
+        - itemId
+        - receivedQty
+      properties:
+        itemId:
+          type: integer
+        receivedQty:
+          type: number
+        supplierLot:
+          type: string
+          nullable: true
+        expiryDate:
+          type: string
+          nullable: true
+        manufactureDate:
+          type: string
+          nullable: true
+        warehouseId:
+          type: integer
+          nullable: true
+
+    ReceivePurchaseOrderInput:
+      type: object
+      properties:
+        nfNumber:
+          type: string
+          nullable: true
+        carrier:
+          type: string
+          nullable: true
+        freightCost:
+          type: number
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReceiveItemInput"
+
+    PriceHistoryPoint:
+      type: object
+      required:
+        - orderId
+        - date
+        - unitPrice
+        - quantity
+      properties:
+        orderId:
+          type: integer
+        supplierId:
+          type: integer
+          nullable: true
+        supplierName:
+          type: string
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+        unitPrice:
+          type: string
+        quantity:
+          type: string
+
+    SupplierApprovalInput:
+      type: object
+      required:
+        - approvalStatus
+      properties:
+        approvalStatus:
+          type: string
+          enum: [approved, pending, blocked]
 
     Employee:
       type: object

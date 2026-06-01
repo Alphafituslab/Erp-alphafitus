@@ -12,6 +12,10 @@ export const purchaseOrdersTable = pgTable("purchase_orders", {
   expectedDeliveryDate: timestamp("expected_delivery_date", { withTimezone: true }),
   receivedAt: timestamp("received_at", { withTimezone: true }),
   notes: text("notes"),
+  freightCost: numeric("freight_cost", { precision: 12, scale: 2 }),
+  carrier: text("carrier"),
+  nfNumber: text("nf_number"),
+  purchaseRequestId: integer("purchase_request_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -769,6 +769,15 @@ export interface QualidadeDashboard {
   openNcrList: QualityNcr[];
 }
 
+export type SupplierApprovalStatus = typeof SupplierApprovalStatus[keyof typeof SupplierApprovalStatus];
+
+
+export const SupplierApprovalStatus = {
+  approved: 'approved',
+  pending: 'pending',
+  blocked: 'blocked',
+} as const;
+
 export interface Supplier {
   id: number;
   name: string;
@@ -782,6 +791,7 @@ export interface Supplier {
   paymentTerms?: string | null;
   notes?: string | null;
   active: string;
+  approvalStatus: SupplierApprovalStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -833,6 +843,10 @@ export interface PurchaseOrder {
   supplierName?: string | null;
   status: PurchaseOrderStatus;
   totalAmount: string;
+  freightCost?: string | null;
+  carrier?: string | null;
+  nfNumber?: string | null;
+  purchaseRequestId?: number | null;
   expectedDeliveryDate?: string | null;
   receivedAt?: string | null;
   notes?: string | null;
@@ -856,6 +870,10 @@ export interface PurchaseOrderWithItems {
   supplierName?: string | null;
   status: PurchaseOrderWithItemsStatus;
   totalAmount: string;
+  freightCost?: string | null;
+  carrier?: string | null;
+  nfNumber?: string | null;
+  purchaseRequestId?: number | null;
   expectedDeliveryDate?: string | null;
   receivedAt?: string | null;
   notes?: string | null;
@@ -903,10 +921,190 @@ export interface ComprasDashboard {
   sentCount: number;
   receivedCount: number;
   cancelledCount: number;
+  overdueCount: number;
+  pendingRequestsCount: number;
+  lotsInCqCount: number;
   pendingDeliveries: PurchaseOrder[];
   topSuppliers: TopSupplier[];
   monthlySpend: MonthlySpend[];
   recentOrders: PurchaseOrder[];
+}
+
+export type PurchaseRequestPriority = typeof PurchaseRequestPriority[keyof typeof PurchaseRequestPriority];
+
+
+export const PurchaseRequestPriority = {
+  normal: 'normal',
+  urgent: 'urgent',
+  critical: 'critical',
+} as const;
+
+export type PurchaseRequestStatus = typeof PurchaseRequestStatus[keyof typeof PurchaseRequestStatus];
+
+
+export const PurchaseRequestStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  converted: 'converted',
+} as const;
+
+export interface PurchaseRequest {
+  id: number;
+  productId?: number | null;
+  productName?: string | null;
+  description: string;
+  quantity: string;
+  unit: string;
+  priority: PurchaseRequestPriority;
+  status: PurchaseRequestStatus;
+  purchaseOrderId?: number | null;
+  requestedById?: number | null;
+  requestedByName?: string | null;
+  approvedById?: number | null;
+  approvedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PurchaseRequestInputPriority = typeof PurchaseRequestInputPriority[keyof typeof PurchaseRequestInputPriority] | null;
+
+
+export const PurchaseRequestInputPriority = {
+  normal: 'normal',
+  urgent: 'urgent',
+  critical: 'critical',
+} as const;
+
+export type PurchaseRequestInputStatus = typeof PurchaseRequestInputStatus[keyof typeof PurchaseRequestInputStatus] | null;
+
+
+export const PurchaseRequestInputStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  converted: 'converted',
+} as const;
+
+export interface PurchaseRequestInput {
+  productId?: number | null;
+  description: string;
+  quantity: number;
+  unit?: string | null;
+  priority?: PurchaseRequestInputPriority;
+  status?: PurchaseRequestInputStatus;
+  notes?: string | null;
+}
+
+export interface QuotationItem {
+  id: number;
+  quotationId: number;
+  supplierId: number;
+  supplierName?: string | null;
+  productId?: number | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+  deliveryDays?: number | null;
+  notes?: string | null;
+  selected: string;
+  createdAt: string;
+}
+
+export interface QuotationItemInput {
+  supplierId: number;
+  productId?: number | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  deliveryDays?: number | null;
+  notes?: string | null;
+}
+
+export type QuotationWithItemsStatus = typeof QuotationWithItemsStatus[keyof typeof QuotationWithItemsStatus];
+
+
+export const QuotationWithItemsStatus = {
+  open: 'open',
+  closed: 'closed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface QuotationWithItems {
+  id: number;
+  purchaseRequestId?: number | null;
+  title: string;
+  status: QuotationWithItemsStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: QuotationItem[];
+}
+
+export type QuotationInputStatus = typeof QuotationInputStatus[keyof typeof QuotationInputStatus] | null;
+
+
+export const QuotationInputStatus = {
+  open: 'open',
+  closed: 'closed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface QuotationInput {
+  purchaseRequestId?: number | null;
+  title: string;
+  status?: QuotationInputStatus;
+  notes?: string | null;
+  items?: QuotationItemInput[];
+}
+
+export interface SelectQuotationWinnerInput {
+  quotationItemId: number;
+  expectedDeliveryDate?: string | null;
+  notes?: string | null;
+}
+
+export interface ReceiveItemInput {
+  itemId: number;
+  receivedQty: number;
+  supplierLot?: string | null;
+  expiryDate?: string | null;
+  manufactureDate?: string | null;
+  warehouseId?: number | null;
+}
+
+export interface ReceivePurchaseOrderInput {
+  nfNumber?: string | null;
+  carrier?: string | null;
+  freightCost?: number | null;
+  items?: ReceiveItemInput[];
+}
+
+export interface PriceHistoryPoint {
+  orderId: number;
+  supplierId?: number | null;
+  supplierName?: string | null;
+  productId?: number | null;
+  productName?: string | null;
+  description?: string;
+  date: string;
+  unitPrice: string;
+  quantity: string;
+}
+
+export type SupplierApprovalInputApprovalStatus = typeof SupplierApprovalInputApprovalStatus[keyof typeof SupplierApprovalInputApprovalStatus];
+
+
+export const SupplierApprovalInputApprovalStatus = {
+  approved: 'approved',
+  pending: 'pending',
+  blocked: 'blocked',
+} as const;
+
+export interface SupplierApprovalInput {
+  approvalStatus: SupplierApprovalInputApprovalStatus;
 }
 
 export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
@@ -1519,6 +1717,49 @@ export const ListPurchaseOrdersStatus = {
   received: 'received',
   cancelled: 'cancelled',
 } as const;
+
+export type ListPurchaseRequestsParams = {
+status?: ListPurchaseRequestsStatus;
+priority?: ListPurchaseRequestsPriority;
+};
+
+export type ListPurchaseRequestsStatus = typeof ListPurchaseRequestsStatus[keyof typeof ListPurchaseRequestsStatus];
+
+
+export const ListPurchaseRequestsStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  converted: 'converted',
+} as const;
+
+export type ListPurchaseRequestsPriority = typeof ListPurchaseRequestsPriority[keyof typeof ListPurchaseRequestsPriority];
+
+
+export const ListPurchaseRequestsPriority = {
+  normal: 'normal',
+  urgent: 'urgent',
+  critical: 'critical',
+} as const;
+
+export type ListQuotationsParams = {
+status?: ListQuotationsStatus;
+};
+
+export type ListQuotationsStatus = typeof ListQuotationsStatus[keyof typeof ListQuotationsStatus];
+
+
+export const ListQuotationsStatus = {
+  open: 'open',
+  closed: 'closed',
+  cancelled: 'cancelled',
+} as const;
+
+export type GetPriceHistoryParams = {
+productId?: number;
+supplierId?: number;
+months?: number;
+};
 
 export type ListQualityInspectionsParams = {
 productId?: number;
