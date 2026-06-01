@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProjects,
@@ -119,10 +120,7 @@ const PRIORITY_META: Record<string, { label: string; color: string; icon: string
 };
 
 function ProjectStatusBadge({ status }: { status: string }) {
-  const meta = PROJECT_STATUS[status] ?? { label: status, color: "bg-gray-100 text-gray-700" };
-  return (
-    <Badge className={`${meta.color} hover:${meta.color} font-medium`}>{meta.label}</Badge>
-  );
+  return <StatusBadge status={status} />;
 }
 
 function PriorityBadge({ priority }: { priority: string }) {
@@ -135,15 +133,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 }
 
 function TaskStatusBadge({ status }: { status: string }) {
-  if (status === "todo")
-    return <Badge variant="outline">A fazer</Badge>;
-  if (status === "in_progress")
-    return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Em andamento</Badge>;
-  return (
-    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-      <CheckCircle2 className="h-3 w-3 mr-1" /> Concluída
-    </Badge>
-  );
+  return <StatusBadge status={status} />;
 }
 
 // ─── Project Form Dialog ──────────────────────────────────────────────────────

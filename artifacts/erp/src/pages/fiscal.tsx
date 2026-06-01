@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -524,19 +525,7 @@ export default function FiscalPage() {
     );
   };
 
-  const statusBadge = (status: string) => {
-    if (status === "issued")
-      return (
-        <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
-          <CheckCircle2 className="h-3 w-3 mr-1" /> Emitida
-        </Badge>
-      );
-    return (
-      <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50">
-        <X className="h-3 w-3 mr-1" /> Cancelada
-      </Badge>
-    );
-  };
+  const statusBadge = (status: string) => <StatusBadge status={status} />;
 
   const clearFilters = () => {
     setFilterType("");

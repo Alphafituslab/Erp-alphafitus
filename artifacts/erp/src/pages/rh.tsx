@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListEmployees,
@@ -107,29 +108,11 @@ function fmtCurrency(v?: string | null): string {
 }
 
 function statusBadge(status: string) {
-  if (status === "active")
-    return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Ativo</Badge>;
-  return <Badge variant="secondary">Inativo</Badge>;
+  return <StatusBadge status={status} />;
 }
 
 function attendanceBadge(status: string) {
-  if (status === "present")
-    return (
-      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 gap-1">
-        <CheckCircle2 className="h-3 w-3" /> Presente
-      </Badge>
-    );
-  if (status === "absent")
-    return (
-      <Badge variant="destructive" className="gap-1">
-        <XCircle className="h-3 w-3" /> Ausente
-      </Badge>
-    );
-  return (
-    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 gap-1">
-      <AlertCircle className="h-3 w-3" /> Atrasado
-    </Badge>
-  );
+  return <StatusBadge status={status} />;
 }
 
 function currentMonth(): string {

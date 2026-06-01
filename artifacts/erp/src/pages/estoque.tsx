@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
@@ -60,25 +61,9 @@ function stockStatus(product: Product): "ok" | "low" | "out" {
 
 function StockBadge({ product }: { product: Product }) {
   const status = stockStatus(product);
-  if (status === "out") {
-    return (
-      <Badge variant="destructive" className="gap-1 text-xs">
-        <AlertTriangle className="h-3 w-3" /> Zerado
-      </Badge>
-    );
-  }
-  if (status === "low") {
-    return (
-      <Badge variant="outline" className="gap-1 text-xs border-yellow-500 text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400">
-        <AlertTriangle className="h-3 w-3" /> Baixo ({product.currentStock})
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="gap-1 text-xs border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400">
-      {product.currentStock}
-    </Badge>
-  );
+  if (status === "out") return <StatusBadge status="out" />;
+  if (status === "low") return <StatusBadge status="low" label={`Baixo (${product.currentStock})`} />;
+  return <StatusBadge status="active" label={String(product.currentStock)} showIcon={false} />;
 }
 
 // ─── Product Dialog ────────────────────────────────────────────────────────────
@@ -850,15 +835,7 @@ export default function EstoquePage() {
                         </TableCell>
                         <TableCell className="font-medium">{m.productName ?? "—"}</TableCell>
                         <TableCell>
-                          {m.type === "input" ? (
-                            <Badge variant="outline" className="gap-1 text-xs border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400">
-                              <ArrowDown className="h-3 w-3" /> Entrada
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="gap-1 text-xs border-red-400 text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400">
-                              <ArrowUp className="h-3 w-3" /> Saída
-                            </Badge>
-                          )}
+                          <StatusBadge status={m.type} />
                         </TableCell>
                         <TableCell className={`text-right font-semibold tabular-nums ${m.type === "input" ? "text-green-600" : "text-red-500"}`}>
                           {m.type === "input" ? "+" : "-"}{m.quantity}

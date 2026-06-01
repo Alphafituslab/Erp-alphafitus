@@ -175,8 +175,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
           {/* Logo header */}
           <SidebarHeader className="px-3 py-4 border-b border-sidebar-border/60">
             <div className="flex items-center gap-2.5 px-1">
-              <div className="flex-shrink-0 h-7 w-7 rounded-md bg-sidebar-primary flex items-center justify-center shadow-sm">
-                <FlaskConical className="size-4 text-white" />
+              <div className="flex-shrink-0 h-7 w-7 rounded-md overflow-hidden flex items-center justify-center">
+                <img
+                  src={`${import.meta.env.BASE_URL}logo-alphafitus.png`}
+                  alt="alphafitus"
+                  className="h-7 w-7 object-contain"
+                />
               </div>
               <div className="flex flex-col leading-tight overflow-hidden">
                 <span className="font-bold text-sm text-sidebar-foreground tracking-tight">alphafitus</span>

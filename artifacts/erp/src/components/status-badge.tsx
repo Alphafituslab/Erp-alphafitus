@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, XCircle, AlertTriangle, Loader2, Ban, RotateCcw, Send, Truck, Package, CircleDot, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, AlertTriangle, Loader2, Ban, RotateCcw, Send, Truck, Package, CircleDot, ShieldAlert, ShieldCheck, UserCheck, UserX, Timer, ArrowDown, ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type StatusVariant = "green" | "red" | "amber" | "blue" | "gray" | "purple" | "orange";
@@ -20,14 +20,17 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   released:     { label: "Liberado",       variant: "green",  icon: CheckCircle2 },
   confirmed:    { label: "Confirmado",     variant: "green",  icon: CheckCircle2 },
   resolved:     { label: "Resolvida",      variant: "green",  icon: ShieldCheck },
+  received:     { label: "Recebido",       variant: "green",  icon: Package },
+  issued:       { label: "Emitida",        variant: "green",  icon: CheckCircle2 },
+  present:      { label: "Presente",       variant: "green",  icon: UserCheck },
   /* In-progress / blue */
   in_progress:  { label: "Em andamento",   variant: "blue",   icon: Loader2 },
   in_production:{ label: "Em produção",    variant: "blue",   icon: Loader2 },
   processing:   { label: "Processando",    variant: "blue",   icon: Loader2 },
   shipped:      { label: "Enviado",        variant: "blue",   icon: Truck },
   sent:         { label: "Enviado",        variant: "blue",   icon: Send },
-  received:     { label: "Recebido",       variant: "blue",   icon: Package },
   ordered:      { label: "Pedido",         variant: "blue",   icon: CircleDot },
+  input:        { label: "Entrada",        variant: "blue",   icon: ArrowDown },
   /* Warning / amber */
   pending:      { label: "Pendente",       variant: "amber",  icon: Clock },
   waiting:      { label: "Aguardando",     variant: "amber",  icon: Clock },
@@ -35,6 +38,8 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   overdue:      { label: "Vencido",        variant: "amber",  icon: AlertTriangle },
   open:         { label: "Aberta",         variant: "amber",  icon: AlertTriangle },
   conditional:  { label: "Condicional",    variant: "amber",  icon: AlertTriangle },
+  on_hold:      { label: "Em espera",      variant: "amber",  icon: Clock },
+  late:         { label: "Atrasado",       variant: "amber",  icon: Timer },
   /* Severity */
   low:          { label: "Baixa",          variant: "blue",   icon: ShieldAlert },
   medium:       { label: "Média",          variant: "amber",  icon: ShieldAlert },
@@ -46,11 +51,16 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   quote:        { label: "Orçamento",      variant: "gray",   icon: CircleDot },
   inactive:     { label: "Inativo",        variant: "gray" },
   closed:       { label: "Fechada",        variant: "gray" },
+  planning:     { label: "Planejamento",   variant: "gray",   icon: CircleDot },
   /* Negative / red */
   cancelled:    { label: "Cancelado",      variant: "red",    icon: Ban },
+  canceled:     { label: "Cancelado",      variant: "red",    icon: Ban },
   rejected:     { label: "Reprovado",      variant: "red",    icon: XCircle },
   blocked:      { label: "Bloqueado",      variant: "red",    icon: Ban },
   failed:       { label: "Falhou",         variant: "red",    icon: XCircle },
+  absent:       { label: "Ausente",        variant: "red",    icon: UserX },
+  out:          { label: "Zerado",         variant: "red",    icon: AlertTriangle },
+  output:       { label: "Saída",          variant: "red",    icon: ArrowUp },
   /* Purple */
   returned:     { label: "Devolvido",      variant: "purple", icon: RotateCcw },
   rework:       { label: "Retrabalho",     variant: "purple", icon: RotateCcw },
@@ -83,7 +93,7 @@ export function StatusBadge({ status, label, className, showIcon = true }: Statu
   const variantClass = VARIANT_CLASSES[config.variant];
 
   return (
-    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium", variantClass, className)}>
+    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap", variantClass, className)}>
       {Icon && <Icon className="h-3 w-3 flex-shrink-0" />}
       {displayLabel}
     </span>

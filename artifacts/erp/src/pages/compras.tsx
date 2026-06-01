@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListSuppliers,
@@ -99,39 +100,6 @@ function fmtDateTime(d: string | Date | null | undefined) {
   return new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-
-function PoStatusBadge({ status }: { status: string }) {
-  if (status === "draft")
-    return (
-      <Badge variant="outline" className="text-xs text-muted-foreground">
-        Rascunho
-      </Badge>
-    );
-  if (status === "sent")
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 text-xs border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
-      >
-        <Send className="h-3 w-3" /> Enviado
-      </Badge>
-    );
-  if (status === "received")
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 text-xs border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400"
-      >
-        <CheckCircle2 className="h-3 w-3" /> Recebido
-      </Badge>
-    );
-  return (
-    <Badge variant="destructive" className="gap-1 text-xs">
-      <XCircle className="h-3 w-3" /> Cancelado
-    </Badge>
-  );
-}
 
 // ─── Supplier Dialog ──────────────────────────────────────────────────────────
 
@@ -606,7 +574,7 @@ function PurchaseOrderDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             PC #{orderId}
-            {order && <PoStatusBadge status={order.status} />}
+            {order && <StatusBadge status={order.status} />}
           </DialogTitle>
         </DialogHeader>
         {isLoading ? (
@@ -1092,7 +1060,7 @@ export default function ComprasPage() {
                           {o.supplierName ?? "—"}
                         </TableCell>
                         <TableCell>
-                          <PoStatusBadge status={o.status} />
+                          <StatusBadge status={o.status} />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {fmtDate(o.expectedDeliveryDate)}
