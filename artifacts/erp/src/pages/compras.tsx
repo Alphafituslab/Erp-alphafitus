@@ -136,7 +136,13 @@ function PoStatusBadge({ status }: { status: string }) {
 
 const supplierSchema = z.object({
   name: z.string().min(1, "Obrigatório"),
-  document: z.string().optional(),
+  document: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || v.trim() === "" || v.replace(/\D/g, "").length === 14,
+      "CNPJ deve ter 14 dígitos"
+    ),
   email: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -718,6 +724,7 @@ export default function ComprasPage() {
   const [poDialog, setPoDialog] = useState(false);
   const [editingPo, setEditingPo] = useState<PurchaseOrderWithItems | null>(null);
   const [viewPoId, setViewPoId] = useState<number | null>(null);
+  const [editLoadPoId, setEditLoadPoId] = useState<number | null>(null);
   const [receivePo, setReceivePo] = useState<PurchaseOrder | null>(null);
   const [deletePo, setDeletePo] = useState<PurchaseOrder | null>(null);
 
@@ -725,6 +732,18 @@ export default function ComprasPage() {
   const { data: orders = [], isLoading: ordersLoading } = useListPurchaseOrders({});
   const { data: dashboard } = useGetComprasDashboard();
   const { data: products = [] } = useListProducts({});
+
+  // Load full PO with items when user clicks "Edit" on a draft order
+  const { data: editLoadPoData } = useGetPurchaseOrder(editLoadPoId ?? 0, {
+    query: { enabled: editLoadPoId !== null } as any,
+  });
+  useEffect(() => {
+    if (editLoadPoData && editLoadPoId !== null) {
+      setEditingPo(editLoadPoData as PurchaseOrderWithItems);
+      setPoDialog(true);
+      setEditLoadPoId(null);
+    }
+  }, [editLoadPoData, editLoadPoId]);
 
   const deleteSupplierM = useDeleteSupplier();
   const deletePoM = useDeletePurchaseOrder();
@@ -1114,9 +1133,8 @@ export default function ComprasPage() {
                                   title="Editar"
                                   onClick={() => {
                                     setEditingPo(null);
-                                    setViewPoId(null);
-                                    // load full PO first via detail view
-                                    setViewPoId(o.id);
+                                    setPoDialog(false);
+                                    setEditLoadPoId(o.id);
                                   }}
                                 >
                                   <Pencil className="h-4 w-4" />

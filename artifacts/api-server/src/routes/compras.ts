@@ -404,7 +404,13 @@ router.post("/compras/orders/:id/status", async (req: Request, res: Response): P
 
   const { status } = req.body as { status: string };
 
-  const validStatuses = ["draft", "sent", "received", "cancelled"];
+  // Receiving a PO must go through the /receive endpoint (generates stock movements)
+  if (status === "received") {
+    res.status(400).json({ error: "Para receber um pedido use POST /compras/orders/:id/receive" });
+    return;
+  }
+
+  const validStatuses = ["draft", "sent", "cancelled"];
   if (!validStatuses.includes(status)) {
     res.status(400).json({ error: `Status inválido. Use: ${validStatuses.join(", ")}` });
     return;
