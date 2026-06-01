@@ -13,7 +13,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Hexagon } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -67,10 +66,12 @@ export default function LoginPage() {
       <div className="hidden md:flex flex-1 bg-sidebar border-r border-sidebar-border flex-col justify-between p-12 text-sidebar-foreground">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex aspect-square size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Hexagon className="size-6" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">NEXUS ERP</span>
+            <img
+              src={`${import.meta.env.BASE_URL}logo-alphafitus.png`}
+              alt="alphafitus ERP"
+              className="h-10 w-auto"
+            />
+            <span className="text-xl font-bold tracking-tight">alphafitus ERP</span>
           </div>
           <div className="mt-24 max-w-md">
             <h1 className="text-4xl font-semibold tracking-tight leading-tight mb-6">
@@ -82,7 +83,7 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="text-sm text-sidebar-foreground/50">
-          &copy; {new Date().getFullYear()} Nexus Corporation.
+          &copy; {new Date().getFullYear()} alphafitus.
         </div>
       </div>
 
@@ -90,10 +91,12 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
           <div className="mb-8 md:hidden flex items-center gap-3 justify-center">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Hexagon className="size-5" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">NEXUS ERP</span>
+            <img
+              src={`${import.meta.env.BASE_URL}logo-alphafitus.png`}
+              alt="alphafitus ERP"
+              className="h-8 w-auto"
+            />
+            <span className="text-lg font-bold tracking-tight">alphafitus ERP</span>
           </div>
           
           <div className="mb-8 text-center md:text-left">
@@ -112,7 +115,12 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>E-mail corporativo</FormLabel>
                     <FormControl>
-                      <Input placeholder="usuario@nexus.com.br" type="email" autoComplete="email" className="h-11" {...field} />
+                      <Input
+                        placeholder="usuario@alphafitus.com.br"
+                        type="email"
+                        autoComplete="email"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -123,18 +131,25 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Senha de acesso</FormLabel>
-                    </div>
+                    <FormLabel>Senha de acesso</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" className="h-11" {...field} />
+                      <Input
+                        placeholder="••••••••"
+                        type="password"
+                        autoComplete="current-password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-11 text-base font-medium" disabled={loginMutation.isPending}>
-                {loginMutation.isPending ? "Autenticando..." : "Entrar no sistema"}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loginMutation.isPending}
+              >
+                {loginMutation.isPending ? "Entrando…" : "Entrar no sistema"}
               </Button>
             </form>
           </Form>
