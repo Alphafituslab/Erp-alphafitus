@@ -588,16 +588,30 @@ router.put("/estoque/lots/:id", async (req: Request, res: Response): Promise<voi
   if (!existing) { res.status(404).json({ error: "Lote não encontrado" }); return; }
 
   const updates: Record<string, any> = {};
+  let stockDelta = 0; // positive = increment, negative = decrement product stock
+
   if (cqStatus !== undefined) {
     if (!VALID_CQ.includes(cqStatus)) { res.status(400).json({ error: "Status CQ inválido" }); return; }
     updates.cqStatus = cqStatus;
+
     if (existing.cqStatus === "quarantine" && cqStatus === "approved") {
-      const released = parseFloat(String(existing.totalQty)) - parseFloat(String(existing.reservedQty)) - parseFloat(String(existing.blockedQty));
-      updates.availableQty = String(Math.max(0, released));
+      // Release lot to available stock and increment product currentStock
+      const released = parseFloat(Math.max(
+        0,
+        parseFloat(String(existing.totalQty)) - parseFloat(String(existing.reservedQty)) - parseFloat(String(existing.blockedQty)),
+      ).toFixed(3));
+      updates.availableQty = String(released);
+      stockDelta = released; // will increment product stock
     }
+
     if (cqStatus === "rejected" || cqStatus === "blocked") {
+      // Block all qty; if lot was previously approved decrement product stock
+      const wasAvailable = parseFloat(String(existing.availableQty));
       updates.availableQty = "0";
       updates.blockedQty = existing.totalQty;
+      if (existing.cqStatus === "approved" && wasAvailable > 0) {
+        stockDelta = -wasAvailable; // decrement product stock
+      }
     }
   }
   if (warehouseId !== undefined) updates.warehouseId = warehouseId ? parseInt(warehouseId) : null;
@@ -606,7 +620,32 @@ router.put("/estoque/lots/:id", async (req: Request, res: Response): Promise<voi
   if (supplierLot !== undefined) updates.supplierLot = supplierLot || null;
   if (notes !== undefined) updates.notes = notes || null;
 
-  await db.update(productLotsTable).set(updates).where(eq(productLotsTable.id, id));
+  await db.transaction(async (tx) => {
+    await tx.update(productLotsTable).set(updates).where(eq(productLotsTable.id, id));
+
+    if (stockDelta !== 0) {
+      // Sync product.currentStock with the CQ decision
+      await tx.update(productsTable)
+        .set({
+          currentStock: stockDelta > 0
+            ? sql`${productsTable.currentStock} + ${stockDelta}`
+            : sql`GREATEST(${productsTable.currentStock} + ${stockDelta}, 0)`,
+        })
+        .where(eq(productsTable.id, existing.productId));
+
+      // Record a stock movement for traceability
+      await tx.insert(stockMovementsTable).values({
+        productId: existing.productId,
+        type: stockDelta > 0 ? "input" : "output",
+        quantity: Math.abs(stockDelta),
+        reason: stockDelta > 0
+          ? `Liberação CQ — Lote ${existing.internalLot} aprovado`
+          : `Bloqueio CQ — Lote ${existing.internalLot} ${updates.cqStatus}`,
+        referenceType: "cq_release",
+        notes: null,
+      });
+    }
+  });
 
   const [result] = await db
     .select(LOT_SELECT)

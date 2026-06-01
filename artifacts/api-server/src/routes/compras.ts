@@ -565,11 +565,6 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
     }>;
   };
 
-  const poItems = await db
-    .select()
-    .from(purchaseOrderItemsTable)
-    .where(eq(purchaseOrderItemsTable.purchaseOrderId, id));
-
   type ReceiveItemDetail = NonNullable<typeof receiveInput.items>[number];
   // Build a map from itemId → receive details
   const receiveMap = new Map<number, ReceiveItemDetail>();
@@ -587,7 +582,7 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
 
   try {
     await db.transaction(async (tx) => {
-      // Lock the row first; fail fast if completely processed or invalid
+      // Lock the PO row first; fail fast if completely processed or invalid
       const [locked] = await tx
         .select({ status: purchaseOrdersTable.status })
         .from(purchaseOrdersTable)
@@ -597,6 +592,13 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
       if (!locked || (locked.status !== "sent" && locked.status !== "partially_received")) {
         throw new Error("ALREADY_PROCESSED");
       }
+
+      // Re-read items INSIDE the transaction (after lock) to avoid stale receivedQty
+      // under concurrent receive requests for the same PO.
+      const poItems = await tx
+        .select()
+        .from(purchaseOrderItemsTable)
+        .where(eq(purchaseOrderItemsTable.purchaseOrderId, id));
 
       // Process each item: create quarantine lot for the DELTA qty received this call.
       // NOTE: do NOT increment product.currentStock here.
