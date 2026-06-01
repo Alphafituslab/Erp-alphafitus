@@ -420,9 +420,13 @@ function MovementDialog({
 export default function EstoquePage() {
   const qc = useQueryClient();
 
+  // Tab state — controlled so dashboard can navigate to products
+  const [activeTab, setActiveTab] = useState("dashboard");
+
   // Product state
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [stockAlertFilter, setStockAlertFilter] = useState(false);
   const [productDialog, setProductDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
@@ -431,7 +435,7 @@ export default function EstoquePage() {
   const [movementDialog, setMovementDialog] = useState(false);
   const [movementProductId, setMovementProductId] = useState<number | undefined>();
   const [movTypeFilter, setMovTypeFilter] = useState("all");
-  const [movSearch, setMovSearch] = useState("");
+  const [movSearch, setMovSearch]= useState("");
 
   const { data: products = [], isLoading: productsLoading } = useListProducts({});
   const { data: movements = [], isLoading: movementsLoading } = useListStockMovements({});
@@ -450,6 +454,7 @@ export default function EstoquePage() {
   const filteredProducts = useMemo(() => {
     let list = activeProducts;
     if (categoryFilter !== "all") list = list.filter((p) => p.category === categoryFilter);
+    if (stockAlertFilter) list = list.filter((p) => stockStatus(p) !== "ok");
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -460,7 +465,7 @@ export default function EstoquePage() {
       );
     }
     return list;
-  }, [activeProducts, categoryFilter, search]);
+  }, [activeProducts, categoryFilter, stockAlertFilter, search]);
 
   const filteredMovements = useMemo(() => {
     let list = movements;
@@ -481,6 +486,13 @@ export default function EstoquePage() {
     setMovementDialog(true);
   }
 
+  function goToProductsWithAlertFilter() {
+    setStockAlertFilter(true);
+    setCategoryFilter("all");
+    setSearch("");
+    setActiveTab("products");
+  }
+
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
@@ -489,7 +501,7 @@ export default function EstoquePage() {
           <p className="text-muted-foreground text-sm mt-1">Produtos, níveis de estoque e movimentações</p>
         </div>
 
-        <Tabs defaultValue="dashboard">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="products">Produtos</TabsTrigger>
@@ -510,25 +522,35 @@ export default function EstoquePage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card
+                className={((dashboard?.lowStockCount ?? 0) > 0) ? "cursor-pointer hover:border-yellow-400 transition-colors" : ""}
+                onClick={() => (dashboard?.lowStockCount ?? 0) > 0 && goToProductsWithAlertFilter()}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Estoque baixo</CardTitle>
                   <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-semibold text-yellow-600">{dashboard?.lowStockCount ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Abaixo do mínimo</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {(dashboard?.lowStockCount ?? 0) > 0 ? "Clique para ver" : "Abaixo do mínimo"}
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card
+                className={((dashboard?.outOfStockCount ?? 0) > 0) ? "cursor-pointer hover:border-red-400 transition-colors" : ""}
+                onClick={() => (dashboard?.outOfStockCount ?? 0) > 0 && goToProductsWithAlertFilter()}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Sem estoque</CardTitle>
                   <TrendingDown className="h-4 w-4 text-destructive" />
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-semibold text-destructive">{dashboard?.outOfStockCount ?? 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Produtos zerados</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {(dashboard?.outOfStockCount ?? 0) > 0 ? "Clique para ver" : "Produtos zerados"}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -633,7 +655,7 @@ export default function EstoquePage() {
           {/* ── PRODUCTS TAB ───────────────────────────────────────────────── */}
           <TabsContent value="products" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-3 items-center justify-between">
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap items-center">
                 <Input
                   className="w-56"
                   placeholder="Buscar por nome, SKU…"
@@ -651,6 +673,17 @@ export default function EstoquePage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {stockAlertFilter && (
+                  <Badge
+                    variant="outline"
+                    className="gap-1.5 cursor-pointer border-yellow-500 text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400 hover:bg-yellow-100"
+                    onClick={() => setStockAlertFilter(false)}
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    Somente alertas
+                    <span className="ml-0.5 text-yellow-500">×</span>
+                  </Badge>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => openMovementFor()}>

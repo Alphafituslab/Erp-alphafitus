@@ -210,38 +210,78 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
 
   const pid = parseInt(productId);
 
-  // Verify product exists and check stock for output
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, pid));
-  if (!product) {
-    res.status(404).json({ error: "Produto não encontrado" });
+  let resultMovement: typeof stockMovementsTable.$inferSelect | undefined;
+  let productName: string | undefined;
+
+  try {
+    await db.transaction(async (tx) => {
+      // Lock the row and read current state inside the transaction
+      const [product] = await tx
+        .select()
+        .from(productsTable)
+        .where(eq(productsTable.id, pid))
+        .for("update");
+
+      if (!product) {
+        throw Object.assign(new Error("Produto não encontrado"), { status: 404 });
+      }
+
+      productName = product.name;
+
+      if (type === "output") {
+        if (product.currentStock < qty) {
+          throw Object.assign(
+            new Error(`Estoque insuficiente. Disponível: ${product.currentStock}`),
+            { status: 400 }
+          );
+        }
+        // Conditional update: only succeed if stock is still sufficient
+        const [updated] = await tx
+          .update(productsTable)
+          .set({ currentStock: sql`${productsTable.currentStock} - ${qty}` })
+          .where(
+            and(
+              eq(productsTable.id, pid),
+              sql`${productsTable.currentStock} >= ${qty}`
+            )
+          )
+          .returning({ currentStock: productsTable.currentStock });
+
+        if (!updated) {
+          throw Object.assign(
+            new Error("Estoque insuficiente (atualizado por outra operação simultânea)"),
+            { status: 400 }
+          );
+        }
+      } else {
+        await tx
+          .update(productsTable)
+          .set({ currentStock: sql`${productsTable.currentStock} + ${qty}` })
+          .where(eq(productsTable.id, pid));
+      }
+
+      const [movement] = await tx
+        .insert(stockMovementsTable)
+        .values({
+          productId: pid,
+          type,
+          quantity: qty,
+          reason: reason || null,
+          referenceType: "manual",
+          notes: notes || null,
+        })
+        .returning();
+
+      resultMovement = movement;
+    });
+  } catch (err: any) {
+    const status = err?.status ?? 500;
+    const message = err?.message ?? "Erro interno";
+    res.status(status).json({ error: message });
     return;
   }
-  if (type === "output" && product.currentStock < qty) {
-    res.status(400).json({ error: `Estoque insuficiente. Disponível: ${product.currentStock}` });
-    return;
-  }
 
-  // Update stock level atomically
-  const delta = type === "input" ? qty : -qty;
-  await db
-    .update(productsTable)
-    .set({ currentStock: sql`${productsTable.currentStock} + ${delta}` })
-    .where(eq(productsTable.id, pid));
-
-  const [movement] = await db
-    .insert(stockMovementsTable)
-    .values({
-      productId: pid,
-      type,
-      quantity: qty,
-      reason: reason || null,
-      referenceType: "manual",
-      notes: notes || null,
-    })
-    .returning();
-
-  // Return with product name
-  res.status(201).json({ ...movement, productName: product.name });
+  res.status(201).json({ ...resultMovement, productName });
 });
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
