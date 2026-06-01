@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -41,8 +42,8 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Plus, Pencil, Trash2, CheckCircle2, XCircle, AlertTriangle,
-  ClipboardCheck, ShieldAlert, ThumbsUp, Clock, CheckCheck,
+  Plus, Pencil, Trash2, ClipboardCheck, ShieldAlert, ThumbsUp,
+  AlertTriangle, CheckCheck,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -59,61 +60,6 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// ─── Badges ───────────────────────────────────────────────────────────────────
-
-function ResultBadge({ result }: { result: string }) {
-  if (result === "approved") return (
-    <Badge variant="outline" className="gap-1 text-xs border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400">
-      <CheckCircle2 className="h-3 w-3" /> Aprovado
-    </Badge>
-  );
-  if (result === "rejected") return (
-    <Badge variant="destructive" className="gap-1 text-xs">
-      <XCircle className="h-3 w-3" /> Reprovado
-    </Badge>
-  );
-  return (
-    <Badge variant="outline" className="gap-1 text-xs border-yellow-500 text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400">
-      <AlertTriangle className="h-3 w-3" /> Condicional
-    </Badge>
-  );
-}
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const map: Record<string, string> = {
-    low: "border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-400",
-    medium: "border-yellow-500 text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400",
-    high: "border-orange-500 text-orange-700 bg-orange-50 dark:bg-orange-950 dark:text-orange-400",
-    critical: "border-red-500 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-400",
-  };
-  const label: Record<string, string> = { low: "Baixa", medium: "Média", high: "Alta", critical: "Crítica" };
-  return (
-    <Badge variant="outline" className={`text-xs ${map[severity] ?? ""}`}>
-      {label[severity] ?? severity}
-    </Badge>
-  );
-}
-
-function NcrStatusBadge({ status }: { status: string }) {
-  if (status === "open") return (
-    <Badge variant="outline" className="gap-1 text-xs border-red-400 text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400">
-      <AlertTriangle className="h-3 w-3" /> Aberta
-    </Badge>
-  );
-  if (status === "in_progress") return (
-    <Badge variant="outline" className="gap-1 text-xs border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-400">
-      <Clock className="h-3 w-3" /> Em andamento
-    </Badge>
-  );
-  if (status === "resolved") return (
-    <Badge variant="outline" className="gap-1 text-xs border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-400">
-      <CheckCheck className="h-3 w-3" /> Resolvida
-    </Badge>
-  );
-  return (
-    <Badge variant="outline" className="text-xs text-muted-foreground">Fechada</Badge>
-  );
-}
 
 // ─── Inspection Dialog ────────────────────────────────────────────────────────
 
@@ -651,7 +597,7 @@ export default function QualidadePage() {
                               {i.batchNumber && <div className="text-xs text-muted-foreground">{i.batchNumber}</div>}
                             </TableCell>
                             <TableCell className="text-sm">{i.inspector}</TableCell>
-                            <TableCell><ResultBadge result={i.result} /></TableCell>
+                            <TableCell><StatusBadge status={i.result} /></TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -677,8 +623,8 @@ export default function QualidadePage() {
                       <div className="space-y-1 flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{ncr.title}</p>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <SeverityBadge severity={ncr.severity} />
-                          <NcrStatusBadge status={ncr.status} />
+                          <StatusBadge status={ncr.severity} />
+                          <StatusBadge status={ncr.status} />
                           {ncr.productName && (
                             <span className="text-xs text-muted-foreground">{ncr.productName}</span>
                           )}
@@ -763,7 +709,7 @@ export default function QualidadePage() {
                         <TableCell className={`text-right text-sm tabular-nums font-medium ${i.quantityFailed > 0 ? "text-destructive" : "text-muted-foreground"}`}>
                           {i.quantityFailed}
                         </TableCell>
-                        <TableCell><ResultBadge result={i.result} /></TableCell>
+                        <TableCell><StatusBadge status={i.result} /></TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">{i.notes ?? "—"}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
@@ -851,8 +797,8 @@ export default function QualidadePage() {
                           {ncr.description && <div className="text-xs text-muted-foreground truncate max-w-[200px]">{ncr.description}</div>}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{ncr.productName ?? "—"}</TableCell>
-                        <TableCell><SeverityBadge severity={ncr.severity} /></TableCell>
-                        <TableCell><NcrStatusBadge status={ncr.status} /></TableCell>
+                        <TableCell><StatusBadge status={ncr.severity} /></TableCell>
+                        <TableCell><StatusBadge status={ncr.status} /></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{ncr.assignedTo ?? "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {ncr.dueDate ? fmtDate(ncr.dueDate) : "—"}

@@ -24,7 +24,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -66,12 +66,6 @@ import type { FinancialEntry } from "@workspace/api-client-react";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending: { label: "Pendente", variant: "secondary" },
-  paid: { label: "Pago", variant: "default" },
-  overdue: { label: "Vencido", variant: "destructive" },
-  cancelled: { label: "Cancelado", variant: "outline" },
-};
 
 function fmt(value: string | number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
@@ -445,6 +439,7 @@ export default function FinanceiroPage() {
         {/* Table */}
         <Card>
           <CardContent className="p-0">
+            <div className="table-dense">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -484,9 +479,7 @@ export default function FinanceiroPage() {
                       {fmt(entry.amount)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_MAP[entry.status]?.variant ?? "outline"}>
-                        {STATUS_MAP[entry.status]?.label ?? entry.status}
-                      </Badge>
+                      <StatusBadge status={entry.status} />
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
@@ -519,6 +512,7 @@ export default function FinanceiroPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

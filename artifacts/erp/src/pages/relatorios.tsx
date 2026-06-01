@@ -91,30 +91,29 @@ function KpiCard({
   const displayValue = isCurrency ? fmtCurrency(String(value)) : String(value);
 
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="pt-5">
-        <div className="flex items-start justify-between">
+    <Card className={`relative overflow-hidden transition-shadow ${href ? "hover:shadow-md cursor-pointer" : ""}`}>
+      <div className={`absolute top-0 left-0 right-0 h-0.5 ${iconColor}`} />
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground truncate">{title}</p>
-            <p className="text-2xl font-bold mt-1 truncate">{displayValue}</p>
-            {subValue && <p className="text-xs text-muted-foreground mt-0.5">{subValue}</p>}
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{title}</p>
+            <p className="text-2xl font-bold mt-1.5 tabular-nums truncate leading-none">{displayValue}</p>
+            {subValue && <p className="text-xs text-muted-foreground mt-1">{subValue}</p>}
             {trend != null && (
-              <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${
-                trend > 0 ? "text-green-600" : trend < 0 ? "text-red-600" : "text-muted-foreground"
+              <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${
+                trend > 0 ? "text-emerald-600" : trend < 0 ? "text-red-500" : "text-muted-foreground"
               }`}>
                 {trend > 0 ? <TrendingUp className="h-3 w-3" /> : trend < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                {trend !== 0 ? `${Math.abs(trend).toFixed(1)}% vs período anterior` : "Igual ao período anterior"}
+                <span>{trend !== 0 ? `${trend > 0 ? "+" : ""}${trend.toFixed(1)}% vs período ant.` : "Estável"}</span>
               </div>
             )}
           </div>
-          <div className={`rounded-lg p-2.5 ${iconColor} flex-shrink-0`}>
+          <div className={`rounded-xl p-2.5 ${iconColor} flex-shrink-0 opacity-90`}>
             <Icon className="h-5 w-5 text-white" />
           </div>
         </div>
         {href && (
-          <Link href={href}>
-            <a className="absolute inset-0" aria-label={`Ir para ${title}`} />
-          </Link>
+          <Link href={href} className="absolute inset-0" aria-label={`Ir para ${title}`} />
         )}
       </CardContent>
     </Card>

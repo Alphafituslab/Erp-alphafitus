@@ -1,7 +1,7 @@
-import { CheckCircle2, Clock, XCircle, AlertTriangle, Loader2, Ban, RotateCcw, Send, Truck, Package, CircleDot } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, AlertTriangle, Loader2, Ban, RotateCcw, Send, Truck, Package, CircleDot, ShieldAlert, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type StatusVariant = "green" | "red" | "amber" | "blue" | "gray" | "purple";
+type StatusVariant = "green" | "red" | "amber" | "blue" | "gray" | "purple" | "orange";
 
 interface StatusConfig {
   label: string;
@@ -10,6 +10,7 @@ interface StatusConfig {
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
+  /* Generic positive */
   active:       { label: "Ativo",          variant: "green",  icon: CheckCircle2 },
   approved:     { label: "Aprovado",       variant: "green",  icon: CheckCircle2 },
   paid:         { label: "Pago",           variant: "green",  icon: CheckCircle2 },
@@ -17,28 +18,42 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   done:         { label: "Concluído",      variant: "green",  icon: CheckCircle2 },
   delivered:    { label: "Entregue",       variant: "green",  icon: CheckCircle2 },
   released:     { label: "Liberado",       variant: "green",  icon: CheckCircle2 },
-  "in_progress":{ label: "Em andamento",   variant: "blue",   icon: Loader2 },
+  confirmed:    { label: "Confirmado",     variant: "green",  icon: CheckCircle2 },
+  resolved:     { label: "Resolvida",      variant: "green",  icon: ShieldCheck },
+  /* In-progress / blue */
+  in_progress:  { label: "Em andamento",   variant: "blue",   icon: Loader2 },
   in_production:{ label: "Em produção",    variant: "blue",   icon: Loader2 },
   processing:   { label: "Processando",    variant: "blue",   icon: Loader2 },
   shipped:      { label: "Enviado",        variant: "blue",   icon: Truck },
   sent:         { label: "Enviado",        variant: "blue",   icon: Send },
+  received:     { label: "Recebido",       variant: "blue",   icon: Package },
+  ordered:      { label: "Pedido",         variant: "blue",   icon: CircleDot },
+  /* Warning / amber */
   pending:      { label: "Pendente",       variant: "amber",  icon: Clock },
   waiting:      { label: "Aguardando",     variant: "amber",  icon: Clock },
   quarantine:   { label: "Quarentena",     variant: "amber",  icon: AlertTriangle },
-  overdue:      { label: "Atrasado",       variant: "amber",  icon: AlertTriangle },
+  overdue:      { label: "Vencido",        variant: "amber",  icon: AlertTriangle },
+  open:         { label: "Aberta",         variant: "amber",  icon: AlertTriangle },
+  conditional:  { label: "Condicional",    variant: "amber",  icon: AlertTriangle },
+  /* Severity */
+  low:          { label: "Baixa",          variant: "blue",   icon: ShieldAlert },
+  medium:       { label: "Média",          variant: "amber",  icon: ShieldAlert },
+  high:         { label: "Alta",           variant: "orange", icon: ShieldAlert },
+  critical:     { label: "Crítica",        variant: "red",    icon: ShieldAlert },
+  /* Neutral / gray */
   draft:        { label: "Rascunho",       variant: "gray",   icon: CircleDot },
   todo:         { label: "A fazer",        variant: "gray",   icon: CircleDot },
-  open:         { label: "Aberto",         variant: "gray",   icon: CircleDot },
+  quote:        { label: "Orçamento",      variant: "gray",   icon: CircleDot },
   inactive:     { label: "Inativo",        variant: "gray" },
+  closed:       { label: "Fechada",        variant: "gray" },
+  /* Negative / red */
   cancelled:    { label: "Cancelado",      variant: "red",    icon: Ban },
   rejected:     { label: "Reprovado",      variant: "red",    icon: XCircle },
   blocked:      { label: "Bloqueado",      variant: "red",    icon: Ban },
   failed:       { label: "Falhou",         variant: "red",    icon: XCircle },
+  /* Purple */
   returned:     { label: "Devolvido",      variant: "purple", icon: RotateCcw },
   rework:       { label: "Retrabalho",     variant: "purple", icon: RotateCcw },
-  received:     { label: "Recebido",       variant: "blue",   icon: Package },
-  quote:        { label: "Orçamento",      variant: "gray",   icon: CircleDot },
-  ordered:      { label: "Pedido",         variant: "blue",   icon: CircleDot },
 };
 
 const VARIANT_CLASSES: Record<StatusVariant, string> = {
@@ -48,6 +63,7 @@ const VARIANT_CLASSES: Record<StatusVariant, string> = {
   blue:   "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300",
   gray:   "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   purple: "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300",
+  orange: "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300",
 };
 
 interface StatusBadgeProps {

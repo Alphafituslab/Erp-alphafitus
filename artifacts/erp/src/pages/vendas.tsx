@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -46,7 +47,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Plus, Pencil, Trash2, TrendingUp, ShoppingCart, FileText,
-  Users, ArrowRightCircle, CheckCircle, Truck, XCircle, RefreshCw,
+  Users, ArrowRightCircle, RefreshCw, Truck,
 } from "lucide-react";
 
 const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -58,12 +59,6 @@ function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("pt-BR");
 }
 
-const ORDER_STATUS: Record<string, { label: string; variant: "default"|"secondary"|"destructive"|"outline"; icon: React.ElementType }> = {
-  draft:      { label: "Rascunho",  variant: "secondary",    icon: FileText },
-  confirmed:  { label: "Confirmado",variant: "default",      icon: CheckCircle },
-  delivered:  { label: "Entregue",  variant: "outline",      icon: Truck },
-  cancelled:  { label: "Cancelado", variant: "destructive",  icon: XCircle },
-};
 
 // ─── Client Dialog ─────────────────────────────────────────────────────────────
 
@@ -550,23 +545,17 @@ export default function VendasPage() {
                       <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">Nenhum registro encontrado</TableCell></TableRow>
                     )}
                     {orders.map((order) => {
-                      const st = ORDER_STATUS[order.status] ?? ORDER_STATUS.draft;
                       return (
                         <TableRow key={order.id}>
                           <TableCell className="font-mono text-xs text-muted-foreground">{order.id}</TableCell>
                           <TableCell>
-                            <Badge variant={order.type === "quote" ? "outline" : "secondary"} className="text-xs">
-                              {order.type === "quote" ? "Orçamento" : "Pedido"}
-                            </Badge>
+                            <StatusBadge status={order.type === "quote" ? "quote" : "draft"} label={order.type === "quote" ? "Orçamento" : "Pedido"} showIcon={false} />
                           </TableCell>
                           <TableCell className="font-medium">{order.clientName ?? <span className="text-muted-foreground text-xs">—</span>}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{fmtDate(order.createdAt)}</TableCell>
                           <TableCell className="text-right font-semibold tabular-nums">{fmt(order.totalAmount)}</TableCell>
                           <TableCell>
-                            <Badge variant={st.variant} className="text-xs gap-1">
-                              <st.icon className="h-3 w-3" />
-                              {st.label}
-                            </Badge>
+                            <StatusBadge status={order.status} />
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1">
