@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +13,7 @@ import {
   useConvertQuoteToOrder,
   useUpdateSalesOrderStatus,
   useGetVendasDashboard,
+  useGetSalesOrder,
   getListClientsQueryKey,
   getListSalesOrdersQueryKey,
   getGetVendasDashboardQueryKey,
@@ -65,14 +66,26 @@ const ORDER_STATUS: Record<string, { label: string; variant: "default"|"secondar
 
 // ─── Client Dialog ─────────────────────────────────────────────────────────────
 
+function validateDocument(doc: string | undefined): boolean {
+  if (!doc) return true;
+  const digits = doc.replace(/\D/g, "");
+  return digits.length === 0 || digits.length === 11 || digits.length === 14;
+}
+
 const clientSchema = z.object({
   name: z.string().min(1, "Obrigatório"),
-  document: z.string().optional(),
-  email: z.string().optional(),
+  document: z
+    .string()
+    .optional()
+    .refine(validateDocument, "Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
-  state: z.string().optional(),
+  state: z
+    .string()
+    .optional()
+    .refine((v) => !v || v.length <= 2, "Use a sigla do estado (ex: SP)"),
   notes: z.string().optional(),
 });
 type ClientForm = z.infer<typeof clientSchema>;
@@ -182,12 +195,36 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
   const createMutation = useCreateSalesOrder();
   const updateMutation = useUpdateSalesOrder();
 
+  // Load full order (with items) when editing — id=0 disables the query automatically
+  const { data: fullOrder, isLoading: loadingOrder } = useGetSalesOrder(editing?.id ?? 0);
+
   const form = useForm<OrderForm>({
     resolver: zodResolver(orderSchema),
-    defaultValues: editing
-      ? { type: editing.type as "quote"|"order", clientId: editing.clientId ? String(editing.clientId) : "", status: editing.status as any, validUntil: editing.validUntil ? new Date(editing.validUntil).toISOString().slice(0,10) : "", notes: editing.notes ?? "", items: [{ description: "", quantity: "1", unitPrice: "0" }] }
-      : { type: "quote", clientId: "", status: "draft", validUntil: "", notes: "", items: [{ description: "", quantity: "1", unitPrice: "0" }] },
+    defaultValues: { type: "quote", clientId: "", status: "draft", validUntil: "", notes: "", items: [{ description: "", quantity: "1", unitPrice: "0" }] },
   });
+
+  // Populate form once full order data is available (edit flow)
+  const [populated, setPopulated] = useState(false);
+  useEffect(() => {
+    if (!open) { setPopulated(false); return; }
+    if (!editing) {
+      form.reset({ type: "quote", clientId: "", status: "draft", validUntil: "", notes: "", items: [{ description: "", quantity: "1", unitPrice: "0" }] });
+      setPopulated(true);
+      return;
+    }
+    if (!fullOrder || populated) return;
+    form.reset({
+      type: fullOrder.type as "quote" | "order",
+      clientId: fullOrder.clientId ? String(fullOrder.clientId) : "",
+      status: fullOrder.status as "draft" | "confirmed" | "delivered" | "cancelled",
+      validUntil: fullOrder.validUntil ? new Date(fullOrder.validUntil).toISOString().slice(0, 10) : "",
+      notes: fullOrder.notes ?? "",
+      items: fullOrder.items.length > 0
+        ? fullOrder.items.map((it) => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice }))
+        : [{ description: "", quantity: "1", unitPrice: "0" }],
+    });
+    setPopulated(true);
+  }, [open, editing, fullOrder, populated, form]);
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
 
@@ -210,7 +247,7 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
     }
   });
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending || loadingOrder;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

@@ -386,23 +386,25 @@ router.get("/vendas/dashboard", async (req: Request, res: Response): Promise<voi
       )
     );
 
-  // Conversion rate
+  const ordersThisMonth = Number(monthlyStats?.count ?? 0);
+
+  // Conversion rate — both counts scoped to the same year for fair comparison
   const [quoteStats] = await db
     .select({ total: sql<number>`COUNT(*)::int` })
     .from(salesOrdersTable)
-    .where(eq(salesOrdersTable.type, "quote"));
+    .where(and(eq(salesOrdersTable.type, "quote"), sql`EXTRACT(YEAR FROM created_at) = ${year}`));
 
-  const totalQuotes = Number(quoteStats?.total ?? 0);
-  const ordersThisMonth = Number(monthlyStats?.count ?? 0);
-
-  // All orders this year for conversion rate
   const [orderStats] = await db
     .select({ total: sql<number>`COUNT(*)::int` })
     .from(salesOrdersTable)
     .where(and(eq(salesOrdersTable.type, "order"), sql`EXTRACT(YEAR FROM created_at) = ${year}`));
 
-  const totalOrders = Number(orderStats?.total ?? 0);
-  const conversionRate = totalQuotes > 0 ? Math.round((totalOrders / totalQuotes) * 100) : 0;
+  const totalQuotes = Number(quoteStats?.total ?? 0);
+  const totalOrdersYear = Number(orderStats?.total ?? 0);
+  // Conversion rate: orders / (quotes + orders) gives the share that became orders
+  const conversionRate = (totalQuotes + totalOrdersYear) > 0
+    ? Math.round((totalOrdersYear / (totalQuotes + totalOrdersYear)) * 100)
+    : 0;
 
   // Monthly chart
   const monthlyRows = await db
