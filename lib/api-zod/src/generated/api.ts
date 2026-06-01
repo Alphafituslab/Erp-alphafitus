@@ -1232,3 +1232,303 @@ export const GetVendasDashboardResponse = zod.object({
 })
 
 
+/**
+ * @summary List employees with optional filters
+ */
+export const ListEmployeesQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.enum(['active', 'inactive']).optional(),
+  "department": zod.coerce.string().optional()
+})
+
+export const ListEmployeesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "cpf": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "department": zod.string().nullish(),
+  "hireDate": zod.coerce.date().nullish(),
+  "salary": zod.string().nullish(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
+
+
+/**
+ * @summary Create a new employee
+ */
+export const CreateEmployeeBody = zod.object({
+  "name": zod.string(),
+  "cpf": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "department": zod.string().nullish(),
+  "hireDate": zod.coerce.date().nullish(),
+  "salary": zod.string().nullish(),
+  "status": zod.enum(['active', 'inactive']).optional()
+})
+
+
+/**
+ * @summary Get employee with attendance history
+ */
+export const GetEmployeeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEmployeeResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "cpf": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "department": zod.string().nullish(),
+  "hireDate": zod.coerce.date().nullish(),
+  "salary": zod.string().nullish(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "attendance": zod.array(zod.object({
+  "id": zod.number(),
+  "employeeId": zod.string(),
+  "date": zod.string(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "status": zod.enum(['present', 'absent', 'late']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Update an employee record
+ */
+export const UpdateEmployeeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateEmployeeBody = zod.object({
+  "name": zod.string(),
+  "cpf": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "department": zod.string().nullish(),
+  "hireDate": zod.coerce.date().nullish(),
+  "salary": zod.string().nullish(),
+  "status": zod.enum(['active', 'inactive']).optional()
+})
+
+export const UpdateEmployeeResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "cpf": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "department": zod.string().nullish(),
+  "hireDate": zod.coerce.date().nullish(),
+  "salary": zod.string().nullish(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Deactivate an employee (soft-delete)
+ */
+export const DeleteEmployeeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteEmployeeResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get monthly attendance summary for an employee
+ */
+export const GetAttendanceSummaryQueryParams = zod.object({
+  "employeeId": zod.coerce.number(),
+  "month": zod.coerce.string().optional()
+})
+
+export const GetAttendanceSummaryResponse = zod.object({
+  "month": zod.string().nullable(),
+  "total": zod.number(),
+  "present": zod.number(),
+  "absent": zod.number(),
+  "late": zod.number()
+})
+
+
+/**
+ * @summary List all departments with employee count
+ */
+export const ListDepartmentsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "employeeCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListDepartmentsResponse = zod.array(ListDepartmentsResponseItem)
+
+
+/**
+ * @summary Create a new department
+ */
+export const CreateDepartmentBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a department
+ */
+export const UpdateDepartmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateDepartmentBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish()
+})
+
+export const UpdateDepartmentResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "employeeCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a department
+ */
+export const DeleteDepartmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteDepartmentResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List attendance logs with optional filters
+ */
+export const ListAttendanceLogsQueryParams = zod.object({
+  "employeeId": zod.coerce.string().optional(),
+  "month": zod.coerce.string().optional()
+})
+
+export const ListAttendanceLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.string(),
+  "date": zod.string(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "status": zod.enum(['present', 'absent', 'late']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAttendanceLogsResponse = zod.array(ListAttendanceLogsResponseItem)
+
+
+/**
+ * @summary Register an attendance log entry
+ */
+export const CreateAttendanceLogBody = zod.object({
+  "employeeId": zod.string(),
+  "date": zod.string(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "status": zod.enum(['present', 'absent', 'late']).optional(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update an attendance log entry
+ */
+export const UpdateAttendanceLogParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateAttendanceLogBody = zod.object({
+  "employeeId": zod.string(),
+  "date": zod.string(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "status": zod.enum(['present', 'absent', 'late']).optional(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateAttendanceLogResponse = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.string(),
+  "date": zod.string(),
+  "checkIn": zod.string().nullish(),
+  "checkOut": zod.string().nullish(),
+  "status": zod.enum(['present', 'absent', 'late']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an attendance log entry
+ */
+export const DeleteAttendanceLogParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAttendanceLogResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary HR dashboard overview stats
+ */
+export const GetRhDashboardResponse = zod.object({
+  "totalEmployees": zod.number(),
+  "activeEmployees": zod.number(),
+  "inactiveEmployees": zod.number(),
+  "totalDepartments": zod.number(),
+  "currentMonth": zod.string(),
+  "attendanceThisMonth": zod.object({
+  "present": zod.number(),
+  "absent": zod.number(),
+  "late": zod.number()
+}),
+  "recentEmployees": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "cpf": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "role": zod.string(),
+  "department": zod.string().nullish(),
+  "hireDate": zod.coerce.date().nullish(),
+  "salary": zod.string().nullish(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+

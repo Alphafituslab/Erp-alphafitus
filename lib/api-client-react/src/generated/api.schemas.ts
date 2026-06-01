@@ -633,6 +633,128 @@ export interface ComprasDashboard {
   recentOrders: PurchaseOrder[];
 }
 
+export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
+
+
+export const EmployeeStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface Employee {
+  id: number;
+  name: string;
+  cpf?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  department?: string | null;
+  hireDate?: string | null;
+  salary?: string | null;
+  status: EmployeeStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EmployeeInputStatus = typeof EmployeeInputStatus[keyof typeof EmployeeInputStatus];
+
+
+export const EmployeeInputStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface EmployeeInput {
+  name: string;
+  cpf?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  department?: string | null;
+  hireDate?: string | null;
+  salary?: string | null;
+  status?: EmployeeInputStatus;
+}
+
+export type AttendanceLogStatus = typeof AttendanceLogStatus[keyof typeof AttendanceLogStatus];
+
+
+export const AttendanceLogStatus = {
+  present: 'present',
+  absent: 'absent',
+  late: 'late',
+} as const;
+
+export interface AttendanceLog {
+  id: number;
+  employeeId: string;
+  date: string;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  status: AttendanceLogStatus;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type EmployeeWithAttendance = Employee & {
+  attendance: AttendanceLog[];
+};
+
+export interface Department {
+  id: number;
+  name: string;
+  description?: string | null;
+  employeeCount: number;
+  createdAt: string;
+}
+
+export interface DepartmentInput {
+  name: string;
+  description?: string | null;
+}
+
+export type AttendanceLogInputStatus = typeof AttendanceLogInputStatus[keyof typeof AttendanceLogInputStatus];
+
+
+export const AttendanceLogInputStatus = {
+  present: 'present',
+  absent: 'absent',
+  late: 'late',
+} as const;
+
+export interface AttendanceLogInput {
+  employeeId: string;
+  date: string;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  status?: AttendanceLogInputStatus;
+  notes?: string | null;
+}
+
+export interface AttendanceSummary {
+  month: string | null;
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+}
+
+export interface RhDashboardAttendance {
+  present: number;
+  absent: number;
+  late: number;
+}
+
+export interface RhDashboard {
+  totalEmployees: number;
+  activeEmployees: number;
+  inactiveEmployees: number;
+  totalDepartments: number;
+  currentMonth: string;
+  attendanceThisMonth: RhDashboardAttendance;
+  recentEmployees: Employee[];
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -814,5 +936,35 @@ export const ListQualityNcrsSeverity = {
 
 export type GetVendasDashboardParams = {
 year?: number;
+};
+
+export type ListEmployeesParams = {
+search?: string;
+status?: ListEmployeesStatus;
+department?: string;
+};
+
+export type ListEmployeesStatus = typeof ListEmployeesStatus[keyof typeof ListEmployeesStatus];
+
+
+export const ListEmployeesStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export type GetAttendanceSummaryParams = {
+employeeId: number;
+/**
+ * Format: YYYY-MM
+ */
+month?: string;
+};
+
+export type ListAttendanceLogsParams = {
+employeeId?: string;
+/**
+ * Format: YYYY-MM
+ */
+month?: string;
 };
 

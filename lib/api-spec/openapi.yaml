@@ -22,6 +22,8 @@ tags:
     description: Purchasing module - suppliers and purchase orders
   - name: qualidade
     description: Quality control - inspections and non-conformance reports
+  - name: rh
+    description: Human resources - employees, departments, attendance
 paths:
   /healthz:
     get:
@@ -1667,6 +1669,464 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── RH: Employees ────────────────────────────────────────────────────────────
+
+  /rh/employees:
+    get:
+      operationId: listEmployees
+      tags: [rh]
+      summary: List employees with optional filters
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: department
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createEmployee
+      tags: [rh]
+      summary: Create a new employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/employees/{id}:
+    get:
+      operationId: getEmployee
+      tags: [rh]
+      summary: Get employee with attendance history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Employee with attendance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeWithAttendance"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateEmployee
+      tags: [rh]
+      summary: Update an employee record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteEmployee
+      tags: [rh]
+      summary: Deactivate an employee (soft-delete)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/attendance-summary:
+    get:
+      operationId: getAttendanceSummary
+      tags: [rh]
+      summary: Get monthly attendance summary for an employee
+      parameters:
+        - name: employeeId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: query
+          schema:
+            type: string
+            description: "Format: YYYY-MM"
+      responses:
+        "200":
+          description: Attendance summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceSummary"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── RH: Departments ──────────────────────────────────────────────────────────
+
+  /rh/departments:
+    get:
+      operationId: listDepartments
+      tags: [rh]
+      summary: List all departments with employee count
+      responses:
+        "200":
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createDepartment
+      tags: [rh]
+      summary: Create a new department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/departments/{id}:
+    put:
+      operationId: updateDepartment
+      tags: [rh]
+      summary: Update a department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteDepartment
+      tags: [rh]
+      summary: Delete a department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── RH: Attendance ───────────────────────────────────────────────────────────
+
+  /rh/attendance:
+    get:
+      operationId: listAttendanceLogs
+      tags: [rh]
+      summary: List attendance logs with optional filters
+      parameters:
+        - name: employeeId
+          in: query
+          schema:
+            type: string
+        - name: month
+          in: query
+          schema:
+            type: string
+            description: "Format: YYYY-MM"
+      responses:
+        "200":
+          description: List of attendance logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceLog"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAttendanceLog
+      tags: [rh]
+      summary: Register an attendance log entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceLogInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceLog"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/attendance/{id}:
+    put:
+      operationId: updateAttendanceLog
+      tags: [rh]
+      summary: Update an attendance log entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceLogInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceLog"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAttendanceLog
+      tags: [rh]
+      summary: Delete an attendance log entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── RH: Dashboard ────────────────────────────────────────────────────────────
+
+  /rh/dashboard:
+    get:
+      operationId: getRhDashboard
+      tags: [rh]
+      summary: HR dashboard overview stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RhDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -2835,3 +3295,242 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PurchaseOrder"
+
+    Employee:
+      type: object
+      required:
+        - id
+        - name
+        - role
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        cpf:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        role:
+          type: string
+        department:
+          type: string
+          nullable: true
+        hireDate:
+          type: string
+          format: date-time
+          nullable: true
+        salary:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EmployeeInput:
+      type: object
+      required:
+        - name
+        - role
+      properties:
+        name:
+          type: string
+        cpf:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        role:
+          type: string
+        department:
+          type: string
+          nullable: true
+        hireDate:
+          type: string
+          format: date-time
+          nullable: true
+        salary:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+
+    EmployeeWithAttendance:
+      allOf:
+        - $ref: "#/components/schemas/Employee"
+        - type: object
+          required:
+            - attendance
+          properties:
+            attendance:
+              type: array
+              items:
+                $ref: "#/components/schemas/AttendanceLog"
+
+    Department:
+      type: object
+      required:
+        - id
+        - name
+        - createdAt
+        - employeeCount
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        employeeCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    DepartmentInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    AttendanceLog:
+      type: object
+      required:
+        - id
+        - employeeId
+        - date
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: string
+        date:
+          type: string
+        checkIn:
+          type: string
+          nullable: true
+        checkOut:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [present, absent, late]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AttendanceLogInput:
+      type: object
+      required:
+        - employeeId
+        - date
+      properties:
+        employeeId:
+          type: string
+        date:
+          type: string
+        checkIn:
+          type: string
+          nullable: true
+        checkOut:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [present, absent, late]
+        notes:
+          type: string
+          nullable: true
+
+    AttendanceSummary:
+      type: object
+      required:
+        - month
+        - total
+        - present
+        - absent
+        - late
+      properties:
+        month:
+          type: string
+          nullable: true
+        total:
+          type: integer
+        present:
+          type: integer
+        absent:
+          type: integer
+        late:
+          type: integer
+
+    RhDashboardAttendance:
+      type: object
+      required:
+        - present
+        - absent
+        - late
+      properties:
+        present:
+          type: integer
+        absent:
+          type: integer
+        late:
+          type: integer
+
+    RhDashboard:
+      type: object
+      required:
+        - totalEmployees
+        - activeEmployees
+        - inactiveEmployees
+        - totalDepartments
+        - currentMonth
+        - attendanceThisMonth
+        - recentEmployees
+      properties:
+        totalEmployees:
+          type: integer
+        activeEmployees:
+          type: integer
+        inactiveEmployees:
+          type: integer
+        totalDepartments:
+          type: integer
+        currentMonth:
+          type: string
+        attendanceThisMonth:
+          $ref: "#/components/schemas/RhDashboardAttendance"
+        recentEmployees:
+          type: array
+          items:
+            $ref: "#/components/schemas/Employee"
