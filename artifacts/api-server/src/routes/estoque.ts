@@ -84,7 +84,7 @@ router.post("/estoque/products", async (req: Request, res: Response): Promise<vo
       costPrice: costPrice ? String(costPrice) : null,
       salePrice: salePrice ? String(salePrice) : null,
       minStock: minStock ? parseInt(minStock) : 0,
-      currentStock: currentStock ? parseInt(currentStock) : 0,
+      currentStock: currentStock ? String(parseFloat(currentStock)) : "0",
       active: "true",
     })
     .returning();
@@ -275,7 +275,7 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
       }
 
       if (type === "output") {
-        if (product.currentStock < qty) {
+        if (parseFloat(String(product.currentStock)) < qty) {
           throw Object.assign(
             new Error(`Estoque insuficiente. Disponível: ${product.currentStock}`),
             { status: 400 }
@@ -311,7 +311,7 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
           productId: pid,
           lotId: lid,
           type,
-          quantity: qty,
+          quantity: String(qty),
           reason: reason || null,
           referenceType: lid ? "lot" : "manual",
           notes: notes || null,
@@ -642,7 +642,7 @@ router.put("/estoque/lots/:id", async (req: Request, res: Response): Promise<voi
       await tx.insert(stockMovementsTable).values({
         productId: existing.productId,
         type: stockDelta > 0 ? "input" : "output",
-        quantity: Math.abs(stockDelta),
+        quantity: String(Math.abs(stockDelta)),
         reason: stockDelta > 0
           ? `Liberação CQ — Lote ${existing.internalLot} aprovado`
           : `Bloqueio CQ — Lote ${existing.internalLot} ${updates.cqStatus}`,
@@ -707,7 +707,7 @@ router.post("/estoque/lots/:id/adjust", async (req: Request, res: Response): Pro
       await tx.insert(stockMovementsTable).values({
         productId: existing.productId,
         type: delta > 0 ? "input" : "output",
-        quantity: Math.abs(delta),
+        quantity: String(Math.abs(delta)),
         reason: `Ajuste — Lote ${existing.internalLot}: ${reason.trim()}`,
         referenceType: "adjustment",
         notes: notes || null,

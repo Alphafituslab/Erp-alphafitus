@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { productsTable } from "./products";
@@ -9,7 +9,7 @@ export const stockMovementsTable = pgTable("stock_movements", {
   productId: integer("product_id").notNull().references(() => productsTable.id),
   lotId: integer("lot_id"),            // optional: which product_lot this movement is tied to
   type: text("type").notNull(),        // "input" | "output"
-  quantity: integer("quantity").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
   reason: text("reason"),
   referenceId: integer("reference_id"), // purchase_order or sales_order id
   referenceType: text("reference_type"), // "purchase_order" | "sales_order" | "manual" | "lot_entry"

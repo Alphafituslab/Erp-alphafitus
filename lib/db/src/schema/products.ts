@@ -11,7 +11,7 @@ export const productsTable = pgTable("products", {
   unit: text("unit").notNull().default("un"),
   costPrice: numeric("cost_price", { precision: 12, scale: 2 }),
   salePrice: numeric("sale_price", { precision: 12, scale: 2 }),
-  currentStock: integer("current_stock").notNull().default(0),
+  currentStock: numeric("current_stock", { precision: 12, scale: 3 }).notNull().default("0"),
   minStock: integer("min_stock").notNull().default(0),
   active: text("active").notNull().default("true"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
