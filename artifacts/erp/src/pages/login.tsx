@@ -63,7 +63,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-background">
       {/* Left side: Branding */}
-      <div className="hidden md:flex flex-1 bg-sidebar border-r border-sidebar-border flex-col justify-between p-12 text-sidebar-foreground">
+      <div className="hidden md:flex flex-1 bg-white border-r border-border flex-col justify-between p-12 text-foreground">
         <div>
           <div className="flex items-center gap-3">
             <img
@@ -74,15 +74,15 @@ export default function LoginPage() {
             <span className="text-xl font-bold tracking-tight">alphafitus ERP</span>
           </div>
           <div className="mt-24 max-w-md">
-            <h1 className="text-4xl font-semibold tracking-tight leading-tight mb-6">
+            <h1 className="text-4xl font-semibold tracking-tight leading-tight mb-6 text-foreground">
               Sistema integrado de gestão empresarial.
             </h1>
-            <p className="text-sidebar-foreground/70 text-lg">
+            <p className="text-muted-foreground text-lg">
               Acesso exclusivo para colaboradores. Autentique-se para acessar o painel de controle e módulos operacionais.
             </p>
           </div>
         </div>
-        <div className="text-sm text-sidebar-foreground/50">
+        <div className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} alphafitus.
         </div>
       </div>
