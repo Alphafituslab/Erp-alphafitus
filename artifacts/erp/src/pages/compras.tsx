@@ -783,7 +783,7 @@ function ReceiveDialog({
   const [carrier, setCarrier] = useState("");
   const [freightCost, setFreightCost] = useState("");
   const [itemDetails, setItemDetails] = useState<
-    Record<number, { receivedQty: string; supplierLot: string; expiryDate: string; manufactureDate: string; warehouseId: string }>
+    Record<number, { receivedQty: string; supplierLot: string; expiryDate: string; manufactureDate: string; warehouseId: string; divergenceNote: string }>
   >({});
 
   useEffect(() => {
@@ -800,6 +800,7 @@ function ReceiveDialog({
           expiryDate: "",
           manufactureDate: "",
           warehouseId: "",
+          divergenceNote: "",
         };
       }
       setItemDetails(initial);
@@ -825,6 +826,7 @@ function ReceiveDialog({
           expiryDate: d?.expiryDate || undefined,
           manufactureDate: d?.manufactureDate || undefined,
           warehouseId: d?.warehouseId ? parseInt(d.warehouseId) : undefined,
+          divergenceNote: d?.divergenceNote || undefined,
         };
       }),
     });
@@ -833,7 +835,7 @@ function ReceiveDialog({
   const updateItem = (itemId: number, field: string, value: string) => {
     setItemDetails((prev) => ({
       ...prev,
-      [itemId]: { ...(prev[itemId] ?? { receivedQty: "", supplierLot: "", expiryDate: "", manufactureDate: "", warehouseId: "" }), [field]: value },
+      [itemId]: { ...(prev[itemId] ?? { receivedQty: "", supplierLot: "", expiryDate: "", manufactureDate: "", warehouseId: "", divergenceNote: "" }), [field]: value },
     }));
   };
 
@@ -872,11 +874,11 @@ function ReceiveDialog({
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Qtd. recebida</label>
+                      <label className="text-xs text-muted-foreground">Qtd. recebida (NF)</label>
                       <Input
                         value={d.receivedQty}
                         onChange={(e) => updateItem(item.id, "receivedQty", e.target.value)}
-                        type="number" min="0" step="1" className="h-8 text-sm"
+                        type="number" min="0" step="0.001" className="h-8 text-sm"
                       />
                     </div>
                     <div className="space-y-1">
@@ -917,6 +919,15 @@ function ReceiveDialog({
                         </Select>
                       </div>
                     )}
+                    <div className="space-y-1 col-span-2 md:col-span-4">
+                      <label className="text-xs text-muted-foreground">Divergência NF vs PC (quantidade, lote, validade…)</label>
+                      <Input
+                        value={d.divergenceNote}
+                        onChange={(e) => updateItem(item.id, "divergenceNote", e.target.value)}
+                        placeholder="Deixe em branco se não há divergência"
+                        className="h-8 text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
               );

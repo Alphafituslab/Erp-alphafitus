@@ -561,6 +561,7 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
       expiryDate?: string;
       manufactureDate?: string;
       warehouseId?: number;
+      divergenceNote?: string;
     }>;
   };
 
@@ -642,10 +643,23 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
         const warehouseId = ri?.warehouseId ?? defaultWarehouse?.id ?? null;
         const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
 
-        // lotQty: lots and lot movements use integer columns — round the decimal delta
-        const lotQty = Math.round(deltaQty);
+        // Build divergence note: auto-detect qty divergence + user-supplied note
+        const qtyDivergence = parseFloat((orderedQty - newTotalReceived).toFixed(3));
+        const divergenceParts: string[] = [];
+        if (qtyDivergence > 0) {
+          divergenceParts.push(`Divergência de quantidade: recebido ${newTotalReceived} de ${orderedQty} pedidos (faltam ${qtyDivergence}).`);
+        }
+        if (ri?.divergenceNote) {
+          divergenceParts.push(`Nota de divergência: ${ri.divergenceNote}`);
+        }
+        const lotNotes = [
+          `Aguardando CQ. Recebimento PC #${id}.`,
+          `Total recebido nesta entrada: ${deltaQty} (acumulado: ${newTotalReceived}/${orderedQty}).`,
+          ...divergenceParts,
+        ].join(" ");
 
-        // Create lot in quarantine for the delta (CQ approval will release to available stock)
+        // Create lot in quarantine for the delta (CQ approval will release to available stock).
+        // totalQty and availableQty use numeric(12,3) — no rounding needed.
         const [lot] = await tx
           .insert(productLotsTable)
           .values({
@@ -653,22 +667,23 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
             internalLot,
             supplierLot: ri?.supplierLot || null,
             cqStatus: "quarantine",
-            totalQty: lotQty,
-            availableQty: 0,        // Zero until CQ releases the lot
+            totalQty: String(deltaQty),
+            availableQty: "0",     // Zero until CQ releases the lot
             warehouseId: warehouseId ?? undefined,
             expirationDate: ri?.expiryDate ? ri.expiryDate.slice(0, 10) : null,
             manufacturingDate: ri?.manufactureDate ? ri.manufactureDate.slice(0, 10) : null,
-            notes: `Aguardando CQ. Recebimento PC #${id}. Total recebido: ${newTotalReceived}/${orderedQty}.`,
+            notes: lotNotes,
           })
           .returning();
 
-        // Record lot movement (physical receipt — does NOT change available stock)
+        // Record lot movement (physical receipt — does NOT change available stock).
+        // quantity uses numeric(12,3) — no rounding needed.
         await tx.insert(lotMovementsTable).values({
           lotId: lot!.id,
           productId: item.productId,
           warehouseId: warehouseId ?? undefined,
           type: "input",
-          quantity: lotQty,
+          quantity: String(deltaQty),
           reason: `Recebimento físico PC #${id} — aguarda CQ (${newTotalReceived}/${orderedQty})`,
           referenceId: id,
           referenceType: "purchase_order",

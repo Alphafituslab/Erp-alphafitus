@@ -5451,6 +5451,10 @@ components:
         warehouseId:
           type: integer
           nullable: true
+        divergenceNote:
+          type: string
+          nullable: true
+          description: "Nota de divergência NF vs PC (ex: quantidade divergente, lote diferente, validade incorreta)"
 
     ReceivePurchaseOrderInput:
       type: object

@@ -243,7 +243,7 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
         lotInternalLot = lot.internalLot;
 
         if (type === "output") {
-          if (lot.availableQty < qty) {
+          if (parseFloat(String(lot.availableQty)) < qty) {
             throw Object.assign(new Error(`Disponível no lote ${lot.internalLot}: ${lot.availableQty}`), { status: 400 });
           }
           await tx.update(productLotsTable)
@@ -266,7 +266,7 @@ router.post("/estoque/movements", async (req: Request, res: Response): Promise<v
           productId: pid,
           warehouseId: lot.warehouseId ?? null,
           type,
-          quantity: qty,
+          quantity: String(qty),
           reason: reason || null,
           notes: notes || null,
           userId: req.session.userId ?? null,
@@ -512,10 +512,10 @@ router.post("/estoque/lots", async (req: Request, res: Response): Promise<void> 
           manufacturingDate: manufacturingDate || null,
           expirationDate: expirationDate || null,
           cqStatus: status,
-          totalQty: qty,
-          availableQty: avail,
-          reservedQty: reservedQty ? parseInt(reservedQty) : 0,
-          blockedQty: blockedQty ? parseInt(blockedQty) : 0,
+          totalQty: String(qty),
+          availableQty: String(avail),
+          reservedQty: reservedQty ? String(parseInt(reservedQty)) : "0",
+          blockedQty: blockedQty ? String(parseInt(blockedQty)) : "0",
           notes: notes || null,
         })
         .returning({ id: productLotsTable.id });
@@ -532,7 +532,7 @@ router.post("/estoque/lots", async (req: Request, res: Response): Promise<void> 
         productId: pid,
         warehouseId: warehouseId ? parseInt(warehouseId) : null,
         type: "input",
-        quantity: qty,
+        quantity: String(qty),
         reason: "Entrada de lote",
         notes: notes || null,
         userId: req.session.userId ?? null,
@@ -592,10 +592,11 @@ router.put("/estoque/lots/:id", async (req: Request, res: Response): Promise<voi
     if (!VALID_CQ.includes(cqStatus)) { res.status(400).json({ error: "Status CQ inválido" }); return; }
     updates.cqStatus = cqStatus;
     if (existing.cqStatus === "quarantine" && cqStatus === "approved") {
-      updates.availableQty = existing.totalQty - existing.reservedQty - existing.blockedQty;
+      const released = parseFloat(String(existing.totalQty)) - parseFloat(String(existing.reservedQty)) - parseFloat(String(existing.blockedQty));
+      updates.availableQty = String(Math.max(0, released));
     }
     if (cqStatus === "rejected" || cqStatus === "blocked") {
-      updates.availableQty = 0;
+      updates.availableQty = "0";
       updates.blockedQty = existing.totalQty;
     }
   }
@@ -637,13 +638,16 @@ router.post("/estoque/lots/:id/adjust", async (req: Request, res: Response): Pro
   const [existing] = await db.select().from(productLotsTable).where(eq(productLotsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Lote não encontrado" }); return; }
 
-  const delta = newAvailableQty - existing.availableQty;
-  const newTotal = Math.max(0, existing.totalQty + delta);
+  // availableQty/totalQty are numeric(12,3) stored as string — parse for arithmetic
+  const currentAvailableQty = parseFloat(String(existing.availableQty));
+  const currentTotalQty = parseFloat(String(existing.totalQty));
+  const delta = parseFloat((newAvailableQty - currentAvailableQty).toFixed(3));
+  const newTotal = parseFloat(Math.max(0, currentTotalQty + delta).toFixed(3));
 
   await db.transaction(async (tx) => {
     await tx
       .update(productLotsTable)
-      .set({ availableQty: newAvailableQty, totalQty: newTotal })
+      .set({ availableQty: String(newAvailableQty), totalQty: String(newTotal) })
       .where(eq(productLotsTable.id, id));
 
     if (delta !== 0) {
@@ -651,8 +655,8 @@ router.post("/estoque/lots/:id/adjust", async (req: Request, res: Response): Pro
         .update(productsTable)
         .set({
           currentStock: delta > 0
-            ? sql`${productsTable.currentStock} + ${delta}`
-            : sql`GREATEST(${productsTable.currentStock} + ${delta}, 0)`,
+            ? sql`${productsTable.currentStock} + ${Math.abs(delta)}`
+            : sql`GREATEST(${productsTable.currentStock} - ${Math.abs(delta)}, 0)`,
         })
         .where(eq(productsTable.id, existing.productId));
 
@@ -671,7 +675,7 @@ router.post("/estoque/lots/:id/adjust", async (req: Request, res: Response): Pro
       productId: existing.productId,
       warehouseId: existing.warehouseId ?? null,
       type: "adjustment",
-      quantity: Math.abs(delta),
+      quantity: String(Math.abs(delta)),
       reason: reason.trim(),
       notes: notes || null,
       userId: req.session.userId ?? null,
@@ -712,7 +716,8 @@ router.post("/estoque/lots/:id/transfer", async (req: Request, res: Response): P
 
   const [existing] = await db.select().from(productLotsTable).where(eq(productLotsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Lote não encontrado" }); return; }
-  if (existing.availableQty < qty) {
+  // availableQty is numeric(12,3) stored as string — parse before comparison
+  if (parseFloat(String(existing.availableQty)) < qty) {
     res.status(400).json({ error: `Disponível insuficiente. Disponível: ${existing.availableQty}` }); return;
   }
 
@@ -750,10 +755,10 @@ router.post("/estoque/lots/:id/transfer", async (req: Request, res: Response): P
         manufacturingDate: existing.manufacturingDate,
         expirationDate: existing.expirationDate,
         cqStatus: existing.cqStatus,
-        totalQty: qty,
-        availableQty: qty,
-        reservedQty: 0,
-        blockedQty: 0,
+        totalQty: String(qty),
+        availableQty: String(qty),
+        reservedQty: "0",
+        blockedQty: "0",
         notes: `Transferido de ${existing.internalLot}`,
       });
     }
@@ -764,7 +769,7 @@ router.post("/estoque/lots/:id/transfer", async (req: Request, res: Response): P
       warehouseId: existing.warehouseId ?? null,
       toWarehouseId: toWid,
       type: "transfer",
-      quantity: qty,
+      quantity: String(qty),
       reason: reason.trim(),
       notes: notes || null,
       userId: req.session.userId ?? null,

@@ -1329,7 +1329,8 @@ export const ReceivePurchaseOrderBody = zod.object({
   "supplierLot": zod.string().nullish(),
   "expiryDate": zod.string().nullish(),
   "manufactureDate": zod.string().nullish(),
-  "warehouseId": zod.number().nullish()
+  "warehouseId": zod.number().nullish(),
+  "divergenceNote": zod.string().nullish().describe('Nota de divergência NF vs PC (ex: quantidade divergente, lote diferente, validade incorreta)')
 })).optional()
 })
 

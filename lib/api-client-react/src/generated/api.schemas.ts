@@ -1075,6 +1075,8 @@ export interface ReceiveItemInput {
   expiryDate?: string | null;
   manufactureDate?: string | null;
   warehouseId?: number | null;
+  /** Nota de divergência NF vs PC (ex: quantidade divergente, lote diferente, validade incorreta) */
+  divergenceNote?: string | null;
 }
 
 export interface ReceivePurchaseOrderInput {

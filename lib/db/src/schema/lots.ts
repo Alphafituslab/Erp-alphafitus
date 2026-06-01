@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, numeric } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { productsTable } from "./products";
 import { createInsertSchema } from "drizzle-zod";
@@ -31,10 +31,11 @@ export const productLotsTable = pgTable("product_lots", {
   expirationDate: text("expiration_date"),              // ISO date string yyyy-mm-dd
   // CQ Status: quarantine (default on entry), approved, rejected, blocked
   cqStatus: text("cq_status").notNull().default("quarantine"),
-  totalQty: integer("total_qty").notNull().default(0),
-  availableQty: integer("available_qty").notNull().default(0),
-  reservedQty: integer("reserved_qty").notNull().default(0),
-  blockedQty: integer("blocked_qty").notNull().default(0),
+  // Quantities stored as numeric(12,3) to support fractional units (kg, L, etc.)
+  totalQty: numeric("total_qty", { precision: 12, scale: 3 }).notNull().default("0"),
+  availableQty: numeric("available_qty", { precision: 12, scale: 3 }).notNull().default("0"),
+  reservedQty: numeric("reserved_qty", { precision: 12, scale: 3 }).notNull().default("0"),
+  blockedQty: numeric("blocked_qty", { precision: 12, scale: 3 }).notNull().default("0"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -66,7 +67,8 @@ export const lotMovementsTable = pgTable("lot_movements", {
   toWarehouseId: integer("to_warehouse_id").references(() => warehousesTable.id),
   // type: input | output | transfer | adjustment
   type: text("type").notNull(),
-  quantity: integer("quantity").notNull(),
+  // quantity stored as numeric(12,3) to match lot precision
+  quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
   reason: text("reason"),
   notes: text("notes"),
   userId: integer("user_id"),
