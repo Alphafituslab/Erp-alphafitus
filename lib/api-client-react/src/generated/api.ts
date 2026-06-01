@@ -35,6 +35,7 @@ import type {
   EmployeeWithAttendance,
   ErrorResponse,
   EstoqueDashboard,
+  ExportFiscalDocumentsCsvParams,
   FinancialEntry,
   FinancialEntryInput,
   FiscalDashboard,
@@ -6378,6 +6379,90 @@ export function useGetFiscalDashboard<TData = Awaited<ReturnType<typeof getFisca
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetFiscalDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getExportFiscalDocumentsCsvUrl = (params?: ExportFiscalDocumentsCsvParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/fiscal/export-csv?${stringifiedParams}` : `/api/fiscal/export-csv`
+}
+
+/**
+ * @summary Export filtered fiscal documents as CSV (UTF-8 BOM, semicolon-delimited)
+ */
+export const exportFiscalDocumentsCsv = async (params?: ExportFiscalDocumentsCsvParams, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getExportFiscalDocumentsCsvUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportFiscalDocumentsCsvQueryKey = (params?: ExportFiscalDocumentsCsvParams,) => {
+    return [
+    `/api/fiscal/export-csv`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportFiscalDocumentsCsvQueryOptions = <TData = Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>, TError = ErrorType<ErrorResponse>>(params?: ExportFiscalDocumentsCsvParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportFiscalDocumentsCsvQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>> = ({ signal }) => exportFiscalDocumentsCsv(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportFiscalDocumentsCsvQueryResult = NonNullable<Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>>
+export type ExportFiscalDocumentsCsvQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Export filtered fiscal documents as CSV (UTF-8 BOM, semicolon-delimited)
+ */
+
+export function useExportFiscalDocumentsCsv<TData = Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>, TError = ErrorType<ErrorResponse>>(
+ params?: ExportFiscalDocumentsCsvParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportFiscalDocumentsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportFiscalDocumentsCsvQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1301,3 +1301,37 @@ export type GetFiscalTaxSummaryParams = {
 year?: number;
 };
 
+export type ExportFiscalDocumentsCsvParams = {
+type?: ExportFiscalDocumentsCsvType;
+direction?: ExportFiscalDocumentsCsvDirection;
+status?: ExportFiscalDocumentsCsvStatus;
+startDate?: string;
+endDate?: string;
+search?: string;
+};
+
+export type ExportFiscalDocumentsCsvType = typeof ExportFiscalDocumentsCsvType[keyof typeof ExportFiscalDocumentsCsvType];
+
+
+export const ExportFiscalDocumentsCsvType = {
+  nfe: 'nfe',
+  nfse: 'nfse',
+  nf_entrada: 'nf_entrada',
+} as const;
+
+export type ExportFiscalDocumentsCsvDirection = typeof ExportFiscalDocumentsCsvDirection[keyof typeof ExportFiscalDocumentsCsvDirection];
+
+
+export const ExportFiscalDocumentsCsvDirection = {
+  entrada: 'entrada',
+  saida: 'saida',
+} as const;
+
+export type ExportFiscalDocumentsCsvStatus = typeof ExportFiscalDocumentsCsvStatus[keyof typeof ExportFiscalDocumentsCsvStatus];
+
+
+export const ExportFiscalDocumentsCsvStatus = {
+  issued: 'issued',
+  cancelled: 'cancelled',
+} as const;
+

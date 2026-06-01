@@ -2699,6 +2699,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /fiscal/export-csv:
+    get:
+      operationId: exportFiscalDocumentsCsv
+      tags: [fiscal]
+      summary: Export filtered fiscal documents as CSV (UTF-8 BOM, semicolon-delimited)
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [nfe, nfse, nf_entrada]
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [entrada, saida]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [issued, cancelled]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:

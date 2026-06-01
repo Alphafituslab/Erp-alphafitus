@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -183,6 +183,54 @@ function DocDialog({
           issueDate: new Date().toISOString().slice(0, 10),
         },
   });
+
+  // Sync form values whenever the dialog opens or the target document changes
+  useEffect(() => {
+    if (!open) return;
+    if (editDoc) {
+      reset({
+        type: editDoc.type as DocForm["type"],
+        direction: (editDoc.direction ?? "saida") as DocForm["direction"],
+        number: editDoc.number ?? "",
+        emitter: editDoc.emitter,
+        recipient: editDoc.recipient,
+        emitterDocument: editDoc.emitterDocument ?? "",
+        recipientDocument: editDoc.recipientDocument ?? "",
+        issueDate: editDoc.issueDate
+          ? new Date(editDoc.issueDate).toISOString().slice(0, 10)
+          : "",
+        totalAmount: editDoc.totalAmount,
+        cfop: editDoc.cfop ?? "",
+        icmsAmount: editDoc.icmsAmount ?? "",
+        pisAmount: editDoc.pisAmount ?? "",
+        cofinsAmount: editDoc.cofinsAmount ?? "",
+        issAmount: editDoc.issAmount ?? "",
+        status: editDoc.status as DocForm["status"],
+        referenceOrderId: editDoc.referenceOrderId ?? "",
+        notes: editDoc.notes ?? "",
+      });
+    } else {
+      reset({
+        type: "nfe",
+        direction: "saida",
+        status: "issued",
+        totalAmount: "0",
+        icmsAmount: "0",
+        pisAmount: "0",
+        cofinsAmount: "0",
+        issAmount: "0",
+        issueDate: new Date().toISOString().slice(0, 10),
+        number: "",
+        emitter: "",
+        recipient: "",
+        emitterDocument: "",
+        recipientDocument: "",
+        cfop: "",
+        referenceOrderId: "",
+        notes: "",
+      });
+    }
+  }, [open, editDoc, reset]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: getListFiscalDocumentsQueryKey() });

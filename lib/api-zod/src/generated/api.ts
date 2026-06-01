@@ -1961,3 +1961,16 @@ export const GetFiscalDashboardResponse = zod.object({
 })
 
 
+/**
+ * @summary Export filtered fiscal documents as CSV (UTF-8 BOM, semicolon-delimited)
+ */
+export const ExportFiscalDocumentsCsvQueryParams = zod.object({
+  "type": zod.enum(['nfe', 'nfse', 'nf_entrada']).optional(),
+  "direction": zod.enum(['entrada', 'saida']).optional(),
+  "status": zod.enum(['issued', 'cancelled']).optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+
