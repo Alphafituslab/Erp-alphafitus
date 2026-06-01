@@ -44,6 +44,7 @@ import type {
   FiscalTaxSummaryMonth,
   GetAttendanceSummaryParams,
   GetCashflowParams,
+  GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
   GetVendasDashboardParams,
   HealthStatus,
@@ -79,6 +80,7 @@ import type {
   QualityInspectionInput,
   QualityNcr,
   QualityNcrInput,
+  RelatorioDashboard,
   ResolveNcrInput,
   RhDashboard,
   SalesOrder,
@@ -5921,6 +5923,90 @@ export function useGetProjectsDashboard<TData = Awaited<ReturnType<typeof getPro
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProjectsDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetExecutiveDashboardUrl = (params?: GetExecutiveDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/relatorios/dashboard?${stringifiedParams}` : `/api/relatorios/dashboard`
+}
+
+/**
+ * @summary Executive dashboard — aggregated KPIs, trend, top clients and products
+ */
+export const getExecutiveDashboard = async (params?: GetExecutiveDashboardParams, options?: RequestInit): Promise<RelatorioDashboard> => {
+
+  return customFetch<RelatorioDashboard>(getGetExecutiveDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetExecutiveDashboardQueryKey = (params?: GetExecutiveDashboardParams,) => {
+    return [
+    `/api/relatorios/dashboard`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetExecutiveDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getExecutiveDashboard>>, TError = ErrorType<ErrorResponse>>(params?: GetExecutiveDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getExecutiveDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetExecutiveDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getExecutiveDashboard>>> = ({ signal }) => getExecutiveDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getExecutiveDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetExecutiveDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getExecutiveDashboard>>>
+export type GetExecutiveDashboardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Executive dashboard — aggregated KPIs, trend, top clients and products
+ */
+
+export function useGetExecutiveDashboard<TData = Awaited<ReturnType<typeof getExecutiveDashboard>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetExecutiveDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getExecutiveDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetExecutiveDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -885,6 +885,51 @@ export interface ProjectsDashboard {
   recentProjects: Project[];
 }
 
+export interface RelatorioKpis {
+  revenueTotal: string;
+  expenseTotal: string;
+  netBalance: string;
+  revenueLastPeriod: string;
+  expenseLastPeriod: string;
+  openSalesOrders: number;
+  lowStockProducts: number;
+  pendingPurchaseOrders: number;
+  activeEmployees: number;
+  activeProjects: number;
+}
+
+export interface RelatorioMonthlyTrend {
+  year: number;
+  month: number;
+  monthLabel: string;
+  revenue: string;
+  expense: string;
+  net: string;
+}
+
+export interface RelatorioTopClient {
+  clientId: number;
+  clientName: string;
+  totalRevenue: string;
+  orderCount: number;
+}
+
+export interface RelatorioTopProduct {
+  productId: number;
+  productName: string;
+  movementCount: number;
+  netQuantity: number;
+}
+
+export interface RelatorioDashboard {
+  period: string;
+  periodLabel: string;
+  kpis: RelatorioKpis;
+  monthlyTrend: RelatorioMonthlyTrend[];
+  topClients: RelatorioTopClient[];
+  topProducts: RelatorioTopProduct[];
+}
+
 export type FiscalDocumentType = typeof FiscalDocumentType[keyof typeof FiscalDocumentType];
 
 
@@ -1261,6 +1306,20 @@ export const ListProjectTasksPriority = {
   medium: 'medium',
   high: 'high',
   urgent: 'urgent',
+} as const;
+
+export type GetExecutiveDashboardParams = {
+period?: GetExecutiveDashboardPeriod;
+};
+
+export type GetExecutiveDashboardPeriod = typeof GetExecutiveDashboardPeriod[keyof typeof GetExecutiveDashboardPeriod];
+
+
+export const GetExecutiveDashboardPeriod = {
+  this_month: 'this_month',
+  last_month: 'last_month',
+  this_quarter: 'this_quarter',
+  this_year: 'this_year',
 } as const;
 
 export type ListFiscalDocumentsParams = {

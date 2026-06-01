@@ -1797,6 +1797,53 @@ export const GetProjectsDashboardResponse = zod.object({
 
 
 /**
+ * @summary Executive dashboard — aggregated KPIs, trend, top clients and products
+ */
+export const getExecutiveDashboardQueryPeriodDefault = `this_month`;
+
+export const GetExecutiveDashboardQueryParams = zod.object({
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']).default(getExecutiveDashboardQueryPeriodDefault)
+})
+
+export const GetExecutiveDashboardResponse = zod.object({
+  "period": zod.string(),
+  "periodLabel": zod.string(),
+  "kpis": zod.object({
+  "revenueTotal": zod.string(),
+  "expenseTotal": zod.string(),
+  "netBalance": zod.string(),
+  "revenueLastPeriod": zod.string(),
+  "expenseLastPeriod": zod.string(),
+  "openSalesOrders": zod.number(),
+  "lowStockProducts": zod.number(),
+  "pendingPurchaseOrders": zod.number(),
+  "activeEmployees": zod.number(),
+  "activeProjects": zod.number()
+}),
+  "monthlyTrend": zod.array(zod.object({
+  "year": zod.number(),
+  "month": zod.number(),
+  "monthLabel": zod.string(),
+  "revenue": zod.string(),
+  "expense": zod.string(),
+  "net": zod.string()
+})),
+  "topClients": zod.array(zod.object({
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "totalRevenue": zod.string(),
+  "orderCount": zod.number()
+})),
+  "topProducts": zod.array(zod.object({
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "movementCount": zod.number(),
+  "netQuantity": zod.number()
+}))
+})
+
+
+/**
  * @summary List fiscal documents with optional filters
  */
 export const ListFiscalDocumentsQueryParams = zod.object({

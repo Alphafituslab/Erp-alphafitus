@@ -28,6 +28,8 @@ tags:
     description: Project management - projects and tasks
   - name: fiscal
     description: Fiscal documents registry — NF-e, NFS-e, NF entrada
+  - name: relatorios
+    description: Executive dashboard aggregating KPIs from all modules
 paths:
   /healthz:
     get:
@@ -2506,6 +2508,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Relatórios: Executive Dashboard ──────────────────────────────────────
+
+  /relatorios/dashboard:
+    get:
+      operationId: getExecutiveDashboard
+      tags: [relatorios]
+      summary: Executive dashboard — aggregated KPIs, trend, top clients and products
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [this_month, last_month, this_quarter, this_year]
+            default: this_month
+      responses:
+        "200":
+          description: Executive dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelatorioDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Fiscal: Documents ─────────────────────────────────────────────────────
 
   /fiscal/documents:
@@ -4339,6 +4369,127 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Project"
+
+    RelatorioKpis:
+      type: object
+      required:
+        - revenueTotal
+        - expenseTotal
+        - netBalance
+        - revenueLastPeriod
+        - expenseLastPeriod
+        - openSalesOrders
+        - lowStockProducts
+        - pendingPurchaseOrders
+        - activeEmployees
+        - activeProjects
+      properties:
+        revenueTotal:
+          type: string
+        expenseTotal:
+          type: string
+        netBalance:
+          type: string
+        revenueLastPeriod:
+          type: string
+        expenseLastPeriod:
+          type: string
+        openSalesOrders:
+          type: integer
+        lowStockProducts:
+          type: integer
+        pendingPurchaseOrders:
+          type: integer
+        activeEmployees:
+          type: integer
+        activeProjects:
+          type: integer
+
+    RelatorioMonthlyTrend:
+      type: object
+      required:
+        - year
+        - month
+        - monthLabel
+        - revenue
+        - expense
+        - net
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        monthLabel:
+          type: string
+        revenue:
+          type: string
+        expense:
+          type: string
+        net:
+          type: string
+
+    RelatorioTopClient:
+      type: object
+      required:
+        - clientId
+        - clientName
+        - totalRevenue
+        - orderCount
+      properties:
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        totalRevenue:
+          type: string
+        orderCount:
+          type: integer
+
+    RelatorioTopProduct:
+      type: object
+      required:
+        - productId
+        - productName
+        - movementCount
+        - netQuantity
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        movementCount:
+          type: integer
+        netQuantity:
+          type: integer
+
+    RelatorioDashboard:
+      type: object
+      required:
+        - period
+        - periodLabel
+        - kpis
+        - monthlyTrend
+        - topClients
+        - topProducts
+      properties:
+        period:
+          type: string
+        periodLabel:
+          type: string
+        kpis:
+          $ref: "#/components/schemas/RelatorioKpis"
+        monthlyTrend:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatorioMonthlyTrend"
+        topClients:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatorioTopClient"
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatorioTopProduct"
 
     FiscalDocument:
       type: object
