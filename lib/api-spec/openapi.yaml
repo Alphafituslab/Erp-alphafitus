@@ -1265,6 +1265,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /estoque/lots/{id}/label:
+    get:
+      operationId: getProductLotLabel
+      tags: [estoque]
+      summary: Get label data for a quarantine/received lot (for printing)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Label data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductLotLabel"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /estoque/lots/{id}/movements:
     get:
       operationId: getLotMovements
@@ -2067,6 +2098,37 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PriceHistoryPoint"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /compras/suppliers/{id}/analysis:
+    get:
+      operationId: fetchSupplierAnalysis
+      tags: [compras]
+      summary: Supplier delivery performance, evaluation score, and price history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Supplier analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierAnalysisResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Not authenticated
           content:
@@ -4231,9 +4293,11 @@ components:
           type: string
           nullable: true
         currentStock:
-          type: integer
+          type: string
         minStock:
           type: integer
+        isCritical:
+          type: string
         active:
           type: string
         createdAt:
@@ -4272,7 +4336,91 @@ components:
           type: integer
           nullable: true
         currentStock:
+          type: string
+          nullable: true
+        isCritical:
+          type: string
+          nullable: true
+
+    SupplierAnalysisResult:
+      type: object
+      required:
+        - supplierId
+        - supplierName
+        - totalOrders
+        - receivedOrders
+        - onTimeOrders
+        - lateOrders
+        - onTimeRate
+        - avgDelayDays
+        - evaluationScore
+        - priceHistory
+      properties:
+        supplierId:
           type: integer
+        supplierName:
+          type: string
+        totalOrders:
+          type: integer
+        receivedOrders:
+          type: integer
+        onTimeOrders:
+          type: integer
+        lateOrders:
+          type: integer
+        onTimeRate:
+          type: number
+        avgDelayDays:
+          type: number
+        evaluationScore:
+          type: number
+        priceHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceHistoryPoint"
+
+    ProductLotLabel:
+      type: object
+      required:
+        - lotId
+        - internalLot
+        - productName
+        - cqStatus
+        - totalQty
+        - unit
+        - receivedAt
+      properties:
+        lotId:
+          type: integer
+        internalLot:
+          type: string
+        supplierLot:
+          type: string
+          nullable: true
+        productName:
+          type: string
+        productSku:
+          type: string
+          nullable: true
+        cqStatus:
+          type: string
+        totalQty:
+          type: string
+        unit:
+          type: string
+        warehouseName:
+          type: string
+          nullable: true
+        expirationDate:
+          type: string
+          nullable: true
+        manufacturingDate:
+          type: string
+          nullable: true
+        receivedAt:
+          type: string
+        notes:
+          type: string
           nullable: true
 
     StockMovement:

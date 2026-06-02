@@ -429,8 +429,9 @@ export interface Product {
   unit: string;
   costPrice?: string | null;
   salePrice?: string | null;
-  currentStock: number;
+  currentStock: string;
   minStock: number;
+  isCritical?: string;
   active: string;
   createdAt: string;
   updatedAt: string;
@@ -445,7 +446,49 @@ export interface ProductInput {
   costPrice?: string | null;
   salePrice?: string | null;
   minStock?: number | null;
-  currentStock?: number | null;
+  currentStock?: string | null;
+  isCritical?: string | null;
+}
+
+export interface PriceHistoryPoint {
+  orderId: number;
+  supplierId?: number | null;
+  supplierName?: string | null;
+  productId?: number | null;
+  productName?: string | null;
+  description?: string;
+  date: string;
+  unitPrice: string;
+  quantity: string;
+}
+
+export interface SupplierAnalysisResult {
+  supplierId: number;
+  supplierName: string;
+  totalOrders: number;
+  receivedOrders: number;
+  onTimeOrders: number;
+  lateOrders: number;
+  onTimeRate: number;
+  avgDelayDays: number;
+  evaluationScore: number;
+  priceHistory: PriceHistoryPoint[];
+}
+
+export interface ProductLotLabel {
+  lotId: number;
+  internalLot: string;
+  supplierLot?: string | null;
+  productName: string;
+  productSku?: string | null;
+  cqStatus: string;
+  totalQty: string;
+  unit: string;
+  warehouseName?: string | null;
+  expirationDate?: string | null;
+  manufacturingDate?: string | null;
+  receivedAt: string;
+  notes?: string | null;
 }
 
 export type StockMovementType = typeof StockMovementType[keyof typeof StockMovementType];
@@ -1084,18 +1127,6 @@ export interface ReceivePurchaseOrderInput {
   carrier?: string | null;
   freightCost?: number | null;
   items?: ReceiveItemInput[];
-}
-
-export interface PriceHistoryPoint {
-  orderId: number;
-  supplierId?: number | null;
-  supplierName?: string | null;
-  productId?: number | null;
-  productName?: string | null;
-  description?: string;
-  date: string;
-  unitPrice: string;
-  quantity: string;
 }
 
 export type SupplierApprovalInputApprovalStatus = typeof SupplierApprovalInputApprovalStatus[keyof typeof SupplierApprovalInputApprovalStatus];

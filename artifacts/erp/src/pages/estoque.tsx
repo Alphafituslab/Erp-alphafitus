@@ -9,6 +9,7 @@ import {
   useListWarehouses, useCreateWarehouse, useUpdateWarehouse,
   useListProductLots, useCreateProductLot, useUpdateProductLot,
   useAdjustLotInventory, useTransferLot, useGetLotMovements,
+  useGetProductLotLabel,
   getListProductsQueryKey, getListStockMovementsQueryKey,
   getGetEstoqueDashboardQueryKey, getListWarehousesQueryKey,
   getListProductLotsQueryKey, getGetLotMovementsQueryKey,
@@ -43,7 +44,7 @@ import {
   Plus, Pencil, Trash2, Package, AlertTriangle,
   TrendingDown, TrendingUp, ArrowDown, ArrowUp, Boxes,
   FlaskConical, Warehouse as WarehouseIcon, CalendarX, ArrowRightLeft,
-  History, CheckCircle2, XCircle, Clock, Shield,
+  History, CheckCircle2, XCircle, Clock, Shield, Tag, Printer,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -104,8 +105,9 @@ function LotTypeBadge({ type }: { type: string }) {
 }
 
 function stockStatus(product: Product): "ok" | "low" | "out" {
-  if (product.currentStock === 0) return "out";
-  if (product.currentStock <= product.minStock) return "low";
+  const stock = Number(product.currentStock);
+  if (stock === 0) return "out";
+  if (stock <= Number(product.minStock)) return "low";
   return "ok";
 }
 
@@ -128,6 +130,7 @@ const productSchema = z.object({
   salePrice: z.string().optional().refine((v) => !v || !isNaN(Number(v)), "Valor inválido"),
   minStock: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
   currentStock: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
+  isCritical: z.boolean().optional(),
 });
 type ProductForm = z.infer<typeof productSchema>;
 
@@ -143,12 +146,12 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
   const form = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
     values: editing
-      ? { name: editing.name, sku: editing.sku ?? "", description: editing.description ?? "", category: editing.category ?? "", unit: editing.unit ?? "un", costPrice: editing.costPrice ?? "", salePrice: editing.salePrice ?? "", minStock: String(editing.minStock), currentStock: String(editing.currentStock) }
-      : { name: "", sku: "", description: "", category: "", unit: "un", costPrice: "", salePrice: "", minStock: "0", currentStock: "0" },
+      ? { name: editing.name, sku: editing.sku ?? "", description: editing.description ?? "", category: editing.category ?? "", unit: editing.unit ?? "un", costPrice: editing.costPrice ?? "", salePrice: editing.salePrice ?? "", minStock: String(editing.minStock), currentStock: String(editing.currentStock), isCritical: editing.isCritical === "true" }
+      : { name: "", sku: "", description: "", category: "", unit: "un", costPrice: "", salePrice: "", minStock: "0", currentStock: "0", isCritical: false },
   });
 
   const onSubmit = form.handleSubmit((data) => {
-    const payload = { name: data.name, sku: data.sku || null, description: data.description || null, category: data.category || null, unit: data.unit || "un", costPrice: data.costPrice || null, salePrice: data.salePrice || null, minStock: data.minStock ? parseInt(data.minStock) : 0, currentStock: data.currentStock ? parseInt(data.currentStock) : 0 };
+    const payload = { name: data.name, sku: data.sku || null, description: data.description || null, category: data.category || null, unit: data.unit || "un", costPrice: data.costPrice || null, salePrice: data.salePrice || null, minStock: data.minStock ? parseInt(data.minStock) : 0, currentStock: data.currentStock || "0", isCritical: data.isCritical ? "true" : "false" };
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
     } else {
@@ -201,6 +204,24 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
                 <Input {...form.register("currentStock")} type="number" min="0" step="1" />
               </div>
             )}
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <Controller
+              control={form.control}
+              name="isCritical"
+              render={({ field }) => (
+                <input
+                  id="isCritical"
+                  type="checkbox"
+                  checked={!!field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+              )}
+            />
+            <label htmlFor="isCritical" className="text-sm font-medium cursor-pointer select-none">
+              Produto crítico (exige fornecedor aprovado no CQ)
+            </label>
           </div>
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
@@ -808,6 +829,105 @@ function LotDetailSheet({ lot, open, onClose, onAdjust, onTransfer, warehouses }
   );
 }
 
+// ─── Lot Label Dialog ─────────────────────────────────────────────────────────
+
+function LotLabelDialog({ lotId, onClose }: { lotId: number | null; onClose: () => void }) {
+  const { data: label, isLoading } = useGetProductLotLabel(
+    lotId ?? 0,
+    { query: { enabled: !!lotId } as any }
+  );
+
+  const cqLabel: Record<string, string> = {
+    quarantine: "QUARENTENA",
+    approved: "APROVADO",
+    rejected: "REPROVADO",
+    blocked: "BLOQUEADO",
+  };
+
+  const cqColor: Record<string, string> = {
+    quarantine: "bg-yellow-100 text-yellow-800 border-yellow-300",
+    approved: "bg-green-100 text-green-800 border-green-300",
+    rejected: "bg-red-100 text-red-800 border-red-300",
+    blocked: "bg-gray-100 text-gray-800 border-gray-300",
+  };
+
+  return (
+    <Dialog open={!!lotId} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Tag className="h-4 w-4" /> Etiqueta do Lote
+          </DialogTitle>
+        </DialogHeader>
+        {isLoading && <p className="text-sm text-muted-foreground py-4 text-center">Carregando…</p>}
+        {label && (
+          <div className="space-y-3">
+            <div id="lot-label-print" className="border-2 border-dashed border-border rounded-lg p-4 space-y-2 font-mono text-xs print:border-solid">
+              <div className="text-center font-bold text-base tracking-wide uppercase mb-2">
+                {label.productName}
+              </div>
+              {label.productSku && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">SKU:</span>
+                  <span className="font-semibold">{label.productSku}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Lote Interno:</span>
+                <span className="font-bold tracking-wider">{label.internalLot}</span>
+              </div>
+              {label.supplierLot && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Lote Fornecedor:</span>
+                  <span>{label.supplierLot}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Quantidade:</span>
+                <span className="font-semibold">{parseFloat(label.totalQty).toLocaleString("pt-BR")} {label.unit}</span>
+              </div>
+              {label.expirationDate && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Validade:</span>
+                  <span className="font-semibold">{new Date(label.expirationDate + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                </div>
+              )}
+              {label.manufacturingDate && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fabricação:</span>
+                  <span>{new Date(label.manufacturingDate + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+                </div>
+              )}
+              {label.warehouseName && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Depósito:</span>
+                  <span>{label.warehouseName}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Entrada:</span>
+                <span>{new Date(label.receivedAt + "T00:00:00").toLocaleDateString("pt-BR")}</span>
+              </div>
+              <div className="flex justify-center mt-2">
+                <span className={`px-3 py-1 rounded border font-bold text-sm uppercase tracking-widest ${cqColor[label.cqStatus] ?? "bg-muted text-muted-foreground"}`}>
+                  {cqLabel[label.cqStatus] ?? label.cqStatus}
+                </span>
+              </div>
+            </div>
+            <Button
+              className="w-full gap-2"
+              variant="outline"
+              onClick={() => window.print()}
+            >
+              <Printer className="h-4 w-4" /> Imprimir
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function EstoquePage() {
@@ -838,6 +958,9 @@ export default function EstoquePage() {
   const [selectedLot, setSelectedLot] = useState<ProductLot | null>(null);
   const [adjustLot, setAdjustLot] = useState<ProductLot | null>(null);
   const [transferLot, setTransferLot] = useState<ProductLot | null>(null);
+
+  // Lot label state
+  const [labelLotId, setLabelLotId] = useState<number | null>(null);
 
   // Warehouse state
   const [warehouseDialog, setWarehouseDialog] = useState(false);
@@ -1292,6 +1415,7 @@ export default function EstoquePage() {
                         <TableCell><ExpiryBadge expirationDate={lot.expirationDate} /></TableCell>
                         <TableCell>
                           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Imprimir etiqueta" onClick={() => setLabelLotId(lot.id)}><Tag className="h-3.5 w-3.5" /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Ajustar inventário" onClick={() => setAdjustLot(lot)}><FlaskConical className="h-3.5 w-3.5" /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Transferir" onClick={() => setTransferLot(lot)}><ArrowRightLeft className="h-3.5 w-3.5" /></Button>
                           </div>
@@ -1411,6 +1535,8 @@ export default function EstoquePage() {
         onTransfer={(l) => { setSelectedLot(null); setTransferLot(l); }}
         warehouses={warehouses}
       />
+
+      <LotLabelDialog lotId={labelLotId} onClose={() => setLabelLotId(null)} />
 
       <WarehouseDialog open={warehouseDialog} onClose={() => { setWarehouseDialog(false); setEditingWarehouse(null); }} editing={editingWarehouse} />
 

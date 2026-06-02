@@ -15,5 +15,6 @@ export interface ProductInput {
   costPrice?: string | null;
   salePrice?: string | null;
   minStock?: number | null;
-  currentStock?: number | null;
+  currentStock?: string | null;
+  isCritical?: string | null;
 }

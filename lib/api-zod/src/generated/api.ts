@@ -554,8 +554,9 @@ export const ListProductsResponseItem = zod.object({
   "unit": zod.string(),
   "costPrice": zod.string().nullish(),
   "salePrice": zod.string().nullish(),
-  "currentStock": zod.number(),
+  "currentStock": zod.string(),
   "minStock": zod.number(),
+  "isCritical": zod.string().optional(),
   "active": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -575,7 +576,8 @@ export const CreateProductBody = zod.object({
   "costPrice": zod.string().nullish(),
   "salePrice": zod.string().nullish(),
   "minStock": zod.number().nullish(),
-  "currentStock": zod.number().nullish()
+  "currentStock": zod.string().nullish(),
+  "isCritical": zod.string().nullish()
 })
 
 
@@ -595,7 +597,8 @@ export const UpdateProductBody = zod.object({
   "costPrice": zod.string().nullish(),
   "salePrice": zod.string().nullish(),
   "minStock": zod.number().nullish(),
-  "currentStock": zod.number().nullish()
+  "currentStock": zod.string().nullish(),
+  "isCritical": zod.string().nullish()
 })
 
 export const UpdateProductResponse = zod.object({
@@ -607,8 +610,9 @@ export const UpdateProductResponse = zod.object({
   "unit": zod.string(),
   "costPrice": zod.string().nullish(),
   "salePrice": zod.string().nullish(),
-  "currentStock": zod.number(),
+  "currentStock": zod.string(),
   "minStock": zod.number(),
+  "isCritical": zod.string().optional(),
   "active": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -684,8 +688,9 @@ export const GetEstoqueDashboardResponse = zod.object({
   "unit": zod.string(),
   "costPrice": zod.string().nullish(),
   "salePrice": zod.string().nullish(),
-  "currentStock": zod.number(),
+  "currentStock": zod.string(),
   "minStock": zod.number(),
+  "isCritical": zod.string().optional(),
   "active": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1013,6 +1018,30 @@ export const TransferLotResponse = zod.object({
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get label data for a quarantine/received lot (for printing)
+ */
+export const GetProductLotLabelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetProductLotLabelResponse = zod.object({
+  "lotId": zod.number(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "productName": zod.string(),
+  "productSku": zod.string().nullish(),
+  "cqStatus": zod.string(),
+  "totalQty": zod.string(),
+  "unit": zod.string(),
+  "warehouseName": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "receivedAt": zod.string(),
+  "notes": zod.string().nullish()
 })
 
 
@@ -1729,6 +1758,37 @@ export const GetPriceHistoryResponseItem = zod.object({
   "quantity": zod.string()
 })
 export const GetPriceHistoryResponse = zod.array(GetPriceHistoryResponseItem)
+
+
+/**
+ * @summary Supplier delivery performance, evaluation score, and price history
+ */
+export const FetchSupplierAnalysisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const FetchSupplierAnalysisResponse = zod.object({
+  "supplierId": zod.number(),
+  "supplierName": zod.string(),
+  "totalOrders": zod.number(),
+  "receivedOrders": zod.number(),
+  "onTimeOrders": zod.number(),
+  "lateOrders": zod.number(),
+  "onTimeRate": zod.number(),
+  "avgDelayDays": zod.number(),
+  "evaluationScore": zod.number(),
+  "priceHistory": zod.array(zod.object({
+  "orderId": zod.number(),
+  "supplierId": zod.number().nullish(),
+  "supplierName": zod.string().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "description": zod.string().optional(),
+  "date": zod.coerce.date(),
+  "unitPrice": zod.string(),
+  "quantity": zod.string()
+}))
+})
 
 
 /**

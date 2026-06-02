@@ -15,8 +15,9 @@ export interface Product {
   unit: string;
   costPrice?: string | null;
   salePrice?: string | null;
-  currentStock: number;
+  currentStock: string;
   minStock: number;
+  isCritical?: string;
   active: string;
   createdAt: Date;
   updatedAt: Date;

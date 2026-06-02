@@ -833,6 +833,53 @@ router.post("/estoque/lots/:id/transfer", async (req: Request, res: Response): P
 
 // ─── Lot: Movement History (Rastreabilidade) ──────────────────────────────────
 
+router.get("/estoque/lots/:id/label", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [lot] = await db
+    .select({
+      id: productLotsTable.id,
+      internalLot: productLotsTable.internalLot,
+      supplierLot: productLotsTable.supplierLot,
+      productId: productLotsTable.productId,
+      productName: productsTable.name,
+      productSku: productsTable.sku,
+      unit: productsTable.unit,
+      warehouseName: warehousesTable.name,
+      cqStatus: productLotsTable.cqStatus,
+      totalQty: productLotsTable.totalQty,
+      expirationDate: productLotsTable.expirationDate,
+      manufacturingDate: productLotsTable.manufacturingDate,
+      receivedAt: productLotsTable.createdAt,
+      notes: productLotsTable.notes,
+    })
+    .from(productLotsTable)
+    .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
+    .leftJoin(warehousesTable, eq(productLotsTable.warehouseId, warehousesTable.id))
+    .where(eq(productLotsTable.id, id));
+
+  if (!lot) { res.status(404).json({ error: "Lote não encontrado" }); return; }
+
+  res.json({
+    lotId: lot.id,
+    internalLot: lot.internalLot,
+    supplierLot: lot.supplierLot ?? null,
+    productName: lot.productName ?? "—",
+    productSku: lot.productSku ?? null,
+    unit: lot.unit ?? "un",
+    warehouseName: lot.warehouseName ?? null,
+    cqStatus: lot.cqStatus,
+    totalQty: String(lot.totalQty),
+    expirationDate: lot.expirationDate ?? null,
+    manufacturingDate: lot.manufacturingDate ?? null,
+    receivedAt: lot.receivedAt ? lot.receivedAt.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    notes: lot.notes ?? null,
+  });
+});
+
 router.get("/estoque/lots/:id/movements", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 

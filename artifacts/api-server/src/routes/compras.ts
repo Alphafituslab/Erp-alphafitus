@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, gte, ilike, lte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, lt, sql } from "drizzle-orm";
 import {
   db,
   suppliersTable,
@@ -199,6 +199,111 @@ router.post("/compras/suppliers/:id/approval", async (req: Request, res: Respons
   res.json(supplier);
 });
 
+// ─── Supplier Analysis ────────────────────────────────────────────────────────
+
+router.get("/compras/suppliers/:id/analysis", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [supplier] = await db
+    .select({ id: suppliersTable.id, name: suppliersTable.name })
+    .from(suppliersTable)
+    .where(eq(suppliersTable.id, id));
+
+  if (!supplier) { res.status(404).json({ error: "Fornecedor não encontrado" }); return; }
+
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 12);
+
+  const orders = await db
+    .select({
+      id: purchaseOrdersTable.id,
+      status: purchaseOrdersTable.status,
+      expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
+      receivedAt: purchaseOrdersTable.receivedAt,
+    })
+    .from(purchaseOrdersTable)
+    .where(
+      and(
+        eq(purchaseOrdersTable.supplierId, id),
+        gte(purchaseOrdersTable.createdAt, cutoff)
+      )
+    );
+
+  const totalOrders = orders.length;
+  const received = orders.filter((o) => o.status === "received");
+  const receivedOrders = received.length;
+
+  let onTimeOrders = 0;
+  let lateOrders = 0;
+  let totalDelayDays = 0;
+
+  for (const o of received) {
+    if (!o.expectedDeliveryDate || !o.receivedAt) { onTimeOrders++; continue; }
+    const expected = new Date(o.expectedDeliveryDate).getTime();
+    const actual = new Date(o.receivedAt).getTime();
+    const delayDays = Math.max(0, Math.ceil((actual - expected) / 86400000));
+    if (delayDays === 0) {
+      onTimeOrders++;
+    } else {
+      lateOrders++;
+      totalDelayDays += delayDays;
+    }
+  }
+
+  const onTimeRate = receivedOrders > 0 ? onTimeOrders / receivedOrders : 0;
+  const avgDelayDays = lateOrders > 0 ? totalDelayDays / lateOrders : 0;
+  const evaluationScore = Math.round(onTimeRate * 100 * 10) / 10;
+
+  const priceHistoryRows = await db
+    .select({
+      orderId: purchaseOrderItemsTable.purchaseOrderId,
+      productId: purchaseOrderItemsTable.productId,
+      productName: productsTable.name,
+      description: purchaseOrderItemsTable.description,
+      date: purchaseOrdersTable.receivedAt,
+      unitPrice: purchaseOrderItemsTable.unitPrice,
+      quantity: purchaseOrderItemsTable.quantity,
+    })
+    .from(purchaseOrderItemsTable)
+    .innerJoin(purchaseOrdersTable, eq(purchaseOrderItemsTable.purchaseOrderId, purchaseOrdersTable.id))
+    .leftJoin(productsTable, eq(purchaseOrderItemsTable.productId, productsTable.id))
+    .where(
+      and(
+        eq(purchaseOrdersTable.supplierId, id),
+        eq(purchaseOrdersTable.status, "received"),
+        gte(purchaseOrdersTable.receivedAt, cutoff)
+      )
+    )
+    .orderBy(desc(purchaseOrdersTable.receivedAt))
+    .limit(100);
+
+  const priceHistory = priceHistoryRows.map((r) => ({
+    orderId: r.orderId,
+    productId: r.productId ?? null,
+    productName: r.productName ?? null,
+    description: r.description ?? null,
+    date: r.date ? r.date.toISOString().slice(0, 10) : null,
+    unitPrice: String(r.unitPrice),
+    quantity: String(r.quantity),
+  }));
+
+  res.json({
+    supplierId: supplier.id,
+    supplierName: supplier.name,
+    totalOrders,
+    receivedOrders,
+    onTimeOrders,
+    lateOrders,
+    onTimeRate,
+    avgDelayDays,
+    evaluationScore,
+    priceHistory,
+  });
+});
+
 // ─── Purchase Orders ──────────────────────────────────────────────────────────
 
 async function getPOWithItems(id: number) {
@@ -293,11 +398,23 @@ router.post("/compras/orders", async (req: Request, res: Response): Promise<void
 
   const sid = parseInt(supplierId);
 
-  // Check supplier approval status — block if "blocked"
+  // Check supplier approval status for critical-item enforcement
   const [supplier] = await db.select().from(suppliersTable).where(eq(suppliersTable.id, sid));
   if (supplier?.approvalStatus === "blocked") {
-    res.status(400).json({ error: "Fornecedor bloqueado. Não é possível criar pedidos para este fornecedor." });
-    return;
+    // Check if any item in this PO references a critical product
+    const productIds = items
+      .filter((i: any) => i.productId && !isNaN(parseInt(i.productId)))
+      .map((i: any) => parseInt(i.productId));
+    if (productIds.length > 0) {
+      const criticalProducts = await db
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(and(inArray(productsTable.id, productIds), eq(productsTable.isCritical, "true")));
+      if (criticalProducts.length > 0) {
+        res.status(400).json({ error: "Fornecedor bloqueado. Este pedido contém itens críticos — selecione um fornecedor aprovado." });
+        return;
+      }
+    }
   }
 
   for (const item of items) {
@@ -1196,11 +1313,17 @@ router.post("/compras/quotations/:id/select", async (req: Request, res: Response
     return;
   }
 
-  // Check supplier is not blocked
+  // Check supplier is not blocked for critical items
   const [supplier] = await db.select().from(suppliersTable).where(eq(suppliersTable.id, winnerItem.supplierId));
-  if (supplier?.approvalStatus === "blocked") {
-    res.status(400).json({ error: "Fornecedor vencedor está bloqueado. Selecione outro fornecedor." });
-    return;
+  if (supplier?.approvalStatus === "blocked" && winnerItem.productId) {
+    const [critCheck] = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(and(eq(productsTable.id, winnerItem.productId), eq(productsTable.isCritical, "true")));
+    if (critCheck) {
+      res.status(400).json({ error: "Fornecedor bloqueado não pode vencer cotação de item crítico. Selecione outro fornecedor." });
+      return;
+    }
   }
 
   let newOrderId: number | undefined;

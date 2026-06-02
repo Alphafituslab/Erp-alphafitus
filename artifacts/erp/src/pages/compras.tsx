@@ -28,6 +28,7 @@ import {
   useUpdateQuotation,
   useSelectQuotationWinner,
   useGetPriceHistory,
+  useFetchSupplierAnalysis,
   useListWarehouses,
   getPurchaseOrder,
   getListSuppliersQueryKey,
@@ -113,7 +114,18 @@ import {
   ShieldAlert,
   History,
   ChevronRight,
+  BarChart2,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1354,6 +1366,132 @@ function PriceHistorySheet({
   );
 }
 
+// ─── Supplier Analysis Sheet ──────────────────────────────────────────────────
+
+function SupplierAnalysisSheet({
+  open,
+  onClose,
+  supplierId,
+  supplierName,
+}: {
+  open: boolean;
+  onClose: () => void;
+  supplierId: number | null;
+  supplierName: string;
+}) {
+  const { data: analysis, isLoading } = useFetchSupplierAnalysis(
+    supplierId ?? 0,
+    { query: { enabled: !!supplierId && open } as any }
+  );
+
+  const chartData = useMemo(() => {
+    if (!analysis) return [];
+    const byProduct = new Map<string, { name: string; points: { date: string; price: number }[] }>();
+    for (const p of analysis.priceHistory) {
+      if (!p.date) continue;
+      const key = p.productId ? `p${p.productId}` : (p.description ?? "item");
+      const label = p.productName ?? p.description ?? "Item";
+      if (!byProduct.has(key)) byProduct.set(key, { name: label, points: [] });
+      byProduct.get(key)!.points.push({ date: p.date, price: parseFloat(p.unitPrice) });
+    }
+    return Array.from(byProduct.entries()).slice(0, 5);
+  }, [analysis]);
+
+  const scoreColor =
+    !analysis ? "text-muted-foreground"
+    : analysis.evaluationScore >= 80 ? "text-green-700"
+    : analysis.evaluationScore >= 50 ? "text-yellow-700"
+    : "text-red-700";
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent className="min-w-[600px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5" /> Análise do Fornecedor — {supplierName}
+          </SheetTitle>
+        </SheetHeader>
+
+        {isLoading && <p className="mt-6 text-sm text-muted-foreground">Carregando…</p>}
+
+        {analysis && (
+          <div className="mt-4 space-y-4">
+            {/* KPI cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border p-3 text-center">
+                <div className="text-2xl font-bold tabular-nums">{analysis.totalOrders}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Pedidos (12m)</div>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <div className="text-2xl font-bold tabular-nums">{analysis.receivedOrders}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Recebidos</div>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <div className={`text-2xl font-bold tabular-nums ${scoreColor}`}>
+                  {(analysis.onTimeRate * 100).toFixed(0)}%
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">No prazo</div>
+              </div>
+              <div className="rounded-lg border p-3 text-center">
+                <div className={`text-2xl font-bold tabular-nums ${scoreColor}`}>
+                  {analysis.evaluationScore.toFixed(0)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">Score (0–100)</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3">
+                <div className="text-sm font-medium mb-1">Pedidos no prazo</div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-700 font-medium">{analysis.onTimeOrders} no prazo</span>
+                  <span className="text-red-600 font-medium">{analysis.lateOrders} atrasados</span>
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-sm font-medium mb-1">Atraso médio</div>
+                <div className="text-sm">
+                  {analysis.lateOrders === 0
+                    ? <span className="text-green-700">Sem atrasos</span>
+                    : <span className="text-red-600">{analysis.avgDelayDays.toFixed(1)} dias</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Price history charts */}
+            {chartData.length > 0 && (
+              <div className="space-y-4">
+                <div className="text-sm font-semibold">Histórico de Preços (últimos 12 meses)</div>
+                {chartData.map(([key, { name, points }]) => {
+                  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
+                  return (
+                    <div key={key} className="border rounded-lg p-3">
+                      <div className="text-sm font-medium mb-2 text-muted-foreground">{name}</div>
+                      <ResponsiveContainer width="100%" height={140}>
+                        <LineChart data={sorted} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${v.toFixed(0)}`} />
+                          <Tooltip formatter={(v: number) => fmtCurrency(v)} labelFormatter={(l) => `Data: ${l}`} />
+                          <Line type="monotone" dataKey="price" name="Preço unit." stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {analysis.priceHistory.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma compra recebida nos últimos 12 meses.</p>
+            )}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ComprasPage() {
@@ -1367,6 +1505,7 @@ export default function ComprasPage() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [deleteSupplier, setDeleteSupplier] = useState<Supplier | null>(null);
   const [priceHistorySupplier, setPriceHistorySupplier] = useState<{ id: number; name: string } | null>(null);
+  const [analysisSupplier, setAnalysisSupplier] = useState<{ id: number; name: string } | null>(null);
 
   // PO state
   const [poStatusFilter, setPoStatusFilter] = useState("all");
@@ -1956,6 +2095,10 @@ export default function ComprasPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Análise do fornecedor"
+                              onClick={() => setAnalysisSupplier({ id: s.id, name: s.name })}>
+                              <BarChart2 className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" title="Histórico de preços"
                               onClick={() => setPriceHistorySupplier({ id: s.id, name: s.name })}>
                               <History className="h-4 w-4" />
@@ -2044,6 +2187,13 @@ export default function ComprasPage() {
         onClose={() => setPriceHistorySupplier(null)}
         supplierId={priceHistorySupplier?.id ?? null}
         supplierName={priceHistorySupplier?.name ?? ""}
+      />
+
+      <SupplierAnalysisSheet
+        open={!!analysisSupplier}
+        onClose={() => setAnalysisSupplier(null)}
+        supplierId={analysisSupplier?.id ?? null}
+        supplierName={analysisSupplier?.name ?? ""}
       />
 
       {/* Cancel PO */}

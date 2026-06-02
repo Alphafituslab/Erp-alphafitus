@@ -77,6 +77,7 @@ import type {
   ProductInput,
   ProductLot,
   ProductLotInput,
+  ProductLotLabel,
   ProductLotUpdateInput,
   Project,
   ProjectInput,
@@ -110,6 +111,7 @@ import type {
   StockMovementInput,
   SuccessResponse,
   Supplier,
+  SupplierAnalysisResult,
   SupplierApprovalInput,
   SupplierInput,
   UpdatePurchaseOrderStatusInput,
@@ -2974,6 +2976,83 @@ export const useTransferLot = <TError = ErrorType<ErrorResponse>,
       return useMutation(getTransferLotMutationOptions(options));
     }
 
+export const getGetProductLotLabelUrl = (id: number,) => {
+
+
+
+
+  return `/api/estoque/lots/${id}/label`
+}
+
+/**
+ * @summary Get label data for a quarantine/received lot (for printing)
+ */
+export const getProductLotLabel = async (id: number, options?: RequestInit): Promise<ProductLotLabel> => {
+
+  return customFetch<ProductLotLabel>(getGetProductLotLabelUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProductLotLabelQueryKey = (id: number,) => {
+    return [
+    `/api/estoque/lots/${id}/label`
+    ] as const;
+    }
+
+
+export const getGetProductLotLabelQueryOptions = <TData = Awaited<ReturnType<typeof getProductLotLabel>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductLotLabel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProductLotLabelQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProductLotLabel>>> = ({ signal }) => getProductLotLabel(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProductLotLabel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProductLotLabelQueryResult = NonNullable<Awaited<ReturnType<typeof getProductLotLabel>>>
+export type GetProductLotLabelQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get label data for a quarantine/received lot (for printing)
+ */
+
+export function useGetProductLotLabel<TData = Awaited<ReturnType<typeof getProductLotLabel>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductLotLabel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProductLotLabelQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetLotMovementsUrl = (id: number,) => {
 
 
@@ -4760,6 +4839,83 @@ export function useGetPriceHistory<TData = Awaited<ReturnType<typeof getPriceHis
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPriceHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getFetchSupplierAnalysisUrl = (id: number,) => {
+
+
+
+
+  return `/api/compras/suppliers/${id}/analysis`
+}
+
+/**
+ * @summary Supplier delivery performance, evaluation score, and price history
+ */
+export const fetchSupplierAnalysis = async (id: number, options?: RequestInit): Promise<SupplierAnalysisResult> => {
+
+  return customFetch<SupplierAnalysisResult>(getFetchSupplierAnalysisUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFetchSupplierAnalysisQueryKey = (id: number,) => {
+    return [
+    `/api/compras/suppliers/${id}/analysis`
+    ] as const;
+    }
+
+
+export const getFetchSupplierAnalysisQueryOptions = <TData = Awaited<ReturnType<typeof fetchSupplierAnalysis>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof fetchSupplierAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFetchSupplierAnalysisQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof fetchSupplierAnalysis>>> = ({ signal }) => fetchSupplierAnalysis(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof fetchSupplierAnalysis>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type FetchSupplierAnalysisQueryResult = NonNullable<Awaited<ReturnType<typeof fetchSupplierAnalysis>>>
+export type FetchSupplierAnalysisQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Supplier delivery performance, evaluation score, and price history
+ */
+
+export function useFetchSupplierAnalysis<TData = Awaited<ReturnType<typeof fetchSupplierAnalysis>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof fetchSupplierAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getFetchSupplierAnalysisQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

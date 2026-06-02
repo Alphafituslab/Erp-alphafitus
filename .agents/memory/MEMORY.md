@@ -1,0 +1,1 @@
+- [Orval TS2308 collision](orval-ts2308.md) — endpoints with both path params AND query params always collide; fix by removing query params.
