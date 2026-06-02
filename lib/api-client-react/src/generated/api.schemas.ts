@@ -800,6 +800,45 @@ export interface ResolveNcrInput {
   correctiveAction?: string | null;
 }
 
+export type QualityAnalysisAnalysisType = typeof QualityAnalysisAnalysisType[keyof typeof QualityAnalysisAnalysisType];
+
+
+export const QualityAnalysisAnalysisType = {
+  physical_chemical: 'physical_chemical',
+  microbiological: 'microbiological',
+  organoleptic: 'organoleptic',
+  full: 'full',
+} as const;
+
+export type QualityAnalysisStatus = typeof QualityAnalysisStatus[keyof typeof QualityAnalysisStatus];
+
+
+export const QualityAnalysisStatus = {
+  pending: 'pending',
+  in_analysis: 'in_analysis',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface QualityAnalysis {
+  id: number;
+  lotId?: number | null;
+  productId?: number | null;
+  productName?: string | null;
+  internalLot?: string | null;
+  sampleCode: string;
+  analysisType: QualityAnalysisAnalysisType;
+  analystName: string;
+  reviewerName?: string | null;
+  status: QualityAnalysisStatus;
+  notes?: string | null;
+  justification?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface QualidadeDashboard {
   totalInspections: number;
   approvedCount: number;
@@ -810,6 +849,74 @@ export interface QualidadeDashboard {
   criticalNcrsCount: number;
   recentInspections: QualityInspection[];
   openNcrList: QualityNcr[];
+  pendingAnalysesCount: number;
+  inAnalysisCount: number;
+  analysisApprovalRate: number;
+  avgAnalysisDaysStr: string;
+  recentAnalyses: QualityAnalysis[];
+}
+
+export interface AnalysisParameter {
+  id: number;
+  analysisId: number;
+  parameterName: string;
+  specification?: string | null;
+  minValue?: string | null;
+  maxValue?: string | null;
+  resultValue?: string | null;
+  unit?: string | null;
+  isConforming?: boolean | null;
+  createdAt: string;
+}
+
+export type QualityAnalysisDetail = QualityAnalysis & {
+  parameters: AnalysisParameter[];
+};
+
+export type QualityAnalysisInputAnalysisType = typeof QualityAnalysisInputAnalysisType[keyof typeof QualityAnalysisInputAnalysisType] | null;
+
+
+export const QualityAnalysisInputAnalysisType = {
+  physical_chemical: 'physical_chemical',
+  microbiological: 'microbiological',
+  organoleptic: 'organoleptic',
+  full: 'full',
+} as const;
+
+export interface QualityAnalysisInput {
+  lotId?: number | null;
+  productId?: number | null;
+  productName?: string | null;
+  internalLot?: string | null;
+  sampleCode: string;
+  analysisType?: QualityAnalysisInputAnalysisType;
+  analystName: string;
+  reviewerName?: string | null;
+  notes?: string | null;
+}
+
+export interface AnalysisParameterInput {
+  parameterName: string;
+  specification?: string | null;
+  minValue?: string | null;
+  maxValue?: string | null;
+  resultValue?: string | null;
+  unit?: string | null;
+  isConforming?: boolean | null;
+}
+
+export type CompleteAnalysisInputResult = typeof CompleteAnalysisInputResult[keyof typeof CompleteAnalysisInputResult];
+
+
+export const CompleteAnalysisInputResult = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface CompleteAnalysisInput {
+  result: CompleteAnalysisInputResult;
+  reviewerName?: string | null;
+  justification?: string | null;
 }
 
 export type SupplierApprovalStatus = typeof SupplierApprovalStatus[keyof typeof SupplierApprovalStatus];
@@ -1841,6 +1948,22 @@ export const ListQualityNcrsSeverity = {
   medium: 'medium',
   high: 'high',
   critical: 'critical',
+} as const;
+
+export type ListQualityAnalysesParams = {
+status?: ListQualityAnalysesStatus;
+productId?: number;
+lotId?: number;
+};
+
+export type ListQualityAnalysesStatus = typeof ListQualityAnalysesStatus[keyof typeof ListQualityAnalysesStatus];
+
+
+export const ListQualityAnalysesStatus = {
+  pending: 'pending',
+  in_analysis: 'in_analysis',
+  approved: 'approved',
+  rejected: 'rejected',
 } as const;
 
 export type GetVendasDashboardParams = {

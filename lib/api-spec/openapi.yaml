@@ -2504,6 +2504,344 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Qualidade: Analyses ──────────────────────────────────────────────────────
+
+  /qualidade/analyses:
+    get:
+      operationId: listQualityAnalyses
+      tags: [qualidade]
+      summary: List quality analyses with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_analysis, approved, rejected]
+        - name: productId
+          in: query
+          schema:
+            type: integer
+        - name: lotId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of analyses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QualityAnalysis"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createQualityAnalysis
+      tags: [qualidade]
+      summary: Create a quality analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QualityAnalysisInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityAnalysis"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/analyses/{id}:
+    get:
+      operationId: getQualityAnalysis
+      tags: [qualidade]
+      summary: Get analysis with parameters
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analysis with parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityAnalysisDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateQualityAnalysis
+      tags: [qualidade]
+      summary: Update a quality analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QualityAnalysisInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityAnalysis"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteQualityAnalysis
+      tags: [qualidade]
+      summary: Delete a quality analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/analyses/{id}/start:
+    post:
+      operationId: startQualityAnalysis
+      tags: [qualidade]
+      summary: Start analysis (pending -> in_analysis)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analysis started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityAnalysis"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/analyses/{id}/complete:
+    post:
+      operationId: completeQualityAnalysis
+      tags: [qualidade]
+      summary: Complete analysis with approve or reject. Updates lot CQ status and creates NCR if rejected.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteAnalysisInput"
+      responses:
+        "200":
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityAnalysisDetail"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/analyses/{id}/parameters:
+    post:
+      operationId: addAnalysisParameter
+      tags: [qualidade]
+      summary: Add a parameter to an analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisParameterInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisParameter"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/parameters/{parameterId}:
+    put:
+      operationId: updateAnalysisParameter
+      tags: [qualidade]
+      summary: Update a parameter result
+      parameters:
+        - name: parameterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisParameterInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisParameter"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAnalysisParameter
+      tags: [qualidade]
+      summary: Delete a parameter
+      parameters:
+        - name: parameterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vendas/dashboard:
     get:
       operationId: getVendasDashboard
@@ -4970,6 +5308,11 @@ components:
         - criticalNcrsCount
         - recentInspections
         - openNcrList
+        - pendingAnalysesCount
+        - inAnalysisCount
+        - analysisApprovalRate
+        - avgAnalysisDaysStr
+        - recentAnalyses
       properties:
         totalInspections:
           type: integer
@@ -4993,6 +5336,199 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QualityNcr"
+        pendingAnalysesCount:
+          type: integer
+        inAnalysisCount:
+          type: integer
+        analysisApprovalRate:
+          type: integer
+        avgAnalysisDaysStr:
+          type: string
+        recentAnalyses:
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityAnalysis"
+
+    QualityAnalysis:
+      type: object
+      required:
+        - id
+        - sampleCode
+        - analysisType
+        - analystName
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        lotId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        internalLot:
+          type: string
+          nullable: true
+        sampleCode:
+          type: string
+        analysisType:
+          type: string
+          enum: [physical_chemical, microbiological, organoleptic, full]
+        analystName:
+          type: string
+        reviewerName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, in_analysis, approved, rejected]
+        notes:
+          type: string
+          nullable: true
+        justification:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    QualityAnalysisDetail:
+      allOf:
+        - $ref: "#/components/schemas/QualityAnalysis"
+        - type: object
+          required:
+            - parameters
+          properties:
+            parameters:
+              type: array
+              items:
+                $ref: "#/components/schemas/AnalysisParameter"
+
+    QualityAnalysisInput:
+      type: object
+      required:
+        - sampleCode
+        - analystName
+      properties:
+        lotId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        internalLot:
+          type: string
+          nullable: true
+        sampleCode:
+          type: string
+        analysisType:
+          type: string
+          enum: [physical_chemical, microbiological, organoleptic, full]
+          nullable: true
+        analystName:
+          type: string
+        reviewerName:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    AnalysisParameter:
+      type: object
+      required:
+        - id
+        - analysisId
+        - parameterName
+        - createdAt
+      properties:
+        id:
+          type: integer
+        analysisId:
+          type: integer
+        parameterName:
+          type: string
+        specification:
+          type: string
+          nullable: true
+        minValue:
+          type: string
+          nullable: true
+        maxValue:
+          type: string
+          nullable: true
+        resultValue:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        isConforming:
+          type: boolean
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AnalysisParameterInput:
+      type: object
+      required:
+        - parameterName
+      properties:
+        parameterName:
+          type: string
+        specification:
+          type: string
+          nullable: true
+        minValue:
+          type: string
+          nullable: true
+        maxValue:
+          type: string
+          nullable: true
+        resultValue:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        isConforming:
+          type: boolean
+          nullable: true
+
+    CompleteAnalysisInput:
+      type: object
+      required:
+        - result
+      properties:
+        result:
+          type: string
+          enum: [approved, rejected]
+        reviewerName:
+          type: string
+          nullable: true
+        justification:
+          type: string
+          nullable: true
 
     # ── Compras schemas ─────────────────────────────────────────────────────────
 

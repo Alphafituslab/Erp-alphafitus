@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './analysisParameter';
+export * from './analysisParameterInput';
 export * from './attendanceLog';
 export * from './attendanceLogInput';
 export * from './attendanceLogInputStatus';
@@ -16,6 +18,8 @@ export * from './authUserRole';
 export * from './cashflowMonth';
 export * from './client';
 export * from './clientInput';
+export * from './completeAnalysisInput';
+export * from './completeAnalysisInputResult';
 export * from './comprasDashboard';
 export * from './department';
 export * from './departmentInput';
@@ -82,6 +86,8 @@ export * from './listPurchaseOrdersStatus';
 export * from './listPurchaseRequestsParams';
 export * from './listPurchaseRequestsPriority';
 export * from './listPurchaseRequestsStatus';
+export * from './listQualityAnalysesParams';
+export * from './listQualityAnalysesStatus';
 export * from './listQualityInspectionsParams';
 export * from './listQualityInspectionsResult';
 export * from './listQualityNcrsParams';
@@ -142,6 +148,12 @@ export * from './purchaseRequestPriority';
 export * from './purchaseRequestRejectionInput';
 export * from './purchaseRequestStatus';
 export * from './qualidadeDashboard';
+export * from './qualityAnalysis';
+export * from './qualityAnalysisAnalysisType';
+export * from './qualityAnalysisDetail';
+export * from './qualityAnalysisInput';
+export * from './qualityAnalysisInputAnalysisType';
+export * from './qualityAnalysisStatus';
 export * from './qualityInspection';
 export * from './qualityInspectionInput';
 export * from './qualityInspectionInputResult';

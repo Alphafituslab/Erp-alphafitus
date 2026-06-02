@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AnalysisParameter,
+  AnalysisParameterInput,
   AttendanceLog,
   AttendanceLogInput,
   AttendanceSummary,
@@ -27,6 +29,7 @@ import type {
   CashflowMonth,
   Client,
   ClientInput,
+  CompleteAnalysisInput,
   ComprasDashboard,
   Department,
   DepartmentInput,
@@ -60,6 +63,7 @@ import type {
   ListProjectsParams,
   ListPurchaseOrdersParams,
   ListPurchaseRequestsParams,
+  ListQualityAnalysesParams,
   ListQualityInspectionsParams,
   ListQualityNcrsParams,
   ListQuotationsParams,
@@ -92,6 +96,9 @@ import type {
   PurchaseRequestInput,
   PurchaseRequestRejectionInput,
   QualidadeDashboard,
+  QualityAnalysis,
+  QualityAnalysisDetail,
+  QualityAnalysisInput,
   QualityInspection,
   QualityInspectionInput,
   QualityNcr,
@@ -5742,6 +5749,736 @@ export function useGetQualidadeDashboard<TData = Awaited<ReturnType<typeof getQu
 
 
 
+
+export const getListQualityAnalysesUrl = (params?: ListQualityAnalysesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qualidade/analyses?${stringifiedParams}` : `/api/qualidade/analyses`
+}
+
+/**
+ * @summary List quality analyses with optional filters
+ */
+export const listQualityAnalyses = async (params?: ListQualityAnalysesParams, options?: RequestInit): Promise<QualityAnalysis[]> => {
+
+  return customFetch<QualityAnalysis[]>(getListQualityAnalysesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQualityAnalysesQueryKey = (params?: ListQualityAnalysesParams,) => {
+    return [
+    `/api/qualidade/analyses`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListQualityAnalysesQueryOptions = <TData = Awaited<ReturnType<typeof listQualityAnalyses>>, TError = ErrorType<ErrorResponse>>(params?: ListQualityAnalysesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQualityAnalyses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQualityAnalysesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQualityAnalyses>>> = ({ signal }) => listQualityAnalyses(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQualityAnalyses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQualityAnalysesQueryResult = NonNullable<Awaited<ReturnType<typeof listQualityAnalyses>>>
+export type ListQualityAnalysesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List quality analyses with optional filters
+ */
+
+export function useListQualityAnalyses<TData = Awaited<ReturnType<typeof listQualityAnalyses>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListQualityAnalysesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQualityAnalyses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQualityAnalysesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateQualityAnalysisUrl = () => {
+
+
+
+
+  return `/api/qualidade/analyses`
+}
+
+/**
+ * @summary Create a quality analysis
+ */
+export const createQualityAnalysis = async (qualityAnalysisInput: QualityAnalysisInput, options?: RequestInit): Promise<QualityAnalysis> => {
+
+  return customFetch<QualityAnalysis>(getCreateQualityAnalysisUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      qualityAnalysisInput,)
+  }
+);}
+
+
+
+
+export const getCreateQualityAnalysisMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQualityAnalysis>>, TError,{data: BodyType<QualityAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createQualityAnalysis>>, TError,{data: BodyType<QualityAnalysisInput>}, TContext> => {
+
+const mutationKey = ['createQualityAnalysis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createQualityAnalysis>>, {data: BodyType<QualityAnalysisInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createQualityAnalysis(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateQualityAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof createQualityAnalysis>>>
+    export type CreateQualityAnalysisMutationBody = BodyType<QualityAnalysisInput>
+    export type CreateQualityAnalysisMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a quality analysis
+ */
+export const useCreateQualityAnalysis = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQualityAnalysis>>, TError,{data: BodyType<QualityAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createQualityAnalysis>>,
+        TError,
+        {data: BodyType<QualityAnalysisInput>},
+        TContext
+      > => {
+      return useMutation(getCreateQualityAnalysisMutationOptions(options));
+    }
+
+export const getGetQualityAnalysisUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/analyses/${id}`
+}
+
+/**
+ * @summary Get analysis with parameters
+ */
+export const getQualityAnalysis = async (id: number, options?: RequestInit): Promise<QualityAnalysisDetail> => {
+
+  return customFetch<QualityAnalysisDetail>(getGetQualityAnalysisUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQualityAnalysisQueryKey = (id: number,) => {
+    return [
+    `/api/qualidade/analyses/${id}`
+    ] as const;
+    }
+
+
+export const getGetQualityAnalysisQueryOptions = <TData = Awaited<ReturnType<typeof getQualityAnalysis>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQualityAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQualityAnalysisQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQualityAnalysis>>> = ({ signal }) => getQualityAnalysis(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQualityAnalysis>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQualityAnalysisQueryResult = NonNullable<Awaited<ReturnType<typeof getQualityAnalysis>>>
+export type GetQualityAnalysisQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get analysis with parameters
+ */
+
+export function useGetQualityAnalysis<TData = Awaited<ReturnType<typeof getQualityAnalysis>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQualityAnalysis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQualityAnalysisQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateQualityAnalysisUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/analyses/${id}`
+}
+
+/**
+ * @summary Update a quality analysis
+ */
+export const updateQualityAnalysis = async (id: number,
+    qualityAnalysisInput: QualityAnalysisInput, options?: RequestInit): Promise<QualityAnalysis> => {
+
+  return customFetch<QualityAnalysis>(getUpdateQualityAnalysisUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      qualityAnalysisInput,)
+  }
+);}
+
+
+
+
+export const getUpdateQualityAnalysisMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQualityAnalysis>>, TError,{id: number;data: BodyType<QualityAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQualityAnalysis>>, TError,{id: number;data: BodyType<QualityAnalysisInput>}, TContext> => {
+
+const mutationKey = ['updateQualityAnalysis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQualityAnalysis>>, {id: number;data: BodyType<QualityAnalysisInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateQualityAnalysis(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQualityAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof updateQualityAnalysis>>>
+    export type UpdateQualityAnalysisMutationBody = BodyType<QualityAnalysisInput>
+    export type UpdateQualityAnalysisMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a quality analysis
+ */
+export const useUpdateQualityAnalysis = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQualityAnalysis>>, TError,{id: number;data: BodyType<QualityAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQualityAnalysis>>,
+        TError,
+        {id: number;data: BodyType<QualityAnalysisInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateQualityAnalysisMutationOptions(options));
+    }
+
+export const getDeleteQualityAnalysisUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/analyses/${id}`
+}
+
+/**
+ * @summary Delete a quality analysis
+ */
+export const deleteQualityAnalysis = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteQualityAnalysisUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteQualityAnalysisMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteQualityAnalysis>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteQualityAnalysis>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteQualityAnalysis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteQualityAnalysis>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteQualityAnalysis(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteQualityAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof deleteQualityAnalysis>>>
+
+    export type DeleteQualityAnalysisMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a quality analysis
+ */
+export const useDeleteQualityAnalysis = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteQualityAnalysis>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteQualityAnalysis>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteQualityAnalysisMutationOptions(options));
+    }
+
+export const getStartQualityAnalysisUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/analyses/${id}/start`
+}
+
+/**
+ * @summary Start analysis (pending -> in_analysis)
+ */
+export const startQualityAnalysis = async (id: number, options?: RequestInit): Promise<QualityAnalysis> => {
+
+  return customFetch<QualityAnalysis>(getStartQualityAnalysisUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStartQualityAnalysisMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startQualityAnalysis>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startQualityAnalysis>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['startQualityAnalysis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startQualityAnalysis>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  startQualityAnalysis(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartQualityAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof startQualityAnalysis>>>
+
+    export type StartQualityAnalysisMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Start analysis (pending -> in_analysis)
+ */
+export const useStartQualityAnalysis = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startQualityAnalysis>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startQualityAnalysis>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getStartQualityAnalysisMutationOptions(options));
+    }
+
+export const getCompleteQualityAnalysisUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/analyses/${id}/complete`
+}
+
+/**
+ * @summary Complete analysis with approve or reject. Updates lot CQ status and creates NCR if rejected.
+ */
+export const completeQualityAnalysis = async (id: number,
+    completeAnalysisInput: CompleteAnalysisInput, options?: RequestInit): Promise<QualityAnalysisDetail> => {
+
+  return customFetch<QualityAnalysisDetail>(getCompleteQualityAnalysisUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      completeAnalysisInput,)
+  }
+);}
+
+
+
+
+export const getCompleteQualityAnalysisMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeQualityAnalysis>>, TError,{id: number;data: BodyType<CompleteAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeQualityAnalysis>>, TError,{id: number;data: BodyType<CompleteAnalysisInput>}, TContext> => {
+
+const mutationKey = ['completeQualityAnalysis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeQualityAnalysis>>, {id: number;data: BodyType<CompleteAnalysisInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  completeQualityAnalysis(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteQualityAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof completeQualityAnalysis>>>
+    export type CompleteQualityAnalysisMutationBody = BodyType<CompleteAnalysisInput>
+    export type CompleteQualityAnalysisMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Complete analysis with approve or reject. Updates lot CQ status and creates NCR if rejected.
+ */
+export const useCompleteQualityAnalysis = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeQualityAnalysis>>, TError,{id: number;data: BodyType<CompleteAnalysisInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeQualityAnalysis>>,
+        TError,
+        {id: number;data: BodyType<CompleteAnalysisInput>},
+        TContext
+      > => {
+      return useMutation(getCompleteQualityAnalysisMutationOptions(options));
+    }
+
+export const getAddAnalysisParameterUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/analyses/${id}/parameters`
+}
+
+/**
+ * @summary Add a parameter to an analysis
+ */
+export const addAnalysisParameter = async (id: number,
+    analysisParameterInput: AnalysisParameterInput, options?: RequestInit): Promise<AnalysisParameter> => {
+
+  return customFetch<AnalysisParameter>(getAddAnalysisParameterUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      analysisParameterInput,)
+  }
+);}
+
+
+
+
+export const getAddAnalysisParameterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAnalysisParameter>>, TError,{id: number;data: BodyType<AnalysisParameterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addAnalysisParameter>>, TError,{id: number;data: BodyType<AnalysisParameterInput>}, TContext> => {
+
+const mutationKey = ['addAnalysisParameter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addAnalysisParameter>>, {id: number;data: BodyType<AnalysisParameterInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addAnalysisParameter(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddAnalysisParameterMutationResult = NonNullable<Awaited<ReturnType<typeof addAnalysisParameter>>>
+    export type AddAnalysisParameterMutationBody = BodyType<AnalysisParameterInput>
+    export type AddAnalysisParameterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Add a parameter to an analysis
+ */
+export const useAddAnalysisParameter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addAnalysisParameter>>, TError,{id: number;data: BodyType<AnalysisParameterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addAnalysisParameter>>,
+        TError,
+        {id: number;data: BodyType<AnalysisParameterInput>},
+        TContext
+      > => {
+      return useMutation(getAddAnalysisParameterMutationOptions(options));
+    }
+
+export const getUpdateAnalysisParameterUrl = (parameterId: number,) => {
+
+
+
+
+  return `/api/qualidade/parameters/${parameterId}`
+}
+
+/**
+ * @summary Update a parameter result
+ */
+export const updateAnalysisParameter = async (parameterId: number,
+    analysisParameterInput: AnalysisParameterInput, options?: RequestInit): Promise<AnalysisParameter> => {
+
+  return customFetch<AnalysisParameter>(getUpdateAnalysisParameterUrl(parameterId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      analysisParameterInput,)
+  }
+);}
+
+
+
+
+export const getUpdateAnalysisParameterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAnalysisParameter>>, TError,{parameterId: number;data: BodyType<AnalysisParameterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAnalysisParameter>>, TError,{parameterId: number;data: BodyType<AnalysisParameterInput>}, TContext> => {
+
+const mutationKey = ['updateAnalysisParameter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAnalysisParameter>>, {parameterId: number;data: BodyType<AnalysisParameterInput>}> = (props) => {
+          const {parameterId,data} = props ?? {};
+
+          return  updateAnalysisParameter(parameterId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAnalysisParameterMutationResult = NonNullable<Awaited<ReturnType<typeof updateAnalysisParameter>>>
+    export type UpdateAnalysisParameterMutationBody = BodyType<AnalysisParameterInput>
+    export type UpdateAnalysisParameterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a parameter result
+ */
+export const useUpdateAnalysisParameter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAnalysisParameter>>, TError,{parameterId: number;data: BodyType<AnalysisParameterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAnalysisParameter>>,
+        TError,
+        {parameterId: number;data: BodyType<AnalysisParameterInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAnalysisParameterMutationOptions(options));
+    }
+
+export const getDeleteAnalysisParameterUrl = (parameterId: number,) => {
+
+
+
+
+  return `/api/qualidade/parameters/${parameterId}`
+}
+
+/**
+ * @summary Delete a parameter
+ */
+export const deleteAnalysisParameter = async (parameterId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteAnalysisParameterUrl(parameterId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAnalysisParameterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAnalysisParameter>>, TError,{parameterId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAnalysisParameter>>, TError,{parameterId: number}, TContext> => {
+
+const mutationKey = ['deleteAnalysisParameter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAnalysisParameter>>, {parameterId: number}> = (props) => {
+          const {parameterId} = props ?? {};
+
+          return  deleteAnalysisParameter(parameterId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAnalysisParameterMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAnalysisParameter>>>
+
+    export type DeleteAnalysisParameterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a parameter
+ */
+export const useDeleteAnalysisParameter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAnalysisParameter>>, TError,{parameterId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAnalysisParameter>>,
+        TError,
+        {parameterId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAnalysisParameterMutationOptions(options));
+    }
 
 export const getGetVendasDashboardUrl = (params?: GetVendasDashboardParams,) => {
   const normalizedParams = new URLSearchParams();

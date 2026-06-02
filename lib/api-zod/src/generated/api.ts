@@ -2087,7 +2087,300 @@ export const GetQualidadeDashboardResponse = zod.object({
   "resolvedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "pendingAnalysesCount": zod.number(),
+  "inAnalysisCount": zod.number(),
+  "analysisApprovalRate": zod.number(),
+  "avgAnalysisDaysStr": zod.string(),
+  "recentAnalyses": zod.array(zod.object({
+  "id": zod.number(),
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 }))
+})
+
+
+/**
+ * @summary List quality analyses with optional filters
+ */
+export const ListQualityAnalysesQueryParams = zod.object({
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']).optional(),
+  "productId": zod.coerce.number().optional(),
+  "lotId": zod.coerce.number().optional()
+})
+
+export const ListQualityAnalysesResponseItem = zod.object({
+  "id": zod.number(),
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListQualityAnalysesResponse = zod.array(ListQualityAnalysesResponseItem)
+
+
+/**
+ * @summary Create a quality analysis
+ */
+export const CreateQualityAnalysisBody = zod.object({
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']).nullish(),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get analysis with parameters
+ */
+export const GetQualityAnalysisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetQualityAnalysisResponse = zod.object({
+  "id": zod.number(),
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "parameters": zod.array(zod.object({
+  "id": zod.number(),
+  "analysisId": zod.number(),
+  "parameterName": zod.string(),
+  "specification": zod.string().nullish(),
+  "minValue": zod.string().nullish(),
+  "maxValue": zod.string().nullish(),
+  "resultValue": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "isConforming": zod.boolean().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Update a quality analysis
+ */
+export const UpdateQualityAnalysisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateQualityAnalysisBody = zod.object({
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']).nullish(),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateQualityAnalysisResponse = zod.object({
+  "id": zod.number(),
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a quality analysis
+ */
+export const DeleteQualityAnalysisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteQualityAnalysisResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Start analysis (pending -> in_analysis)
+ */
+export const StartQualityAnalysisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const StartQualityAnalysisResponse = zod.object({
+  "id": zod.number(),
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Complete analysis with approve or reject. Updates lot CQ status and creates NCR if rejected.
+ */
+export const CompleteQualityAnalysisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CompleteQualityAnalysisBody = zod.object({
+  "result": zod.enum(['approved', 'rejected']),
+  "reviewerName": zod.string().nullish(),
+  "justification": zod.string().nullish()
+})
+
+export const CompleteQualityAnalysisResponse = zod.object({
+  "id": zod.number(),
+  "lotId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "sampleCode": zod.string(),
+  "analysisType": zod.enum(['physical_chemical', 'microbiological', 'organoleptic', 'full']),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_analysis', 'approved', 'rejected']),
+  "notes": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "parameters": zod.array(zod.object({
+  "id": zod.number(),
+  "analysisId": zod.number(),
+  "parameterName": zod.string(),
+  "specification": zod.string().nullish(),
+  "minValue": zod.string().nullish(),
+  "maxValue": zod.string().nullish(),
+  "resultValue": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "isConforming": zod.boolean().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Add a parameter to an analysis
+ */
+export const AddAnalysisParameterParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddAnalysisParameterBody = zod.object({
+  "parameterName": zod.string(),
+  "specification": zod.string().nullish(),
+  "minValue": zod.string().nullish(),
+  "maxValue": zod.string().nullish(),
+  "resultValue": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "isConforming": zod.boolean().nullish()
+})
+
+
+/**
+ * @summary Update a parameter result
+ */
+export const UpdateAnalysisParameterParams = zod.object({
+  "parameterId": zod.coerce.number()
+})
+
+export const UpdateAnalysisParameterBody = zod.object({
+  "parameterName": zod.string(),
+  "specification": zod.string().nullish(),
+  "minValue": zod.string().nullish(),
+  "maxValue": zod.string().nullish(),
+  "resultValue": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "isConforming": zod.boolean().nullish()
+})
+
+export const UpdateAnalysisParameterResponse = zod.object({
+  "id": zod.number(),
+  "analysisId": zod.number(),
+  "parameterName": zod.string(),
+  "specification": zod.string().nullish(),
+  "minValue": zod.string().nullish(),
+  "maxValue": zod.string().nullish(),
+  "resultValue": zod.string().nullish(),
+  "unit": zod.string().nullish(),
+  "isConforming": zod.boolean().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a parameter
+ */
+export const DeleteAnalysisParameterParams = zod.object({
+  "parameterId": zod.coerce.number()
+})
+
+export const DeleteAnalysisParameterResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 

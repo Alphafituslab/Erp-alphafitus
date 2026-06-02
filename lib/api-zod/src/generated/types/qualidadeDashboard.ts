@@ -5,6 +5,7 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { QualityAnalysis } from './qualityAnalysis';
 import type { QualityInspection } from './qualityInspection';
 import type { QualityNcr } from './qualityNcr';
 
@@ -18,4 +19,9 @@ export interface QualidadeDashboard {
   criticalNcrsCount: number;
   recentInspections: QualityInspection[];
   openNcrList: QualityNcr[];
+  pendingAnalysesCount: number;
+  inAnalysisCount: number;
+  analysisApprovalRate: number;
+  avgAnalysisDaysStr: string;
+  recentAnalyses: QualityAnalysis[];
 }
