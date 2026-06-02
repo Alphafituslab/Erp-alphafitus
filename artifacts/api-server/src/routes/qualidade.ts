@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, desc, sql, isNull, isNotNull } from "drizzle-orm";
+import { and, eq, gte, lte, desc, asc, sql, isNull } from "drizzle-orm";
 import {
   db,
   qualityInspectionsTable,
   qualityNcrsTable,
   qualityAnalysesTable,
   analysisParametersTable,
+  qualityCertificatesTable,
   productsTable,
   productLotsTable,
   stockMovementsTable,
@@ -29,6 +30,10 @@ function parseId(param: string | string[], res: Response): number | null {
     return null;
   }
   return id;
+}
+
+function certNumber(id: number): string {
+  return `CERT-${new Date().getFullYear()}-${String(id).padStart(5, "0")}`;
 }
 
 // ─── Inspections ──────────────────────────────────────────────────────────────
@@ -61,7 +66,7 @@ router.post("/qualidade/inspections", async (req: Request, res: Response): Promi
 
   const { productId, productName, batchNumber, inspectionDate, inspector, result, quantityInspected, quantityFailed, notes } = req.body;
 
-  if (!inspectionDate || !inspector || !inspector.trim()) {
+  if (!inspectionDate || !inspector?.trim()) {
     res.status(400).json({ error: "Data e inspetor são obrigatórios" });
     return;
   }
@@ -102,7 +107,7 @@ router.put("/qualidade/inspections/:id", async (req: Request, res: Response): Pr
 
   const { productId, productName, batchNumber, inspectionDate, inspector, result, quantityInspected, quantityFailed, notes } = req.body;
 
-  if (!inspectionDate || !inspector || !inspector.trim()) {
+  if (!inspectionDate || !inspector?.trim()) {
     res.status(400).json({ error: "Data e inspetor são obrigatórios" });
     return;
   }
@@ -129,30 +134,16 @@ router.put("/qualidade/inspections/:id", async (req: Request, res: Response): Pr
     .where(eq(qualityInspectionsTable.id, id))
     .returning();
 
-  if (!inspection) {
-    res.status(404).json({ error: "Inspeção não encontrada" });
-    return;
-  }
-
+  if (!inspection) { res.status(404).json({ error: "Inspeção não encontrada" }); return; }
   res.json(inspection);
 });
 
 router.delete("/qualidade/inspections/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
-
-  const [deleted] = await db
-    .delete(qualityInspectionsTable)
-    .where(eq(qualityInspectionsTable.id, id))
-    .returning({ id: qualityInspectionsTable.id });
-
-  if (!deleted) {
-    res.status(404).json({ error: "Inspeção não encontrada" });
-    return;
-  }
-
+  const [deleted] = await db.delete(qualityInspectionsTable).where(eq(qualityInspectionsTable.id, id)).returning({ id: qualityInspectionsTable.id });
+  if (!deleted) { res.status(404).json({ error: "Inspeção não encontrada" }); return; }
   res.json({ ok: true });
 });
 
@@ -163,7 +154,6 @@ router.get("/qualidade/ncrs", async (req: Request, res: Response): Promise<void>
 
   const { status, severity, productId } = req.query as Record<string, string>;
   const filters = [];
-
   if (status) filters.push(eq(qualityNcrsTable.status, status));
   if (severity) filters.push(eq(qualityNcrsTable.severity, severity));
   if (productId) {
@@ -184,11 +174,7 @@ router.post("/qualidade/ncrs", async (req: Request, res: Response): Promise<void
   if (!requireAuth(req, res)) return;
 
   const { inspectionId, productId, productName, title, description, severity, status, rootCause, correctiveAction, reportedBy, assignedTo, dueDate } = req.body;
-
-  if (!title || !title.trim()) {
-    res.status(400).json({ error: "Título é obrigatório" });
-    return;
-  }
+  if (!title?.trim()) { res.status(400).json({ error: "Título é obrigatório" }); return; }
 
   let resolvedProductName = productName || null;
   if (productId && !resolvedProductName) {
@@ -196,40 +182,32 @@ router.post("/qualidade/ncrs", async (req: Request, res: Response): Promise<void
     if (p) resolvedProductName = p.name;
   }
 
-  const [ncr] = await db
-    .insert(qualityNcrsTable)
-    .values({
-      inspectionId: inspectionId ? parseInt(inspectionId) : null,
-      productId: productId ? parseInt(productId) : null,
-      productName: resolvedProductName,
-      title: title.trim(),
-      description: description || null,
-      severity: severity || "medium",
-      status: status || "open",
-      rootCause: rootCause || null,
-      correctiveAction: correctiveAction || null,
-      reportedBy: reportedBy || null,
-      assignedTo: assignedTo || null,
-      dueDate: dueDate || null,
-      resolvedAt: null,
-    })
-    .returning();
+  const [ncr] = await db.insert(qualityNcrsTable).values({
+    inspectionId: inspectionId ? parseInt(inspectionId) : null,
+    productId: productId ? parseInt(productId) : null,
+    productName: resolvedProductName,
+    title: title.trim(),
+    description: description || null,
+    severity: severity || "medium",
+    status: status || "open",
+    rootCause: rootCause || null,
+    correctiveAction: correctiveAction || null,
+    reportedBy: reportedBy || null,
+    assignedTo: assignedTo || null,
+    dueDate: dueDate || null,
+    resolvedAt: null,
+  }).returning();
 
   res.status(201).json(ncr);
 });
 
 router.put("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
   const { inspectionId, productId, productName, title, description, severity, status, rootCause, correctiveAction, reportedBy, assignedTo, dueDate } = req.body;
-
-  if (!title || !title.trim()) {
-    res.status(400).json({ error: "Título é obrigatório" });
-    return;
-  }
+  if (!title?.trim()) { res.status(400).json({ error: "Título é obrigatório" }); return; }
 
   let resolvedProductName = productName || null;
   if (productId && !resolvedProductName) {
@@ -237,77 +215,45 @@ router.put("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<v
     if (p) resolvedProductName = p.name;
   }
 
-  const [ncr] = await db
-    .update(qualityNcrsTable)
-    .set({
-      inspectionId: inspectionId ? parseInt(inspectionId) : null,
-      productId: productId ? parseInt(productId) : null,
-      productName: resolvedProductName,
-      title: title.trim(),
-      description: description || null,
-      severity: severity || "medium",
-      status: status || "open",
-      rootCause: rootCause || null,
-      correctiveAction: correctiveAction || null,
-      reportedBy: reportedBy || null,
-      assignedTo: assignedTo || null,
-      dueDate: dueDate || null,
-    })
-    .where(eq(qualityNcrsTable.id, id))
-    .returning();
+  const [ncr] = await db.update(qualityNcrsTable).set({
+    inspectionId: inspectionId ? parseInt(inspectionId) : null,
+    productId: productId ? parseInt(productId) : null,
+    productName: resolvedProductName,
+    title: title.trim(),
+    description: description || null,
+    severity: severity || "medium",
+    status: status || "open",
+    rootCause: rootCause || null,
+    correctiveAction: correctiveAction || null,
+    reportedBy: reportedBy || null,
+    assignedTo: assignedTo || null,
+    dueDate: dueDate || null,
+  }).where(eq(qualityNcrsTable.id, id)).returning();
 
-  if (!ncr) {
-    res.status(404).json({ error: "NCR não encontrada" });
-    return;
-  }
-
+  if (!ncr) { res.status(404).json({ error: "NCR não encontrada" }); return; }
   res.json(ncr);
 });
 
 router.delete("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
-
-  const [deleted] = await db
-    .delete(qualityNcrsTable)
-    .where(eq(qualityNcrsTable.id, id))
-    .returning({ id: qualityNcrsTable.id });
-
-  if (!deleted) {
-    res.status(404).json({ error: "NCR não encontrada" });
-    return;
-  }
-
+  const [deleted] = await db.delete(qualityNcrsTable).where(eq(qualityNcrsTable.id, id)).returning({ id: qualityNcrsTable.id });
+  if (!deleted) { res.status(404).json({ error: "NCR não encontrada" }); return; }
   res.json({ ok: true });
 });
 
 router.post("/qualidade/ncrs/:id/resolve", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
   const { correctiveAction } = req.body ?? {};
-
-  const updateValues: Record<string, unknown> = {
-    status: "resolved",
-    resolvedAt: new Date(),
-  };
+  const updateValues: Record<string, unknown> = { status: "resolved", resolvedAt: new Date() };
   if (correctiveAction) updateValues.correctiveAction = correctiveAction;
 
-  const [ncr] = await db
-    .update(qualityNcrsTable)
-    .set(updateValues)
-    .where(eq(qualityNcrsTable.id, id))
-    .returning();
-
-  if (!ncr) {
-    res.status(404).json({ error: "NCR não encontrada" });
-    return;
-  }
-
+  const [ncr] = await db.update(qualityNcrsTable).set(updateValues).where(eq(qualityNcrsTable.id, id)).returning();
+  if (!ncr) { res.status(404).json({ error: "NCR não encontrada" }); return; }
   res.json(ncr);
 });
 
@@ -318,7 +264,6 @@ router.get("/qualidade/analyses", async (req: Request, res: Response): Promise<v
 
   const { status, productId, lotId } = req.query as Record<string, string>;
   const filters = [];
-
   if (status) filters.push(eq(qualityAnalysesTable.status, status));
   if (productId) {
     const pid = parseInt(productId);
@@ -329,13 +274,15 @@ router.get("/qualidade/analyses", async (req: Request, res: Response): Promise<v
     if (!isNaN(lid)) filters.push(eq(qualityAnalysesTable.lotId, lid));
   }
 
+  // FIX #2: Pending/in_analysis sorted oldest-first (priority by aging).
+  // Completed analyses sorted newest-first for history.
   const rows = await db
     .select()
     .from(qualityAnalysesTable)
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(
       sql`CASE status WHEN 'pending' THEN 1 WHEN 'in_analysis' THEN 2 WHEN 'approved' THEN 3 ELSE 4 END`,
-      desc(qualityAnalysesTable.createdAt)
+      sql`CASE WHEN status IN ('pending','in_analysis') THEN EXTRACT(EPOCH FROM created_at) ELSE -EXTRACT(EPOCH FROM created_at) END ASC`
     );
 
   res.json(rows);
@@ -353,157 +300,113 @@ router.post("/qualidade/analyses", async (req: Request, res: Response): Promise<
 
   let resolvedProductName = productName || null;
   let resolvedInternalLot = internalLot || null;
-  if (lotId && (!resolvedProductName || !resolvedInternalLot)) {
+  let resolvedProductId = productId ? parseInt(productId) : null;
+
+  // Auto-populate from lot when lotId is provided
+  if (lotId) {
     const lid = parseInt(lotId);
     if (!isNaN(lid)) {
-      const [lot] = await db
-        .select({ internalLot: productLotsTable.internalLot, productId: productLotsTable.productId })
-        .from(productLotsTable)
-        .where(eq(productLotsTable.id, lid));
+      const [lot] = await db.select().from(productLotsTable).where(eq(productLotsTable.id, lid));
       if (lot) {
         if (!resolvedInternalLot) resolvedInternalLot = lot.internalLot;
+        if (!resolvedProductId) resolvedProductId = lot.productId;
         if (!resolvedProductName && lot.productId) {
           const [prod] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, lot.productId));
           if (prod) resolvedProductName = prod.name;
         }
       }
     }
+  } else if (resolvedProductId && !resolvedProductName) {
+    const [prod] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, resolvedProductId));
+    if (prod) resolvedProductName = prod.name;
   }
 
-  const [analysis] = await db
-    .insert(qualityAnalysesTable)
-    .values({
-      lotId: lotId ? parseInt(lotId) : null,
-      productId: productId ? parseInt(productId) : null,
-      productName: resolvedProductName,
-      internalLot: resolvedInternalLot,
-      sampleCode: sampleCode.trim(),
-      analysisType: analysisType || "physical_chemical",
-      analystName: analystName.trim(),
-      reviewerName: reviewerName || null,
-      status: "pending",
-      notes: notes || null,
-      justification: null,
-      startedAt: null,
-      completedAt: null,
-    })
-    .returning();
+  const [analysis] = await db.insert(qualityAnalysesTable).values({
+    lotId: lotId ? parseInt(lotId) : null,
+    productId: resolvedProductId,
+    productName: resolvedProductName,
+    internalLot: resolvedInternalLot,
+    sampleCode: sampleCode.trim(),
+    analysisType: analysisType || "physical_chemical",
+    analystName: analystName.trim(),
+    reviewerName: reviewerName || null,
+    status: "pending",
+    notes: notes || null,
+    justification: null,
+    startedAt: null,
+    completedAt: null,
+  }).returning();
 
   res.status(201).json(analysis);
 });
 
 router.get("/qualidade/analyses/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
-  const [analysis] = await db
-    .select()
-    .from(qualityAnalysesTable)
-    .where(eq(qualityAnalysesTable.id, id));
+  const [analysis] = await db.select().from(qualityAnalysesTable).where(eq(qualityAnalysesTable.id, id));
+  if (!analysis) { res.status(404).json({ error: "Análise não encontrada" }); return; }
 
-  if (!analysis) {
-    res.status(404).json({ error: "Análise não encontrada" });
-    return;
-  }
-
-  const parameters = await db
-    .select()
-    .from(analysisParametersTable)
-    .where(eq(analysisParametersTable.analysisId, id))
-    .orderBy(analysisParametersTable.id);
-
+  const parameters = await db.select().from(analysisParametersTable).where(eq(analysisParametersTable.analysisId, id)).orderBy(analysisParametersTable.id);
   res.json({ ...analysis, parameters });
 });
 
 router.put("/qualidade/analyses/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
   const { lotId, productId, productName, internalLot, sampleCode, analysisType, analystName, reviewerName, notes } = req.body;
-
   if (!sampleCode?.trim() || !analystName?.trim()) {
     res.status(400).json({ error: "Código da amostra e analista são obrigatórios" });
     return;
   }
 
-  const [analysis] = await db
-    .update(qualityAnalysesTable)
-    .set({
-      lotId: lotId ? parseInt(lotId) : null,
-      productId: productId ? parseInt(productId) : null,
-      productName: productName || null,
-      internalLot: internalLot || null,
-      sampleCode: sampleCode.trim(),
-      analysisType: analysisType || "physical_chemical",
-      analystName: analystName.trim(),
-      reviewerName: reviewerName || null,
-      notes: notes || null,
-    })
-    .where(eq(qualityAnalysesTable.id, id))
-    .returning();
+  const [analysis] = await db.update(qualityAnalysesTable).set({
+    lotId: lotId ? parseInt(lotId) : null,
+    productId: productId ? parseInt(productId) : null,
+    productName: productName || null,
+    internalLot: internalLot || null,
+    sampleCode: sampleCode.trim(),
+    analysisType: analysisType || "physical_chemical",
+    analystName: analystName.trim(),
+    reviewerName: reviewerName || null,
+    notes: notes || null,
+  }).where(eq(qualityAnalysesTable.id, id)).returning();
 
-  if (!analysis) {
-    res.status(404).json({ error: "Análise não encontrada" });
-    return;
-  }
-
+  if (!analysis) { res.status(404).json({ error: "Análise não encontrada" }); return; }
   res.json(analysis);
 });
 
 router.delete("/qualidade/analyses/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
-
-  const [deleted] = await db
-    .delete(qualityAnalysesTable)
-    .where(eq(qualityAnalysesTable.id, id))
-    .returning({ id: qualityAnalysesTable.id });
-
-  if (!deleted) {
-    res.status(404).json({ error: "Análise não encontrada" });
-    return;
-  }
-
+  const [deleted] = await db.delete(qualityAnalysesTable).where(eq(qualityAnalysesTable.id, id)).returning({ id: qualityAnalysesTable.id });
+  if (!deleted) { res.status(404).json({ error: "Análise não encontrada" }); return; }
   res.json({ ok: true });
 });
 
 router.post("/qualidade/analyses/:id/start", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
   const [existing] = await db.select().from(qualityAnalysesTable).where(eq(qualityAnalysesTable.id, id));
   if (!existing) { res.status(404).json({ error: "Análise não encontrada" }); return; }
+  if (existing.status !== "pending") { res.status(400).json({ error: "Apenas análises pendentes podem ser iniciadas" }); return; }
 
-  if (existing.status !== "pending") {
-    res.status(400).json({ error: "Apenas análises pendentes podem ser iniciadas" });
-    return;
-  }
-
-  const [analysis] = await db
-    .update(qualityAnalysesTable)
-    .set({ status: "in_analysis", startedAt: new Date() })
-    .where(eq(qualityAnalysesTable.id, id))
-    .returning();
-
+  const [analysis] = await db.update(qualityAnalysesTable).set({ status: "in_analysis", startedAt: new Date() }).where(eq(qualityAnalysesTable.id, id)).returning();
   res.json(analysis);
 });
 
 router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
   const { result, reviewerName, justification } = req.body ?? {};
-
   if (!result || !["approved", "rejected"].includes(result)) {
     res.status(400).json({ error: "Resultado deve ser approved ou rejected" });
     return;
@@ -511,83 +414,64 @@ router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Respon
 
   const [existing] = await db.select().from(qualityAnalysesTable).where(eq(qualityAnalysesTable.id, id));
   if (!existing) { res.status(404).json({ error: "Análise não encontrada" }); return; }
-
   if (!["pending", "in_analysis"].includes(existing.status)) {
     res.status(400).json({ error: "Análise já foi concluída" });
     return;
   }
 
+  // Fetch parameters for snapshot
+  const params = await db.select().from(analysisParametersTable).where(eq(analysisParametersTable.analysisId, id));
+
   await db.transaction(async (tx) => {
-    // Update analysis
-    await tx
-      .update(qualityAnalysesTable)
-      .set({
-        status: result,
-        reviewerName: reviewerName || existing.reviewerName || null,
-        justification: justification || null,
-        completedAt: new Date(),
-        startedAt: existing.startedAt ?? new Date(),
-      })
-      .where(eq(qualityAnalysesTable.id, id));
+    const now = new Date();
 
-    // Auto-mark all pending parameters as conforming/non-conforming based on result
-    await tx
-      .update(analysisParametersTable)
-      .set({ isConforming: result === "approved" })
-      .where(
-        and(
-          eq(analysisParametersTable.analysisId, id),
-          sql`${analysisParametersTable.isConforming} IS NULL`
-        )
-      );
+    await tx.update(qualityAnalysesTable).set({
+      status: result,
+      reviewerName: reviewerName || existing.reviewerName || null,
+      justification: justification || null,
+      completedAt: now,
+      startedAt: existing.startedAt ?? now,
+    }).where(eq(qualityAnalysesTable.id, id));
 
-    // CQ ↔ Estoque integration: update lot status
+    // Auto-mark pending parameters
+    await tx.update(analysisParametersTable).set({ isConforming: result === "approved" }).where(
+      and(eq(analysisParametersTable.analysisId, id), isNull(analysisParametersTable.isConforming))
+    );
+
+    // CQ ↔ Estoque: idempotent lot state transition (FIX #5)
     if (existing.lotId) {
-      const [lot] = await tx
-        .select()
-        .from(productLotsTable)
-        .where(eq(productLotsTable.id, existing.lotId));
-
+      const [lot] = await tx.select().from(productLotsTable).where(eq(productLotsTable.id, existing.lotId));
       if (lot) {
+        const prevAvailable = parseFloat(String(lot.availableQty));
+        const totalQty = parseFloat(String(lot.totalQty));
+        const reservedQty = parseFloat(String(lot.reservedQty));
         let stockDelta = 0;
         const lotUpdates: Record<string, unknown> = {};
 
         if (result === "approved") {
+          // Released = totalQty - reservedQty (max available after releasing quarantine)
+          const released = Math.max(0, totalQty - reservedQty);
           lotUpdates.cqStatus = "approved";
-          const released = parseFloat(
-            Math.max(
-              0,
-              parseFloat(String(lot.totalQty)) -
-              parseFloat(String(lot.reservedQty)) -
-              parseFloat(String(lot.blockedQty))
-            ).toFixed(3)
-          );
           lotUpdates.availableQty = String(released);
-          stockDelta = released;
+          lotUpdates.blockedQty = "0"; // clear any prior block
+          // Only add delta that wasn't already available (idempotent)
+          stockDelta = released - prevAvailable;
         } else {
+          // rejected: block all stock — only subtract what was currently available
           lotUpdates.cqStatus = "blocked";
           lotUpdates.availableQty = "0";
-          lotUpdates.blockedQty = lot.totalQty;
-          if (lot.cqStatus === "approved") {
-            const wasAvailable = parseFloat(String(lot.availableQty));
-            if (wasAvailable > 0) stockDelta = -wasAvailable;
-          }
+          lotUpdates.blockedQty = String(totalQty);
+          stockDelta = -prevAvailable;
         }
 
-        await tx
-          .update(productLotsTable)
-          .set(lotUpdates)
-          .where(eq(productLotsTable.id, existing.lotId));
+        await tx.update(productLotsTable).set(lotUpdates).where(eq(productLotsTable.id, existing.lotId));
 
         if (stockDelta !== 0 && lot.productId) {
-          await tx
-            .update(productsTable)
-            .set({
-              currentStock: stockDelta > 0
-                ? sql`${productsTable.currentStock} + ${stockDelta}`
-                : sql`GREATEST(${productsTable.currentStock} + ${stockDelta}, 0)`,
-            })
-            .where(eq(productsTable.id, lot.productId));
+          await tx.update(productsTable).set({
+            currentStock: stockDelta > 0
+              ? sql`${productsTable.currentStock} + ${stockDelta}`
+              : sql`GREATEST(${productsTable.currentStock} + ${stockDelta}, 0)`,
+          }).where(eq(productsTable.id, lot.productId));
 
           await tx.insert(stockMovementsTable).values({
             productId: lot.productId,
@@ -602,7 +486,6 @@ router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Respon
           });
         }
 
-        // Auto-create NCR on rejection
         if (result === "rejected") {
           await tx.insert(qualityNcrsTable).values({
             productId: lot.productId,
@@ -621,7 +504,6 @@ router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Respon
         }
       }
     } else if (result === "rejected") {
-      // No lot linked but still create NCR
       await tx.insert(qualityNcrsTable).values({
         productId: existing.productId,
         productName: existing.productName,
@@ -637,62 +519,81 @@ router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Respon
         resolvedAt: null,
       });
     }
+
+    // FIX #3: Persist quality certificate (parameters snapshot as JSON)
+    const certParams = params.map((p) => ({
+      parameterName: p.parameterName,
+      specification: p.specification,
+      minValue: p.minValue,
+      maxValue: p.maxValue,
+      resultValue: p.resultValue,
+      unit: p.unit,
+      isConforming: p.isConforming,
+    }));
+
+    const [newCert] = await tx.insert(qualityCertificatesTable).values({
+      analysisId: id,
+      certificateNumber: "PENDING",
+      sampleCode: existing.sampleCode,
+      productId: existing.productId,
+      productName: existing.productName,
+      internalLot: existing.internalLot,
+      analysisType: existing.analysisType,
+      result,
+      analystName: existing.analystName,
+      reviewerName: reviewerName || existing.reviewerName || null,
+      justification: justification || null,
+      parametersSnapshot: JSON.stringify(certParams),
+      issuedAt: now,
+    }).returning();
+
+    // Update certificate number now that we have the real ID
+    if (newCert) {
+      await tx.update(qualityCertificatesTable)
+        .set({ certificateNumber: certNumber(newCert.id) })
+        .where(eq(qualityCertificatesTable.id, newCert.id));
+    }
   });
 
-  // Return analysis with parameters
   const [analysis] = await db.select().from(qualityAnalysesTable).where(eq(qualityAnalysesTable.id, id));
-  const parameters = await db.select().from(analysisParametersTable).where(eq(analysisParametersTable.analysisId, id));
-
-  res.json({ ...analysis, parameters });
+  const updatedParams = await db.select().from(analysisParametersTable).where(eq(analysisParametersTable.analysisId, id));
+  res.json({ ...analysis, parameters: updatedParams });
 });
 
 // ─── Analysis Parameters ──────────────────────────────────────────────────────
 
 router.post("/qualidade/analyses/:id/parameters", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const analysisId = parseId(req.params.id, res);
   if (analysisId === null) return;
 
   const { parameterName, specification, minValue, maxValue, resultValue, unit, isConforming } = req.body;
+  if (!parameterName?.trim()) { res.status(400).json({ error: "Nome do parâmetro é obrigatório" }); return; }
 
-  if (!parameterName?.trim()) {
-    res.status(400).json({ error: "Nome do parâmetro é obrigatório" });
-    return;
-  }
-
-  const [param] = await db
-    .insert(analysisParametersTable)
-    .values({
-      analysisId,
-      parameterName: parameterName.trim(),
-      specification: specification || null,
-      minValue: minValue || null,
-      maxValue: maxValue || null,
-      resultValue: resultValue || null,
-      unit: unit || null,
-      isConforming: isConforming !== undefined ? Boolean(isConforming) : null,
-    })
-    .returning();
+  const [param] = await db.insert(analysisParametersTable).values({
+    analysisId,
+    parameterName: parameterName.trim(),
+    specification: specification || null,
+    minValue: minValue || null,
+    maxValue: maxValue || null,
+    resultValue: resultValue || null,
+    unit: unit || null,
+    isConforming: isConforming !== undefined && isConforming !== null ? Boolean(isConforming) : null,
+  }).returning();
 
   res.status(201).json(param);
 });
 
 router.put("/qualidade/parameters/:parameterId", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const parameterId = parseId(req.params.parameterId, res);
   if (parameterId === null) return;
 
   const { parameterName, specification, minValue, maxValue, resultValue, unit, isConforming } = req.body;
+  if (!parameterName?.trim()) { res.status(400).json({ error: "Nome do parâmetro é obrigatório" }); return; }
 
-  if (!parameterName?.trim()) {
-    res.status(400).json({ error: "Nome do parâmetro é obrigatório" });
-    return;
-  }
-
-  // Auto-check conformance based on min/max if result provided
-  let resolvedIsConforming: boolean | null = isConforming !== undefined ? Boolean(isConforming) : null;
+  let resolvedIsConforming: boolean | null = isConforming !== undefined && isConforming !== null ? Boolean(isConforming) : null;
+  // Auto-check conformance by min/max if result provided and no explicit override
   if (resultValue && resolvedIsConforming === null) {
     const rv = parseFloat(resultValue);
     if (!isNaN(rv)) {
@@ -704,45 +605,44 @@ router.put("/qualidade/parameters/:parameterId", async (req: Request, res: Respo
     }
   }
 
-  const [param] = await db
-    .update(analysisParametersTable)
-    .set({
-      parameterName: parameterName.trim(),
-      specification: specification || null,
-      minValue: minValue || null,
-      maxValue: maxValue || null,
-      resultValue: resultValue || null,
-      unit: unit || null,
-      isConforming: resolvedIsConforming,
-    })
-    .where(eq(analysisParametersTable.id, parameterId))
-    .returning();
+  const [param] = await db.update(analysisParametersTable).set({
+    parameterName: parameterName.trim(),
+    specification: specification || null,
+    minValue: minValue || null,
+    maxValue: maxValue || null,
+    resultValue: resultValue || null,
+    unit: unit || null,
+    isConforming: resolvedIsConforming,
+  }).where(eq(analysisParametersTable.id, parameterId)).returning();
 
-  if (!param) {
-    res.status(404).json({ error: "Parâmetro não encontrado" });
-    return;
-  }
-
+  if (!param) { res.status(404).json({ error: "Parâmetro não encontrado" }); return; }
   res.json(param);
 });
 
 router.delete("/qualidade/parameters/:parameterId", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-
   const parameterId = parseId(req.params.parameterId, res);
   if (parameterId === null) return;
-
-  const [deleted] = await db
-    .delete(analysisParametersTable)
-    .where(eq(analysisParametersTable.id, parameterId))
-    .returning({ id: analysisParametersTable.id });
-
-  if (!deleted) {
-    res.status(404).json({ error: "Parâmetro não encontrado" });
-    return;
-  }
-
+  const [deleted] = await db.delete(analysisParametersTable).where(eq(analysisParametersTable.id, parameterId)).returning({ id: analysisParametersTable.id });
+  if (!deleted) { res.status(404).json({ error: "Parâmetro não encontrado" }); return; }
   res.json({ ok: true });
+});
+
+// ─── Quality Certificates ─────────────────────────────────────────────────────
+
+router.get("/qualidade/certificates", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const rows = await db.select().from(qualityCertificatesTable).orderBy(desc(qualityCertificatesTable.issuedAt));
+  res.json(rows);
+});
+
+router.get("/qualidade/certificates/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [cert] = await db.select().from(qualityCertificatesTable).where(eq(qualityCertificatesTable.id, id));
+  if (!cert) { res.status(404).json({ error: "Certificado não encontrado" }); return; }
+  res.json(cert);
 });
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
@@ -750,24 +650,18 @@ router.delete("/qualidade/parameters/:parameterId", async (req: Request, res: Re
 router.get("/qualidade/dashboard", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  // Inspection stats
   const [totalInsp] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityInspectionsTable);
   const [approvedRow] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityInspectionsTable).where(eq(qualityInspectionsTable.result, "approved"));
   const [rejectedRow] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityInspectionsTable).where(eq(qualityInspectionsTable.result, "rejected"));
   const [conditionalRow] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityInspectionsTable).where(eq(qualityInspectionsTable.result, "conditional"));
 
-  // NCR stats
   const [openNcrs] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityNcrsTable).where(eq(qualityNcrsTable.status, "open"));
-  const [criticalNcrs] = await db
-    .select({ count: sql<number>`COUNT(*)::int` })
-    .from(qualityNcrsTable)
-    .where(and(eq(qualityNcrsTable.severity, "critical"), sql`${qualityNcrsTable.status} IN ('open', 'in_progress')`));
+  const [criticalNcrs] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityNcrsTable).where(and(eq(qualityNcrsTable.severity, "critical"), sql`${qualityNcrsTable.status} IN ('open','in_progress')`));
 
   const total = Number(totalInsp?.count ?? 0);
   const approved = Number(approvedRow?.count ?? 0);
   const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
-  // Analysis stats
   const [pendingAnalyses] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityAnalysesTable).where(eq(qualityAnalysesTable.status, "pending"));
   const [inAnalysisRow] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityAnalysesTable).where(eq(qualityAnalysesTable.status, "in_analysis"));
   const [approvedAnalyses] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(qualityAnalysesTable).where(eq(qualityAnalysesTable.status, "approved"));
@@ -776,37 +670,40 @@ router.get("/qualidade/dashboard", async (req: Request, res: Response): Promise<
   const totalAnalyses = Number(approvedAnalyses?.count ?? 0) + Number(rejectedAnalyses?.count ?? 0);
   const analysisApprovalRate = totalAnalyses > 0 ? Math.round((Number(approvedAnalyses?.count ?? 0) / totalAnalyses) * 100) : 0;
 
-  // Average analysis duration (completed only)
-  const [avgRow] = await db
-    .select({ avg: sql<string>`AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400)::text` })
-    .from(qualityAnalysesTable)
-    .where(and(
-      sql`${qualityAnalysesTable.completedAt} IS NOT NULL`,
-      sql`${qualityAnalysesTable.status} IN ('approved', 'rejected')`
-    ));
+  const [avgRow] = await db.select({ avg: sql<string>`AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 86400)::text` }).from(qualityAnalysesTable).where(
+    and(sql`${qualityAnalysesTable.completedAt} IS NOT NULL`, sql`${qualityAnalysesTable.status} IN ('approved','rejected')`)
+  );
   const avgDays = avgRow?.avg ? parseFloat(avgRow.avg) : null;
   const avgAnalysisDaysStr = avgDays !== null ? `${avgDays.toFixed(1)} dias` : "—";
 
-  // Recent analyses
-  const recentAnalyses = await db
-    .select()
-    .from(qualityAnalysesTable)
-    .orderBy(desc(qualityAnalysesTable.createdAt))
-    .limit(5);
-
-  // Recent inspections
+  const recentAnalyses = await db.select().from(qualityAnalysesTable).orderBy(desc(qualityAnalysesTable.createdAt)).limit(5);
   const recentInspections = await db.select().from(qualityInspectionsTable).orderBy(desc(qualityInspectionsTable.createdAt)).limit(5);
-
-  // Open NCRs
-  const openNcrList = await db
-    .select()
-    .from(qualityNcrsTable)
-    .where(sql`${qualityNcrsTable.status} IN ('open', 'in_progress')`)
-    .orderBy(
-      sql`CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`,
-      desc(qualityNcrsTable.createdAt)
-    )
+  const openNcrList = await db.select().from(qualityNcrsTable)
+    .where(sql`${qualityNcrsTable.status} IN ('open','in_progress')`)
+    .orderBy(sql`CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`, desc(qualityNcrsTable.createdAt))
     .limit(5);
+
+  // FIX #4: Parameter rejection index — top non-conforming parameters across all analyses
+  const topRejectedParametersRaw = await db
+    .select({
+      parameterName: analysisParametersTable.parameterName,
+      rejectCount: sql<number>`COUNT(*) FILTER (WHERE is_conforming = false)::int`,
+      totalCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(analysisParametersTable)
+    .groupBy(analysisParametersTable.parameterName)
+    .having(sql`COUNT(*) > 0`)
+    .orderBy(sql`COUNT(*) FILTER (WHERE is_conforming = false) DESC`)
+    .limit(10);
+
+  const topRejectedParameters = topRejectedParametersRaw
+    .filter((r) => Number(r.rejectCount) > 0)
+    .map((r) => ({
+      parameterName: r.parameterName,
+      rejectCount: Number(r.rejectCount),
+      totalCount: Number(r.totalCount),
+      rejectionRate: Number(r.totalCount) > 0 ? Math.round((Number(r.rejectCount) / Number(r.totalCount)) * 100) : 0,
+    }));
 
   res.json({
     totalInspections: total,
@@ -823,6 +720,7 @@ router.get("/qualidade/dashboard", async (req: Request, res: Response): Promise<
     analysisApprovalRate,
     avgAnalysisDaysStr,
     recentAnalyses,
+    topRejectedParameters,
   });
 });
 

@@ -99,6 +99,7 @@ import type {
   QualityAnalysis,
   QualityAnalysisDetail,
   QualityAnalysisInput,
+  QualityCertificate,
   QualityInspection,
   QualityInspectionInput,
   QualityNcr,
@@ -6479,6 +6480,160 @@ export const useDeleteAnalysisParameter = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteAnalysisParameterMutationOptions(options));
     }
+
+export const getListQualityCertificatesUrl = () => {
+
+
+
+
+  return `/api/qualidade/certificates`
+}
+
+/**
+ * @summary List quality certificates
+ */
+export const listQualityCertificates = async ( options?: RequestInit): Promise<QualityCertificate[]> => {
+
+  return customFetch<QualityCertificate[]>(getListQualityCertificatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQualityCertificatesQueryKey = () => {
+    return [
+    `/api/qualidade/certificates`
+    ] as const;
+    }
+
+
+export const getListQualityCertificatesQueryOptions = <TData = Awaited<ReturnType<typeof listQualityCertificates>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQualityCertificates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQualityCertificatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQualityCertificates>>> = ({ signal }) => listQualityCertificates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQualityCertificates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQualityCertificatesQueryResult = NonNullable<Awaited<ReturnType<typeof listQualityCertificates>>>
+export type ListQualityCertificatesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List quality certificates
+ */
+
+export function useListQualityCertificates<TData = Awaited<ReturnType<typeof listQualityCertificates>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQualityCertificates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQualityCertificatesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetQualityCertificateUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/certificates/${id}`
+}
+
+/**
+ * @summary Get one certificate by id
+ */
+export const getQualityCertificate = async (id: number, options?: RequestInit): Promise<QualityCertificate> => {
+
+  return customFetch<QualityCertificate>(getGetQualityCertificateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQualityCertificateQueryKey = (id: number,) => {
+    return [
+    `/api/qualidade/certificates/${id}`
+    ] as const;
+    }
+
+
+export const getGetQualityCertificateQueryOptions = <TData = Awaited<ReturnType<typeof getQualityCertificate>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQualityCertificate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQualityCertificateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQualityCertificate>>> = ({ signal }) => getQualityCertificate(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQualityCertificate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQualityCertificateQueryResult = NonNullable<Awaited<ReturnType<typeof getQualityCertificate>>>
+export type GetQualityCertificateQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get one certificate by id
+ */
+
+export function useGetQualityCertificate<TData = Awaited<ReturnType<typeof getQualityCertificate>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQualityCertificate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQualityCertificateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetVendasDashboardUrl = (params?: GetVendasDashboardParams,) => {
   const normalizedParams = new URLSearchParams();

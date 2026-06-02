@@ -73,6 +73,24 @@ export const analysisParametersTable = pgTable("analysis_parameters", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const qualityCertificatesTable = pgTable("quality_certificates", {
+  id: serial("id").primaryKey(),
+  analysisId: integer("analysis_id").references(() => qualityAnalysesTable.id),
+  certificateNumber: text("certificate_number").notNull(),
+  sampleCode: text("sample_code").notNull(),
+  productId: integer("product_id").references(() => productsTable.id),
+  productName: text("product_name"),
+  internalLot: text("internal_lot"),
+  analysisType: text("analysis_type").notNull(),
+  result: text("result").notNull(), // 'approved' | 'rejected'
+  analystName: text("analyst_name").notNull(),
+  reviewerName: text("reviewer_name"),
+  justification: text("justification"),
+  parametersSnapshot: text("parameters_snapshot"), // JSON string snapshot
+  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const qualityInspectionsRelations = relations(qualityInspectionsTable, ({ one, many }) => ({
@@ -130,3 +148,7 @@ export type QualityAnalysis = typeof qualityAnalysesTable.$inferSelect;
 export const insertAnalysisParameterSchema = createInsertSchema(analysisParametersTable).omit({ id: true, createdAt: true });
 export type InsertAnalysisParameter = z.infer<typeof insertAnalysisParameterSchema>;
 export type AnalysisParameter = typeof analysisParametersTable.$inferSelect;
+
+export const insertQualityCertificateSchema = createInsertSchema(qualityCertificatesTable).omit({ id: true, createdAt: true });
+export type InsertQualityCertificate = z.infer<typeof insertQualityCertificateSchema>;
+export type QualityCertificate = typeof qualityCertificatesTable.$inferSelect;

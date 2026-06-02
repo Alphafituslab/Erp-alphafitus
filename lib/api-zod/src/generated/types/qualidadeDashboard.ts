@@ -5,6 +5,7 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ParameterRejectionStat } from './parameterRejectionStat';
 import type { QualityAnalysis } from './qualityAnalysis';
 import type { QualityInspection } from './qualityInspection';
 import type { QualityNcr } from './qualityNcr';
@@ -24,4 +25,5 @@ export interface QualidadeDashboard {
   analysisApprovalRate: number;
   avgAnalysisDaysStr: string;
   recentAnalyses: QualityAnalysis[];
+  topRejectedParameters?: ParameterRejectionStat[];
 }

@@ -2842,6 +2842,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /qualidade/certificates:
+    get:
+      operationId: listQualityCertificates
+      tags: [qualidade]
+      summary: List quality certificates
+      responses:
+        "200":
+          description: Certificate list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QualityCertificate"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/certificates/{id}:
+    get:
+      operationId: getQualityCertificate
+      tags: [qualidade]
+      summary: Get one certificate by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Certificate detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityCertificate"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vendas/dashboard:
     get:
       operationId: getVendasDashboard
@@ -5348,6 +5400,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QualityAnalysis"
+        topRejectedParameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParameterRejectionStat"
 
     QualityAnalysis:
       type: object
@@ -5529,6 +5585,75 @@ components:
         justification:
           type: string
           nullable: true
+
+    QualityCertificate:
+      type: object
+      required:
+        - id
+        - certificateNumber
+        - sampleCode
+        - analysisType
+        - result
+        - analystName
+        - issuedAt
+        - createdAt
+      properties:
+        id:
+          type: integer
+        analysisId:
+          type: integer
+          nullable: true
+        certificateNumber:
+          type: string
+        sampleCode:
+          type: string
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        internalLot:
+          type: string
+          nullable: true
+        analysisType:
+          type: string
+        result:
+          type: string
+        analystName:
+          type: string
+        reviewerName:
+          type: string
+          nullable: true
+        justification:
+          type: string
+          nullable: true
+        parametersSnapshot:
+          type: string
+          nullable: true
+        issuedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ParameterRejectionStat:
+      type: object
+      required:
+        - parameterName
+        - rejectCount
+        - totalCount
+        - rejectionRate
+      properties:
+        parameterName:
+          type: string
+        rejectCount:
+          type: integer
+        totalCount:
+          type: integer
+        rejectionRate:
+          type: number
 
     # ── Compras schemas ─────────────────────────────────────────────────────────
 

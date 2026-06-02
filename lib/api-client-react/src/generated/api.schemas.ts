@@ -839,6 +839,13 @@ export interface QualityAnalysis {
   updatedAt: string;
 }
 
+export interface ParameterRejectionStat {
+  parameterName: string;
+  rejectCount: number;
+  totalCount: number;
+  rejectionRate: number;
+}
+
 export interface QualidadeDashboard {
   totalInspections: number;
   approvedCount: number;
@@ -854,6 +861,7 @@ export interface QualidadeDashboard {
   analysisApprovalRate: number;
   avgAnalysisDaysStr: string;
   recentAnalyses: QualityAnalysis[];
+  topRejectedParameters?: ParameterRejectionStat[];
 }
 
 export interface AnalysisParameter {
@@ -917,6 +925,24 @@ export interface CompleteAnalysisInput {
   result: CompleteAnalysisInputResult;
   reviewerName?: string | null;
   justification?: string | null;
+}
+
+export interface QualityCertificate {
+  id: number;
+  analysisId?: number | null;
+  certificateNumber: string;
+  sampleCode: string;
+  productId?: number | null;
+  productName?: string | null;
+  internalLot?: string | null;
+  analysisType: string;
+  result: string;
+  analystName: string;
+  reviewerName?: string | null;
+  justification?: string | null;
+  parametersSnapshot?: string | null;
+  issuedAt: string;
+  createdAt: string;
 }
 
 export type SupplierApprovalStatus = typeof SupplierApprovalStatus[keyof typeof SupplierApprovalStatus];

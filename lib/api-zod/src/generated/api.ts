@@ -2109,7 +2109,13 @@ export const GetQualidadeDashboardResponse = zod.object({
   "completedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-}))
+})),
+  "topRejectedParameters": zod.array(zod.object({
+  "parameterName": zod.string(),
+  "rejectCount": zod.number(),
+  "totalCount": zod.number(),
+  "rejectionRate": zod.number()
+})).optional()
 })
 
 
@@ -2381,6 +2387,55 @@ export const DeleteAnalysisParameterParams = zod.object({
 
 export const DeleteAnalysisParameterResponse = zod.object({
   "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List quality certificates
+ */
+export const ListQualityCertificatesResponseItem = zod.object({
+  "id": zod.number(),
+  "analysisId": zod.number().nullish(),
+  "certificateNumber": zod.string(),
+  "sampleCode": zod.string(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "analysisType": zod.string(),
+  "result": zod.string(),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "parametersSnapshot": zod.string().nullish(),
+  "issuedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+export const ListQualityCertificatesResponse = zod.array(ListQualityCertificatesResponseItem)
+
+
+/**
+ * @summary Get one certificate by id
+ */
+export const GetQualityCertificateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetQualityCertificateResponse = zod.object({
+  "id": zod.number(),
+  "analysisId": zod.number().nullish(),
+  "certificateNumber": zod.string(),
+  "sampleCode": zod.string(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "internalLot": zod.string().nullish(),
+  "analysisType": zod.string(),
+  "result": zod.string(),
+  "analystName": zod.string(),
+  "reviewerName": zod.string().nullish(),
+  "justification": zod.string().nullish(),
+  "parametersSnapshot": zod.string().nullish(),
+  "issuedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
 })
 
 

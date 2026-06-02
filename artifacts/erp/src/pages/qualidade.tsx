@@ -14,6 +14,7 @@ import {
   useResolveQualityNcr,
   useGetQualidadeDashboard,
   useListProducts,
+  useListProductLots,
   useListQualityAnalyses,
   useCreateQualityAnalysis,
   useUpdateQualityAnalysis,
@@ -24,11 +25,13 @@ import {
   useAddAnalysisParameter,
   useUpdateAnalysisParameter,
   useDeleteAnalysisParameter,
+  useListQualityCertificates,
   getListQualityInspectionsQueryKey,
   getListQualityNcrsQueryKey,
   getGetQualidadeDashboardQueryKey,
   getListQualityAnalysesQueryKey,
   getGetQualityAnalysisQueryKey,
+  getListQualityCertificatesQueryKey,
 } from "@workspace/api-client-react";
 import type {
   QualityInspection,
@@ -36,6 +39,7 @@ import type {
   QualityAnalysis,
   QualityAnalysisDetail,
   AnalysisParameter,
+  QualityCertificate,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -541,6 +545,7 @@ function NcrDialog({
 // ─── Analysis Dialog (create / edit) ─────────────────────────────────────────
 
 const analysisSchema = z.object({
+  lotId: z.string().optional(),
   sampleCode: z.string().min(1, "Obrigatório"),
   analysisType: z.enum(["physical_chemical", "microbiological", "organoleptic", "full"]),
   analystName: z.string().min(1, "Obrigatório"),
@@ -564,33 +569,55 @@ function AnalysisDialog({
   };
   const createM = useCreateQualityAnalysis();
   const updateM = useUpdateQualityAnalysis();
+
+  // FIX #1: Fetch quarantine lots to populate lot selector
+  const { data: allLots = [] } = useListProductLots({});
+  const quarantineLots = useMemo(
+    () => allLots.filter((l) => l.cqStatus === "quarantine"),
+    [allLots]
+  );
+
   const form = useForm<AnalysisForm>({
     resolver: zodResolver(analysisSchema),
     values: editing ? {
+      lotId: editing.lotId ? String(editing.lotId) : "none",
       sampleCode: editing.sampleCode,
       analysisType: editing.analysisType as AnalysisForm["analysisType"],
       analystName: editing.analystName,
       reviewerName: editing.reviewerName ?? "",
-      productId: editing.productId ? String(editing.productId) : "",
+      productId: editing.productId ? String(editing.productId) : "none",
       internalLot: editing.internalLot ?? "",
       notes: editing.notes ?? "",
     } : {
+      lotId: "none",
       sampleCode: `AM-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
       analysisType: "physical_chemical",
       analystName: "",
       reviewerName: "",
-      productId: "",
+      productId: "none",
       internalLot: "",
       notes: "",
     },
   });
+
+  // When lot is selected, auto-populate product and internalLot fields
+  const watchedLotId = form.watch("lotId");
+  useMemo(() => {
+    if (!watchedLotId || watchedLotId === "none") return;
+    const lot = allLots.find((l) => String(l.id) === watchedLotId);
+    if (!lot) return;
+    if (lot.internalLot) form.setValue("internalLot", lot.internalLot);
+    if (lot.productId) form.setValue("productId", String(lot.productId));
+  }, [watchedLotId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onSubmit = form.handleSubmit((data) => {
     const payload = {
+      lotId: data.lotId && data.lotId !== "none" ? parseInt(data.lotId) : null,
       sampleCode: data.sampleCode,
       analysisType: data.analysisType,
       analystName: data.analystName,
       reviewerName: data.reviewerName || null,
-      productId: data.productId ? parseInt(data.productId) : null,
+      productId: data.productId && data.productId !== "none" ? parseInt(data.productId) : null,
       internalLot: data.internalLot || null,
       notes: data.notes || null,
     };
@@ -606,6 +633,24 @@ function AnalysisDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>{editing ? "Editar Análise" : "Nova Análise CQ"}</DialogTitle></DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3 pt-1">
+          {/* Lot selector — primary field for quarantine lot release */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Lote em Quarentena</label>
+            <Controller control={form.control} name="lotId" render={({ field }) => (
+              <Select value={field.value ?? "none"} onValueChange={field.onChange}>
+                <SelectTrigger><SelectValue placeholder="Selecionar lote (opcional)…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Nenhum lote vinculado —</SelectItem>
+                  {quarantineLots.map((l) => (
+                    <SelectItem key={l.id} value={String(l.id)}>
+                      {l.internalLot} — {products.find((p) => p.id === l.productId)?.name ?? `Produto #${l.productId}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )} />
+            <p className="text-xs text-muted-foreground">Lotes em quarentena aguardando liberação CQ</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Código da Amostra *</label>
@@ -631,10 +676,10 @@ function AnalysisDialog({
             <div className="space-y-1">
               <label className="text-sm font-medium">Produto</label>
               <Controller control={form.control} name="productId" render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                <Select value={field.value ?? "none"} onValueChange={field.onChange}>
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Nenhum —</SelectItem>
+                    <SelectItem value="none">— Nenhum —</SelectItem>
                     {products.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -1090,11 +1135,15 @@ export default function QualidadePage() {
   const [completeAnalysis, setCompleteAnalysis] = useState<QualityAnalysisDetail | null>(null);
   const [deleteAnalysis, setDeleteAnalysis] = useState<QualityAnalysis | null>(null);
 
+  // Certificates state
+  const [certSearch, setCertSearch] = useState("");
+
   const { data: inspections = [], isLoading: inspLoading } = useListQualityInspections({});
   const { data: ncrs = [], isLoading: ncrsLoading } = useListQualityNcrs({});
   const { data: dashboard } = useGetQualidadeDashboard();
   const { data: products = [] } = useListProducts({});
   const { data: analyses = [], isLoading: analysesLoading } = useListQualityAnalyses({});
+  const { data: certificates = [], isLoading: certsLoading } = useListQualityCertificates();
 
   const deleteInspMutation = useDeleteQualityInspection();
   const deleteNcrMutation = useDeleteQualityNcr();
@@ -1168,6 +1217,7 @@ export default function QualidadePage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="certificates">Certificados</TabsTrigger>
             <TabsTrigger value="inspections">Inspeções</TabsTrigger>
             <TabsTrigger value="ncrs">Não Conformidades</TabsTrigger>
           </TabsList>
@@ -1380,6 +1430,53 @@ export default function QualidadePage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* FIX #4: Top rejected parameters panel */}
+            {(dashboard?.topRejectedParameters ?? []).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                    Parâmetros com maior índice de reprovação
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Parâmetro</TableHead>
+                        <TableHead className="text-right">Reprovações</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Taxa</TableHead>
+                        <TableHead className="w-48">Barra</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(dashboard?.topRejectedParameters ?? []).map((p) => (
+                        <TableRow key={p.parameterName}>
+                          <TableCell className="font-medium text-sm">{p.parameterName}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums text-destructive font-semibold">{p.rejectCount}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{p.totalCount}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums font-semibold">
+                            <span className={p.rejectionRate >= 50 ? "text-destructive" : p.rejectionRate >= 25 ? "text-amber-600" : "text-yellow-600"}>
+                              {p.rejectionRate}%
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${p.rejectionRate >= 50 ? "bg-destructive" : p.rejectionRate >= 25 ? "bg-amber-500" : "bg-yellow-400"}`}
+                                style={{ width: `${Math.min(p.rejectionRate, 100)}%` }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* ── ANALYSES TAB ──────────────────────────────────────────────── */}
@@ -1546,6 +1643,109 @@ export default function QualidadePage() {
                         </TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── CERTIFICATES TAB ──────────────────────────────────────────── */}
+          <TabsContent value="certificates" className="space-y-4 mt-4">
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <Input
+                className="w-64"
+                placeholder="Buscar certificado, produto, analista…"
+                value={certSearch}
+                onChange={(e) => setCertSearch(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">{certificates.length} certificado{certificates.length !== 1 ? "s" : ""} emitido{certificates.length !== 1 ? "s" : ""}</p>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nº Certificado</TableHead>
+                      <TableHead>Amostra</TableHead>
+                      <TableHead>Produto / Lote</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Resultado</TableHead>
+                      <TableHead>Analista</TableHead>
+                      <TableHead>Emissão</TableHead>
+                      <TableHead className="text-right">Laudo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {certsLoading && (
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">Carregando…</TableCell></TableRow>
+                    )}
+                    {!certsLoading && certificates.length === 0 && (
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">Nenhum certificado emitido ainda</TableCell></TableRow>
+                    )}
+                    {certificates
+                      .filter((c) => {
+                        if (!certSearch) return true;
+                        const q = certSearch.toLowerCase();
+                        return (
+                          c.certificateNumber.toLowerCase().includes(q) ||
+                          c.sampleCode.toLowerCase().includes(q) ||
+                          (c.productName ?? "").toLowerCase().includes(q) ||
+                          (c.internalLot ?? "").toLowerCase().includes(q) ||
+                          c.analystName.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((cert) => (
+                        <TableRow key={cert.id}>
+                          <TableCell className="font-mono text-sm font-medium">{cert.certificateNumber}</TableCell>
+                          <TableCell className="text-sm font-medium">{cert.sampleCode}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">{cert.productName ?? "—"}</div>
+                            {cert.internalLot && <div className="text-xs text-muted-foreground">{cert.internalLot}</div>}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{analysisTypeLabel(cert.analysisType)}</TableCell>
+                          <TableCell>
+                            <Badge variant={cert.result === "approved" ? "default" : "destructive"} className="text-xs">
+                              {cert.result === "approved" ? "Aprovado" : "Reprovado"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{cert.analystName}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{fmtDate(cert.issuedAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Baixar laudo"
+                              onClick={() => {
+                                if (!cert.parametersSnapshot) return;
+                                let params: AnalysisParameter[] = [];
+                                try { params = JSON.parse(cert.parametersSnapshot); } catch { /* ignore */ }
+                                generateLaudo({
+                                  id: cert.analysisId ?? 0,
+                                  sampleCode: cert.sampleCode,
+                                  analysisType: cert.analysisType as QualityAnalysisDetail["analysisType"],
+                                  status: cert.result as QualityAnalysisDetail["status"],
+                                  analystName: cert.analystName,
+                                  reviewerName: cert.reviewerName ?? null,
+                                  justification: cert.justification ?? null,
+                                  productId: cert.productId ?? null,
+                                  productName: cert.productName ?? null,
+                                  internalLot: cert.internalLot ?? null,
+                                  lotId: null,
+                                  notes: null,
+                                  startedAt: null,
+                                  completedAt: cert.issuedAt,
+                                  createdAt: cert.createdAt,
+                                  updatedAt: cert.createdAt,
+                                  parameters: params,
+                                });
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </CardContent>
