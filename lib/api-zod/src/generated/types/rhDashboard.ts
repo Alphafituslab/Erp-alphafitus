@@ -7,6 +7,7 @@
  */
 import type { Employee } from './employee';
 import type { RhDashboardAttendance } from './rhDashboardAttendance';
+import type { TrainingAlert } from './trainingAlert';
 
 export interface RhDashboard {
   totalEmployees: number;
@@ -16,4 +17,7 @@ export interface RhDashboard {
   currentMonth: string;
   attendanceThisMonth: RhDashboardAttendance;
   recentEmployees: Employee[];
+  totalMandatoryTrainings: number;
+  overallComplianceRate: number;
+  trainingAlerts: TrainingAlert[];
 }

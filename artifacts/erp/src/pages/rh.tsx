@@ -19,16 +19,31 @@ import {
   useDeleteAttendanceLog,
   useGetAttendanceSummary,
   useGetRhDashboard,
+  useListTrainings,
+  useCreateTraining,
+  useUpdateTraining,
+  useDeleteTraining,
+  useGetTrainingMatrix,
+  useGetTrainingCompliance,
+  useListEmployeeTrainings,
+  useAddEmployeeTraining,
+  useDeleteEmployeeTraining,
   getListEmployeesQueryKey,
   getListDepartmentsQueryKey,
   getListAttendanceLogsQueryKey,
   getGetRhDashboardQueryKey,
+  getListTrainingsQueryKey,
+  getGetTrainingMatrixQueryKey,
+  getGetTrainingComplianceQueryKey,
+  getListEmployeeTrainingsQueryKey,
 } from "@workspace/api-client-react";
 import type {
   Employee,
   EmployeeWithAttendance,
   Department,
   AttendanceLog,
+  Training,
+  EmployeeTraining,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +100,12 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  GraduationCap,
+  BookOpen,
+  AlertTriangle,
+  BarChart3,
+  ShieldCheck,
+  Award,
 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -738,6 +759,385 @@ function AttendanceDialog({
   );
 }
 
+// ─── Training Status Helpers ──────────────────────────────────────────────────
+
+function trainingStatusLabel(s: string) {
+  if (s === "up_to_date") return "Em dia";
+  if (s === "expiring_soon") return "Vencendo";
+  if (s === "expired") return "Vencido";
+  return "Não realizado";
+}
+
+function trainingStatusColor(s: string): string {
+  if (s === "up_to_date") return "bg-green-100 text-green-800";
+  if (s === "expiring_soon") return "bg-yellow-100 text-yellow-800";
+  if (s === "expired") return "bg-red-100 text-red-800";
+  return "bg-gray-100 text-gray-600";
+}
+
+function trainingMatrixCellClass(s: string): string {
+  if (s === "up_to_date") return "bg-green-500";
+  if (s === "expiring_soon") return "bg-yellow-400";
+  if (s === "expired") return "bg-red-500";
+  return "bg-gray-200";
+}
+
+// ─── Training Dialog ──────────────────────────────────────────────────────────
+
+const trainingSchema = z.object({
+  name: z.string().min(1, "Obrigatório"),
+  description: z.string().optional(),
+  type: z.enum(["mandatory", "optional"]).default("mandatory"),
+  validityMonths: z.string().optional(),
+  targetRole: z.string().optional(),
+});
+type TrainingForm = z.infer<typeof trainingSchema>;
+
+function TrainingDialog({
+  open,
+  onClose,
+  editing,
+}: {
+  open: boolean;
+  onClose: () => void;
+  editing: Training | null;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const createM = useCreateTraining();
+  const updateM = useUpdateTraining();
+
+  const form = useForm<TrainingForm>({
+    resolver: zodResolver(trainingSchema),
+    defaultValues: { name: "", description: "", type: "mandatory", validityMonths: "", targetRole: "" },
+  });
+
+  useEffect(() => {
+    if (open) {
+      if (editing) {
+        form.reset({
+          name: editing.name,
+          description: editing.description ?? "",
+          type: (editing.type as "mandatory" | "optional") ?? "mandatory",
+          validityMonths: editing.validityMonths ? String(editing.validityMonths) : "",
+          targetRole: editing.targetRole ?? "",
+        });
+      } else {
+        form.reset({ name: "", description: "", type: "mandatory", validityMonths: "", targetRole: "" });
+      }
+    }
+  }, [open, editing]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: getListTrainingsQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetTrainingMatrixQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetRhDashboardQueryKey() });
+  };
+
+  const onSubmit = form.handleSubmit((data) => {
+    const payload = {
+      name: data.name,
+      description: data.description || undefined,
+      type: data.type,
+      validityMonths: data.validityMonths ? Number(data.validityMonths) : undefined,
+      targetRole: data.targetRole || undefined,
+    };
+    if (editing) {
+      updateM.mutate(
+        { id: editing.id, data: payload },
+        {
+          onSuccess: () => { toast({ title: "Treinamento atualizado" }); invalidate(); onClose(); },
+          onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+        }
+      );
+    } else {
+      createM.mutate(
+        { data: payload },
+        {
+          onSuccess: () => { toast({ title: "Treinamento criado" }); invalidate(); onClose(); },
+          onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+        }
+      );
+    }
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar Treinamento" : "Novo Treinamento"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label>Nome *</Label>
+            <Input {...form.register("name")} placeholder="Ex: BPF, Uso de EPI, Operação de equipamento" />
+            {form.formState.errors.name && (
+              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label>Descrição</Label>
+            <Textarea {...form.register("description")} rows={2} placeholder="Descrição opcional" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label>Tipo</Label>
+              <Controller
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mandatory">Obrigatório</SelectItem>
+                      <SelectItem value="optional">Opcional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Validade (meses)</Label>
+              <Input {...form.register("validityMonths")} type="number" min="1" placeholder="Ex: 12 (vazio = sem venc.)" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Cargo alvo</Label>
+            <Input {...form.register("targetRole")} placeholder="Ex: Operador (vazio = todos)" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={createM.isPending || updateM.isPending}>
+              {createM.isPending || updateM.isPending ? "Salvando…" : editing ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Record Training Dialog ───────────────────────────────────────────────────
+
+const recordTrainingSchema = z.object({
+  trainingId: z.string().min(1, "Selecione um treinamento"),
+  completedAt: z.string().min(1, "Data de realização obrigatória"),
+  evidenceUrl: z.string().optional(),
+  notes: z.string().optional(),
+});
+type RecordTrainingForm = z.infer<typeof recordTrainingSchema>;
+
+function RecordTrainingDialog({
+  open,
+  onClose,
+  employeeId,
+  employeeName,
+  availableTrainings,
+}: {
+  open: boolean;
+  onClose: () => void;
+  employeeId: number | null;
+  employeeName: string;
+  availableTrainings: Training[];
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const addM = useAddEmployeeTraining();
+
+  const form = useForm<RecordTrainingForm>({
+    resolver: zodResolver(recordTrainingSchema),
+    defaultValues: { trainingId: "", completedAt: "", evidenceUrl: "", notes: "" },
+  });
+
+  useEffect(() => {
+    if (open) form.reset({ trainingId: "", completedAt: new Date().toISOString().slice(0, 10), evidenceUrl: "", notes: "" });
+  }, [open]);
+
+  const invalidate = (empId: number) => {
+    qc.invalidateQueries({ queryKey: getListEmployeeTrainingsQueryKey(empId) });
+    qc.invalidateQueries({ queryKey: getGetTrainingMatrixQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetTrainingComplianceQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetRhDashboardQueryKey() });
+  };
+
+  const onSubmit = form.handleSubmit((data) => {
+    if (!employeeId) return;
+    addM.mutate(
+      {
+        id: employeeId,
+        data: {
+          trainingId: Number(data.trainingId),
+          completedAt: data.completedAt ? new Date(data.completedAt).toISOString() : undefined,
+          evidenceUrl: data.evidenceUrl || undefined,
+          notes: data.notes || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Treinamento registrado" });
+          invalidate(employeeId);
+          onClose();
+        },
+        onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+      }
+    );
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Registrar Treinamento — {employeeName}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label>Treinamento *</Label>
+            <Controller
+              control={form.control}
+              name="trainingId"
+              render={({ field }) => (
+                <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Selecionar —</SelectItem>
+                    {availableTrainings.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.name} {t.type === "mandatory" ? "(Obrigatório)" : "(Opcional)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {form.formState.errors.trainingId && (
+              <p className="text-xs text-destructive">{form.formState.errors.trainingId.message}</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label>Data de realização *</Label>
+            <Input {...form.register("completedAt")} type="date" />
+            {form.formState.errors.completedAt && (
+              <p className="text-xs text-destructive">{form.formState.errors.completedAt.message}</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label>URL da evidência</Label>
+            <Input {...form.register("evidenceUrl")} placeholder="https://…" />
+          </div>
+          <div className="space-y-1">
+            <Label>Observações</Label>
+            <Textarea {...form.register("notes")} rows={2} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={addM.isPending}>
+              {addM.isPending ? "Salvando…" : "Registrar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Employee Training Panel (inline) ────────────────────────────────────────
+
+function EmployeeTrainingPanel({
+  employeeId,
+  employeeName,
+  trainings,
+}: {
+  employeeId: number;
+  employeeName: string;
+  trainings: Training[];
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: records = [] } = useListEmployeeTrainings(employeeId);
+  const deleteM = useDeleteEmployeeTraining();
+  const [recordDialog, setRecordDialog] = useState(false);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: getListEmployeeTrainingsQueryKey(employeeId) });
+    qc.invalidateQueries({ queryKey: getGetTrainingMatrixQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetTrainingComplianceQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetRhDashboardQueryKey() });
+  };
+
+  const handleDelete = (id: number) => {
+    deleteM.mutate(
+      { id },
+      {
+        onSuccess: () => { toast({ title: "Registro removido" }); invalidate(); },
+        onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-muted-foreground">Treinamentos de {employeeName}</h4>
+        <Button size="sm" variant="outline" onClick={() => setRecordDialog(true)}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Registrar
+        </Button>
+      </div>
+      {records.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-2">Nenhum treinamento registrado.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Treinamento</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Realizado</TableHead>
+              <TableHead>Vence</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ação</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {records.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-medium text-sm">{r.trainingName}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    {r.trainingType === "mandatory" ? "Obrigatório" : "Opcional"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm">{r.completedAt ? fmtDate(r.completedAt) : "—"}</TableCell>
+                <TableCell className="text-sm">{r.expiresAt ? fmtDate(r.expiresAt) : "—"}</TableCell>
+                <TableCell>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${trainingStatusColor(r.status)}`}>
+                    {trainingStatusLabel(r.status)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => handleDelete(r.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      <RecordTrainingDialog
+        open={recordDialog}
+        onClose={() => setRecordDialog(false)}
+        employeeId={employeeId}
+        employeeName={employeeName}
+        availableTrainings={trainings}
+      />
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RhPage() {
@@ -785,9 +1185,33 @@ export default function RhPage() {
     { query: { enabled: !!attendanceEmpId } as any }
   );
 
+  // Training state
+  const [trainingSearch, setTrainingSearch] = useState("");
+  const [trainingTypeFilter, setTrainingTypeFilter] = useState("all");
+  const [trainingDialog, setTrainingDialog] = useState(false);
+  const [editingTraining, setEditingTraining] = useState<Training | null>(null);
+  const [deleteTrainingItem, setDeleteTrainingItem] = useState<Training | null>(null);
+  const [trainingEmpId, setTrainingEmpId] = useState<number | null>(null);
+  const [matrixDept, setMatrixDept] = useState("all");
+
+  const { data: trainings = [] } = useListTrainings({});
+  const { data: matrix } = useGetTrainingMatrix({ dept: matrixDept !== "all" ? matrixDept : undefined });
+  const { data: compliance = [] } = useGetTrainingCompliance();
+
+  const filteredTrainings = useMemo(() => {
+    let list = trainings;
+    if (trainingTypeFilter !== "all") list = list.filter((t) => t.type === trainingTypeFilter);
+    if (trainingSearch) {
+      const q = trainingSearch.toLowerCase();
+      list = list.filter((t) => t.name.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q));
+    }
+    return list;
+  }, [trainings, trainingTypeFilter, trainingSearch]);
+
   const deleteEmpM = useDeleteEmployee();
   const deleteDeptM = useDeleteDepartment();
   const deleteAttM = useDeleteAttendanceLog();
+  const deleteTrainingM = useDeleteTraining();
 
   const activeEmployees = useMemo(
     () => employees.filter((e) => e.status === "active"),
@@ -866,6 +1290,23 @@ export default function RhPage() {
     );
   };
 
+  const handleDeleteTraining = () => {
+    if (!deleteTrainingItem) return;
+    deleteTrainingM.mutate(
+      { id: deleteTrainingItem.id },
+      {
+        onSuccess: () => {
+          toast({ title: "Treinamento excluído" });
+          qc.invalidateQueries({ queryKey: getListTrainingsQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetTrainingMatrixQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetRhDashboardQueryKey() });
+          setDeleteTrainingItem(null);
+        },
+        onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+      }
+    );
+  };
+
   const selectedEmployee = useMemo(
     () => employees.find((e) => String(e.id) === attendanceEmpId),
     [employees, attendanceEmpId]
@@ -880,11 +1321,13 @@ export default function RhPage() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="dashboard">Resumo</TabsTrigger>
             <TabsTrigger value="employees">Funcionários</TabsTrigger>
             <TabsTrigger value="departments">Departamentos</TabsTrigger>
             <TabsTrigger value="attendance">Ponto</TabsTrigger>
+            <TabsTrigger value="trainings">Treinamentos</TabsTrigger>
+            <TabsTrigger value="matrix">Matriz</TabsTrigger>
           </TabsList>
 
           {/* ── DASHBOARD TAB ──────────────────────────────────────────────── */}
@@ -1000,6 +1443,132 @@ export default function RhPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Training KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Treinamentos Obrigatórios</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <span className="text-2xl font-bold">{dashboard?.totalMandatoryTrainings ?? 0}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Compliance Geral</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className={`h-5 w-5 ${(dashboard?.overallComplianceRate ?? 100) >= 80 ? "text-green-600" : "text-destructive"}`} />
+                    <span className={`text-2xl font-bold ${(dashboard?.overallComplianceRate ?? 100) >= 80 ? "text-green-600" : "text-destructive"}`}>
+                      {dashboard?.overallComplianceRate ?? 100}%
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Alertas de Vencimento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className={`h-5 w-5 ${(dashboard?.trainingAlerts?.length ?? 0) > 0 ? "text-yellow-500" : "text-muted-foreground"}`} />
+                    <span className={`text-2xl font-bold ${(dashboard?.trainingAlerts?.length ?? 0) > 0 ? "text-yellow-600" : ""}`}>
+                      {dashboard?.trainingAlerts?.length ?? 0}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {(dashboard?.trainingAlerts ?? []).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                    Alertas de Treinamento
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Funcionário</TableHead>
+                        <TableHead>Treinamento</TableHead>
+                        <TableHead>Situação</TableHead>
+                        <TableHead>Vence em</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(dashboard?.trainingAlerts ?? []).map((alert) => (
+                        <TableRow key={alert.employeeTrainingId}>
+                          <TableCell className="font-medium text-sm">{alert.employeeName}</TableCell>
+                          <TableCell className="text-sm">{alert.trainingName}</TableCell>
+                          <TableCell>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${trainingStatusColor(alert.status)}`}>
+                              {trainingStatusLabel(alert.status)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {alert.expiresAt ? fmtDate(alert.expiresAt) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            {compliance.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    Compliance por Departamento
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Departamento</TableHead>
+                        <TableHead className="text-right">Funcionários</TableHead>
+                        <TableHead className="text-right">Conformes</TableHead>
+                        <TableHead className="text-right">Taxa</TableHead>
+                        <TableHead className="w-36">Barra</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {compliance.map((c) => (
+                        <TableRow key={c.department}>
+                          <TableCell className="font-medium text-sm">{c.department}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">{c.totalEmployees}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums text-green-600 font-semibold">{c.compliant}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums font-semibold">
+                            <span className={c.complianceRate >= 80 ? "text-green-600" : c.complianceRate >= 60 ? "text-yellow-600" : "text-destructive"}>
+                              {c.complianceRate}%
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${c.complianceRate >= 80 ? "bg-green-500" : c.complianceRate >= 60 ? "bg-yellow-400" : "bg-destructive"}`}
+                                style={{ width: `${Math.min(c.complianceRate, 100)}%` }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* ── EMPLOYEES TAB ─────────────────────────────────────────────── */}
@@ -1328,6 +1897,238 @@ export default function RhPage() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── TRAININGS TAB ─────────────────────────────────────────────── */}
+          <TabsContent value="trainings" className="space-y-4 mt-4">
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  className="w-56"
+                  placeholder="Buscar treinamento…"
+                  value={trainingSearch}
+                  onChange={(e) => setTrainingSearch(e.target.value)}
+                />
+                <Select value={trainingTypeFilter} onValueChange={setTrainingTypeFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="mandatory">Obrigatório</SelectItem>
+                    <SelectItem value="optional">Opcional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => { setEditingTraining(null); setTrainingDialog(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> Novo treinamento
+              </Button>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Validade</TableHead>
+                      <TableHead>Cargo alvo</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTrainings.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                          Nenhum treinamento cadastrado
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {filteredTrainings.map((t) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-medium">{t.name}</TableCell>
+                        <TableCell>
+                          <Badge variant={t.type === "mandatory" ? "default" : "secondary"} className="text-xs">
+                            {t.type === "mandatory" ? "Obrigatório" : "Opcional"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {t.validityMonths ? `${t.validityMonths} meses` : "Sem vencimento"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{t.targetRole ?? "Todos"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                          {t.description ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => { setEditingTraining(t); setTrainingDialog(true); }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTrainingItem(t)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Per-employee training records */}
+            {activeEmployees.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap gap-3 items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4 text-primary" />
+                      Treinamentos por Funcionário
+                    </CardTitle>
+                    <Select
+                      value={trainingEmpId ? String(trainingEmpId) : "none"}
+                      onValueChange={(v) => setTrainingEmpId(v === "none" ? null : Number(v))}
+                    >
+                      <SelectTrigger className="w-56">
+                        <SelectValue placeholder="Selecionar funcionário…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Selecionar —</SelectItem>
+                        {activeEmployees.map((e) => (
+                          <SelectItem key={e.id} value={String(e.id)}>
+                            {e.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                {trainingEmpId && (
+                  <CardContent>
+                    <EmployeeTrainingPanel
+                      employeeId={trainingEmpId}
+                      employeeName={activeEmployees.find((e) => e.id === trainingEmpId)?.name ?? ""}
+                      trainings={trainings}
+                    />
+                  </CardContent>
+                )}
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* ── MATRIX TAB ────────────────────────────────────────────────── */}
+          <TabsContent value="matrix" className="space-y-4 mt-4">
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <div>
+                <Select value={matrixDept} onValueChange={setMatrixDept}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos departamentos</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-500" /> Em dia</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-400" /> Vencendo</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-500" /> Vencido</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-gray-200" /> Não realizado</div>
+              </div>
+            </div>
+
+            {!matrix || matrix.trainings.length === 0 ? (
+              <Card>
+                <CardContent className="py-16 text-center text-muted-foreground">
+                  <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p>Nenhum treinamento obrigatório cadastrado.</p>
+                  <p className="text-sm mt-1">Crie treinamentos do tipo "Obrigatório" para visualizar a matriz.</p>
+                </CardContent>
+              </Card>
+            ) : !matrix || matrix.employees.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  Nenhum funcionário ativo encontrado para este filtro.
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-0 overflow-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium sticky left-0 bg-background z-10 min-w-[160px]">
+                          Funcionário
+                        </th>
+                        {matrix.trainings.map((tr) => (
+                          <th
+                            key={tr.id}
+                            className="p-2 text-center font-medium text-xs max-w-[90px] min-w-[80px]"
+                            title={tr.name}
+                          >
+                            <div className="truncate max-w-[80px] mx-auto">{tr.name}</div>
+                            {tr.validityMonths && (
+                              <div className="text-muted-foreground font-normal">{tr.validityMonths}m</div>
+                            )}
+                          </th>
+                        ))}
+                        <th className="p-2 text-center font-medium text-xs">Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matrix.employees.map((emp) => {
+                        const empCells = matrix.cells.filter((c) => c.employeeId === emp.id);
+                        const doneCount = empCells.filter((c) => c.status === "up_to_date").length;
+                        const total = matrix.trainings.length;
+                        const score = total > 0 ? Math.round((doneCount / total) * 100) : 100;
+                        return (
+                          <tr key={emp.id} className="border-b hover:bg-muted/40">
+                            <td className="p-3 sticky left-0 bg-background z-10">
+                              <div className="font-medium truncate max-w-[150px]">{emp.name}</div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                {emp.role}{emp.department ? ` · ${emp.department}` : ""}
+                              </div>
+                            </td>
+                            {matrix.trainings.map((tr) => {
+                              const cell = empCells.find((c) => c.trainingId === tr.id);
+                              const status = cell?.status ?? "not_done";
+                              return (
+                                <td key={tr.id} className="p-2 text-center">
+                                  <div
+                                    className={`w-6 h-6 rounded mx-auto ${trainingMatrixCellClass(status)}`}
+                                    title={`${emp.name} · ${tr.name}: ${trainingStatusLabel(status)}${cell?.expiresAt ? ` (vence ${fmtDate(cell.expiresAt)})` : ""}`}
+                                  />
+                                </td>
+                              );
+                            })}
+                            <td className="p-2 text-center">
+                              <span className={`text-xs font-semibold ${score >= 80 ? "text-green-600" : score >= 60 ? "text-yellow-600" : "text-destructive"}`}>
+                                {score}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

@@ -3376,6 +3376,348 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── RH: Trainings ────────────────────────────────────────────────────────
+
+  /rh/trainings:
+    get:
+      operationId: listTrainings
+      tags: [rh]
+      summary: List trainings with optional filters
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [mandatory, optional]
+      responses:
+        "200":
+          description: List of trainings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Training"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createTraining
+      tags: [rh]
+      summary: Create a training
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Training"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/trainings/{id}:
+    get:
+      operationId: getTraining
+      tags: [rh]
+      summary: Get a single training
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Training
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Training"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateTraining
+      tags: [rh]
+      summary: Update a training
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Training"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTraining
+      tags: [rh]
+      summary: Delete a training and all its records
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/employees/{id}/trainings:
+    get:
+      operationId: listEmployeeTrainings
+      tags: [rh]
+      summary: List training records for a specific employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of employee training records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmployeeTraining"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: addEmployeeTraining
+      tags: [rh]
+      summary: Add or update a training record for an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeTrainingInput"
+      responses:
+        "201":
+          description: Created or updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeTrainingRecord"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/employee-trainings/{id}:
+    put:
+      operationId: updateEmployeeTraining
+      tags: [rh]
+      summary: Update an employee training record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeTrainingUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeTrainingRecord"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteEmployeeTraining
+      tags: [rh]
+      summary: Delete an employee training record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/training-matrix:
+    get:
+      operationId: getTrainingMatrix
+      tags: [rh]
+      summary: Get training matrix (employees x mandatory trainings)
+      parameters:
+        - name: dept
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Training matrix data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingMatrix"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/training-compliance:
+    get:
+      operationId: getTrainingCompliance
+      tags: [rh]
+      summary: Get training compliance rates by department
+      responses:
+        "200":
+          description: Compliance by department
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrainingComplianceDept"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Projetos: Projects ───────────────────────────────────────────────────
 
   /projetos/projects:
@@ -6578,6 +6920,9 @@ components:
         - currentMonth
         - attendanceThisMonth
         - recentEmployees
+        - totalMandatoryTrainings
+        - overallComplianceRate
+        - trainingAlerts
       properties:
         totalEmployees:
           type: integer
@@ -6595,6 +6940,310 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Employee"
+        totalMandatoryTrainings:
+          type: integer
+        overallComplianceRate:
+          type: integer
+        trainingAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrainingAlert"
+
+  # ─── RH Training schemas ──────────────────────────────────────────────────
+
+    Training:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [mandatory, optional]
+        validityMonths:
+          type: integer
+          nullable: true
+        targetRole:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TrainingInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [mandatory, optional]
+        validityMonths:
+          type: integer
+          nullable: true
+        targetRole:
+          type: string
+          nullable: true
+
+    EmployeeTraining:
+      type: object
+      required:
+        - id
+        - employeeId
+        - trainingId
+        - trainingName
+        - trainingType
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        trainingId:
+          type: integer
+        trainingName:
+          type: string
+        trainingType:
+          type: string
+          enum: [mandatory, optional]
+        validityMonths:
+          type: integer
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidenceUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [up_to_date, expiring_soon, expired, not_done]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EmployeeTrainingRecord:
+      type: object
+      required:
+        - id
+        - employeeId
+        - trainingId
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        trainingId:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidenceUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [up_to_date, expiring_soon, expired, not_done]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EmployeeTrainingInput:
+      type: object
+      required:
+        - trainingId
+      properties:
+        trainingId:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidenceUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    EmployeeTrainingUpdate:
+      type: object
+      properties:
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidenceUrl:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    TrainingMatrixEmployee:
+      type: object
+      required:
+        - id
+        - name
+        - role
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+        department:
+          type: string
+          nullable: true
+
+    TrainingMatrixTraining:
+      type: object
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [mandatory, optional]
+        validityMonths:
+          type: integer
+          nullable: true
+
+    TrainingMatrixCell:
+      type: object
+      required:
+        - employeeId
+        - trainingId
+        - status
+      properties:
+        employeeId:
+          type: integer
+        trainingId:
+          type: integer
+        status:
+          type: string
+          enum: [up_to_date, expiring_soon, expired, not_done]
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TrainingMatrix:
+      type: object
+      required:
+        - employees
+        - trainings
+        - cells
+      properties:
+        employees:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrainingMatrixEmployee"
+        trainings:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrainingMatrixTraining"
+        cells:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrainingMatrixCell"
+
+    TrainingComplianceDept:
+      type: object
+      required:
+        - department
+        - totalEmployees
+        - compliant
+        - complianceRate
+      properties:
+        department:
+          type: string
+        totalEmployees:
+          type: integer
+        compliant:
+          type: integer
+        complianceRate:
+          type: integer
+
+    TrainingAlert:
+      type: object
+      required:
+        - employeeTrainingId
+        - employeeId
+        - employeeName
+        - trainingName
+        - status
+      properties:
+        employeeTrainingId:
+          type: integer
+        employeeId:
+          type: integer
+        employeeName:
+          type: string
+        trainingName:
+          type: string
+        status:
+          type: string
+          enum: [expiring_soon, expired]
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
 
   # ─── Projetos schemas ─────────────────────────────────────────────────────
 

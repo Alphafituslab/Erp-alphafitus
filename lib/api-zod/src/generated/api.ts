@@ -2778,8 +2778,230 @@ export const GetRhDashboardResponse = zod.object({
   "status": zod.enum(['active', 'inactive']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "totalMandatoryTrainings": zod.number(),
+  "overallComplianceRate": zod.number(),
+  "trainingAlerts": zod.array(zod.object({
+  "employeeTrainingId": zod.number(),
+  "employeeId": zod.number(),
+  "employeeName": zod.string(),
+  "trainingName": zod.string(),
+  "status": zod.enum(['expiring_soon', 'expired']),
+  "expiresAt": zod.coerce.date().nullish()
 }))
 })
+
+
+/**
+ * @summary List trainings with optional filters
+ */
+export const ListTrainingsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "type": zod.enum(['mandatory', 'optional']).optional()
+})
+
+export const ListTrainingsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['mandatory', 'optional']),
+  "validityMonths": zod.number().nullish(),
+  "targetRole": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListTrainingsResponse = zod.array(ListTrainingsResponseItem)
+
+
+/**
+ * @summary Create a training
+ */
+export const CreateTrainingBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['mandatory', 'optional']).optional(),
+  "validityMonths": zod.number().nullish(),
+  "targetRole": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get a single training
+ */
+export const GetTrainingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTrainingResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['mandatory', 'optional']),
+  "validityMonths": zod.number().nullish(),
+  "targetRole": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a training
+ */
+export const UpdateTrainingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateTrainingBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['mandatory', 'optional']).optional(),
+  "validityMonths": zod.number().nullish(),
+  "targetRole": zod.string().nullish()
+})
+
+export const UpdateTrainingResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['mandatory', 'optional']),
+  "validityMonths": zod.number().nullish(),
+  "targetRole": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a training and all its records
+ */
+export const DeleteTrainingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteTrainingResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List training records for a specific employee
+ */
+export const ListEmployeeTrainingsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListEmployeeTrainingsResponseItem = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "trainingId": zod.number(),
+  "trainingName": zod.string(),
+  "trainingType": zod.enum(['mandatory', 'optional']),
+  "validityMonths": zod.number().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "evidenceUrl": zod.string().nullish(),
+  "status": zod.enum(['up_to_date', 'expiring_soon', 'expired', 'not_done']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListEmployeeTrainingsResponse = zod.array(ListEmployeeTrainingsResponseItem)
+
+
+/**
+ * @summary Add or update a training record for an employee
+ */
+export const AddEmployeeTrainingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddEmployeeTrainingBody = zod.object({
+  "trainingId": zod.number(),
+  "completedAt": zod.coerce.date().nullish(),
+  "evidenceUrl": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update an employee training record
+ */
+export const UpdateEmployeeTrainingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateEmployeeTrainingBody = zod.object({
+  "completedAt": zod.coerce.date().nullish(),
+  "evidenceUrl": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateEmployeeTrainingResponse = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "trainingId": zod.number(),
+  "completedAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "evidenceUrl": zod.string().nullish(),
+  "status": zod.enum(['up_to_date', 'expiring_soon', 'expired', 'not_done']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an employee training record
+ */
+export const DeleteEmployeeTrainingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteEmployeeTrainingResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get training matrix (employees x mandatory trainings)
+ */
+export const GetTrainingMatrixQueryParams = zod.object({
+  "dept": zod.coerce.string().optional()
+})
+
+export const GetTrainingMatrixResponse = zod.object({
+  "employees": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "department": zod.string().nullish()
+})),
+  "trainings": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "type": zod.enum(['mandatory', 'optional']),
+  "validityMonths": zod.number().nullish()
+})),
+  "cells": zod.array(zod.object({
+  "employeeId": zod.number(),
+  "trainingId": zod.number(),
+  "status": zod.enum(['up_to_date', 'expiring_soon', 'expired', 'not_done']),
+  "completedAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish()
+}))
+})
+
+
+/**
+ * @summary Get training compliance rates by department
+ */
+export const GetTrainingComplianceResponseItem = zod.object({
+  "department": zod.string(),
+  "totalEmployees": zod.number(),
+  "compliant": zod.number(),
+  "complianceRate": zod.number()
+})
+export const GetTrainingComplianceResponse = zod.array(GetTrainingComplianceResponseItem)
 
 
 /**

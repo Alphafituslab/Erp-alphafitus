@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import {
   db,
   departmentsTable,
   employeesTable,
   attendanceLogsTable,
+  trainingsTable,
+  employeeTrainingsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -379,6 +381,302 @@ router.delete("/rh/attendance/:id", async (req: Request, res: Response): Promise
   res.json({ ok: true });
 });
 
+// ─── Trainings CRUD ───────────────────────────────────────────────────────────
+
+router.get("/rh/trainings", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const { search, type } = req.query as { search?: string; type?: string };
+  const filters: any[] = [];
+  if (type) filters.push(eq(trainingsTable.type, type));
+  if (search) {
+    const q = "%" + search + "%";
+    filters.push(sql`(${trainingsTable.name} ILIKE ${q} OR ${trainingsTable.description} ILIKE ${q})`);
+  }
+  const rows = await db
+    .select()
+    .from(trainingsTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(asc(trainingsTable.name));
+  res.json(rows);
+});
+
+router.post("/rh/trainings", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const { name, description, type, validityMonths, targetRole } = req.body;
+  if (!name) { res.status(400).json({ error: "Nome é obrigatório" }); return; }
+  const [row] = await db
+    .insert(trainingsTable)
+    .values({
+      name,
+      description: description || null,
+      type: type ?? "mandatory",
+      validityMonths: validityMonths ? Number(validityMonths) : null,
+      targetRole: targetRole || null,
+    })
+    .returning();
+  res.status(201).json(row);
+});
+
+router.get("/rh/trainings/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [row] = await db.select().from(trainingsTable).where(eq(trainingsTable.id, id));
+  if (!row) { res.status(404).json({ error: "Treinamento não encontrado" }); return; }
+  res.json(row);
+});
+
+router.put("/rh/trainings/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [existing] = await db.select({ id: trainingsTable.id }).from(trainingsTable).where(eq(trainingsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Treinamento não encontrado" }); return; }
+  const { name, description, type, validityMonths, targetRole } = req.body;
+  const [updated] = await db
+    .update(trainingsTable)
+    .set({
+      name,
+      description: description || null,
+      type: type ?? "mandatory",
+      validityMonths: validityMonths ? Number(validityMonths) : null,
+      targetRole: targetRole || null,
+    })
+    .where(eq(trainingsTable.id, id))
+    .returning();
+  res.json(updated);
+});
+
+router.delete("/rh/trainings/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [existing] = await db.select({ id: trainingsTable.id }).from(trainingsTable).where(eq(trainingsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Treinamento não encontrado" }); return; }
+  await db.delete(employeeTrainingsTable).where(eq(employeeTrainingsTable.trainingId, id));
+  await db.delete(trainingsTable).where(eq(trainingsTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Employee Training Records ─────────────────────────────────────────────────
+
+function computeTrainingStatus(completedAt: Date | null, validityMonths: number | null): {
+  status: string;
+  expiresAt: Date | null;
+} {
+  if (!completedAt) return { status: "not_done", expiresAt: null };
+  if (!validityMonths) return { status: "up_to_date", expiresAt: null };
+  const expiresAt = new Date(completedAt);
+  expiresAt.setMonth(expiresAt.getMonth() + validityMonths);
+  const now = new Date();
+  const thirtyDays = new Date(now);
+  thirtyDays.setDate(thirtyDays.getDate() + 30);
+  if (expiresAt < now) return { status: "expired", expiresAt };
+  if (expiresAt < thirtyDays) return { status: "expiring_soon", expiresAt };
+  return { status: "up_to_date", expiresAt };
+}
+
+router.get("/rh/employees/:id/trainings", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const empId = parseId(req.params.id, res);
+  if (empId === null) return;
+  const rows = await db
+    .select({
+      id: employeeTrainingsTable.id,
+      employeeId: employeeTrainingsTable.employeeId,
+      trainingId: employeeTrainingsTable.trainingId,
+      trainingName: trainingsTable.name,
+      trainingType: trainingsTable.type,
+      validityMonths: trainingsTable.validityMonths,
+      completedAt: employeeTrainingsTable.completedAt,
+      expiresAt: employeeTrainingsTable.expiresAt,
+      evidenceUrl: employeeTrainingsTable.evidenceUrl,
+      status: employeeTrainingsTable.status,
+      notes: employeeTrainingsTable.notes,
+      createdAt: employeeTrainingsTable.createdAt,
+      updatedAt: employeeTrainingsTable.updatedAt,
+    })
+    .from(employeeTrainingsTable)
+    .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId))
+    .where(eq(employeeTrainingsTable.employeeId, empId))
+    .orderBy(asc(trainingsTable.name));
+  res.json(rows);
+});
+
+router.post("/rh/employees/:id/trainings", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const empId = parseId(req.params.id, res);
+  if (empId === null) return;
+
+  const [emp] = await db.select({ id: employeesTable.id }).from(employeesTable).where(eq(employeesTable.id, empId));
+  if (!emp) { res.status(404).json({ error: "Funcionário não encontrado" }); return; }
+
+  const { trainingId, completedAt, evidenceUrl, notes } = req.body;
+  if (!trainingId) { res.status(400).json({ error: "trainingId é obrigatório" }); return; }
+
+  const [training] = await db.select().from(trainingsTable).where(eq(trainingsTable.id, Number(trainingId)));
+  if (!training) { res.status(404).json({ error: "Treinamento não encontrado" }); return; }
+
+  const completedDate = completedAt ? new Date(completedAt) : null;
+  const { status, expiresAt } = computeTrainingStatus(completedDate, training.validityMonths);
+
+  const [existing] = await db
+    .select({ id: employeeTrainingsTable.id })
+    .from(employeeTrainingsTable)
+    .where(and(
+      eq(employeeTrainingsTable.employeeId, empId),
+      eq(employeeTrainingsTable.trainingId, Number(trainingId))
+    ));
+
+  if (existing) {
+    const [updated] = await db
+      .update(employeeTrainingsTable)
+      .set({ completedAt: completedDate, expiresAt, status, evidenceUrl: evidenceUrl || null, notes: notes || null })
+      .where(eq(employeeTrainingsTable.id, existing.id))
+      .returning();
+    res.json(updated);
+    return;
+  }
+
+  const [row] = await db
+    .insert(employeeTrainingsTable)
+    .values({
+      employeeId: empId,
+      trainingId: Number(trainingId),
+      completedAt: completedDate,
+      expiresAt,
+      status,
+      evidenceUrl: evidenceUrl || null,
+      notes: notes || null,
+    })
+    .returning();
+  res.status(201).json(row);
+});
+
+router.put("/rh/employee-trainings/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [existing] = await db
+    .select({ id: employeeTrainingsTable.id, trainingId: employeeTrainingsTable.trainingId })
+    .from(employeeTrainingsTable)
+    .where(eq(employeeTrainingsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Registro não encontrado" }); return; }
+
+  const [training] = await db.select().from(trainingsTable).where(eq(trainingsTable.id, existing.trainingId));
+  const { completedAt, evidenceUrl, notes } = req.body;
+  const completedDate = completedAt ? new Date(completedAt) : null;
+  const { status, expiresAt } = computeTrainingStatus(completedDate, training?.validityMonths ?? null);
+
+  const [updated] = await db
+    .update(employeeTrainingsTable)
+    .set({ completedAt: completedDate, expiresAt, status, evidenceUrl: evidenceUrl || null, notes: notes || null })
+    .where(eq(employeeTrainingsTable.id, id))
+    .returning();
+  res.json(updated);
+});
+
+router.delete("/rh/employee-trainings/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [existing] = await db.select({ id: employeeTrainingsTable.id }).from(employeeTrainingsTable).where(eq(employeeTrainingsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Registro não encontrado" }); return; }
+  await db.delete(employeeTrainingsTable).where(eq(employeeTrainingsTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Training Matrix ───────────────────────────────────────────────────────────
+
+router.get("/rh/training-matrix", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const { dept } = req.query as { dept?: string };
+
+  const empFilters: any[] = [eq(employeesTable.status, "active")];
+  if (dept) empFilters.push(eq(employeesTable.department, dept));
+
+  const [employees, trainings, records] = await Promise.all([
+    db.select({ id: employeesTable.id, name: employeesTable.name, role: employeesTable.role, department: employeesTable.department })
+      .from(employeesTable)
+      .where(and(...empFilters))
+      .orderBy(asc(employeesTable.name)),
+    db.select().from(trainingsTable).where(eq(trainingsTable.type, "mandatory")).orderBy(asc(trainingsTable.name)),
+    db.select({
+      employeeId: employeeTrainingsTable.employeeId,
+      trainingId: employeeTrainingsTable.trainingId,
+      status: employeeTrainingsTable.status,
+      completedAt: employeeTrainingsTable.completedAt,
+      expiresAt: employeeTrainingsTable.expiresAt,
+    }).from(employeeTrainingsTable),
+  ]);
+
+  const cellMap: Record<string, { status: string; completedAt: string | null; expiresAt: string | null }> = {};
+  for (const r of records) {
+    cellMap[`${r.employeeId}:${r.trainingId}`] = {
+      status: r.status,
+      completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+      expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
+    };
+  }
+
+  const cells: Array<{ employeeId: number; trainingId: number; status: string; completedAt: string | null; expiresAt: string | null }> = [];
+  for (const emp of employees) {
+    for (const tr of trainings) {
+      const key = `${emp.id}:${tr.id}`;
+      cells.push({
+        employeeId: emp.id,
+        trainingId: tr.id,
+        ...(cellMap[key] ?? { status: "not_done", completedAt: null, expiresAt: null }),
+      });
+    }
+  }
+
+  res.json({ employees, trainings, cells });
+});
+
+// ─── Training Compliance ───────────────────────────────────────────────────────
+
+router.get("/rh/training-compliance", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const [allEmployees, mandatoryTrainings, allRecords] = await Promise.all([
+    db.select({ id: employeesTable.id, department: employeesTable.department })
+      .from(employeesTable)
+      .where(eq(employeesTable.status, "active")),
+    db.select({ id: trainingsTable.id }).from(trainingsTable).where(eq(trainingsTable.type, "mandatory")),
+    db.select({ employeeId: employeeTrainingsTable.employeeId, trainingId: employeeTrainingsTable.trainingId, status: employeeTrainingsTable.status })
+      .from(employeeTrainingsTable),
+  ]);
+
+  const mandatoryIds = new Set(mandatoryTrainings.map((t) => t.id));
+  const upToDateSet = new Set(
+    allRecords
+      .filter((r) => mandatoryIds.has(r.trainingId) && r.status === "up_to_date")
+      .map((r) => `${r.employeeId}:${r.trainingId}`)
+  );
+
+  const deptMap: Record<string, { total: number; compliant: number }> = {};
+  for (const emp of allEmployees) {
+    const dept = emp.department ?? "Sem departamento";
+    if (!deptMap[dept]) deptMap[dept] = { total: 0, compliant: 0 };
+    deptMap[dept].total++;
+    const isCompliant = mandatoryIds.size === 0 || [...mandatoryIds].every((tid) => upToDateSet.has(`${emp.id}:${tid}`));
+    if (isCompliant) deptMap[dept].compliant++;
+  }
+
+  const result = Object.entries(deptMap)
+    .map(([department, { total, compliant }]) => ({
+      department,
+      totalEmployees: total,
+      compliant,
+      complianceRate: total > 0 ? Math.round((compliant / total) * 100) : 100,
+    }))
+    .sort((a, b) => a.complianceRate - b.complianceRate);
+
+  res.json(result);
+});
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> => {
@@ -414,6 +712,59 @@ router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> =
     .orderBy(desc(employeesTable.createdAt))
     .limit(5);
 
+  // Training KPIs
+  const [mandatoryCount] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(trainingsTable)
+    .where(eq(trainingsTable.type, "mandatory"));
+
+  const trainingAlertRows = await db
+    .select({
+      employeeTrainingId: employeeTrainingsTable.id,
+      employeeId: employeeTrainingsTable.employeeId,
+      employeeName: employeesTable.name,
+      trainingName: trainingsTable.name,
+      status: employeeTrainingsTable.status,
+      expiresAt: employeeTrainingsTable.expiresAt,
+    })
+    .from(employeeTrainingsTable)
+    .innerJoin(employeesTable, eq(employeesTable.id, employeeTrainingsTable.employeeId))
+    .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId))
+    .where(
+      and(
+        sql`${employeeTrainingsTable.status} IN ('expiring_soon', 'expired')`,
+        eq(employeesTable.status, "active")
+      )
+    )
+    .orderBy(asc(employeeTrainingsTable.expiresAt))
+    .limit(10);
+
+  const trainingAlerts = trainingAlertRows.map((r) => ({
+    employeeTrainingId: r.employeeTrainingId,
+    employeeId: r.employeeId,
+    employeeName: r.employeeName,
+    trainingName: r.trainingName,
+    status: r.status,
+    expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
+  }));
+
+  // Overall compliance rate
+  const [allActiveCount] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(employeesTable)
+    .where(eq(employeesTable.status, "active"));
+
+  const [compliantCount] = await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${employeeTrainingsTable.employeeId})::int` })
+    .from(employeeTrainingsTable)
+    .where(eq(employeeTrainingsTable.status, "up_to_date"));
+
+  const totalActive = Number(allActiveCount?.count ?? 0);
+  const totalMandatory = Number(mandatoryCount?.count ?? 0);
+  const overallComplianceRate = totalActive > 0 && totalMandatory > 0
+    ? Math.round((Number(compliantCount?.count ?? 0) / totalActive) * 100)
+    : 100;
+
   res.json({
     totalEmployees: headcount?.total ?? 0,
     activeEmployees: headcount?.active ?? 0,
@@ -426,6 +777,9 @@ router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> =
       late: attendance?.late ?? 0,
     },
     recentEmployees,
+    totalMandatoryTrainings: totalMandatory,
+    overallComplianceRate,
+    trainingAlerts,
   });
 });
 

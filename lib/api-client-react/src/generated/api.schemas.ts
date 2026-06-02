@@ -1401,6 +1401,23 @@ export interface RhDashboardAttendance {
   late: number;
 }
 
+export type TrainingAlertStatus = typeof TrainingAlertStatus[keyof typeof TrainingAlertStatus];
+
+
+export const TrainingAlertStatus = {
+  expiring_soon: 'expiring_soon',
+  expired: 'expired',
+} as const;
+
+export interface TrainingAlert {
+  employeeTrainingId: number;
+  employeeId: number;
+  employeeName: string;
+  trainingName: string;
+  status: TrainingAlertStatus;
+  expiresAt?: string | null;
+}
+
 export interface RhDashboard {
   totalEmployees: number;
   activeEmployees: number;
@@ -1409,6 +1426,167 @@ export interface RhDashboard {
   currentMonth: string;
   attendanceThisMonth: RhDashboardAttendance;
   recentEmployees: Employee[];
+  totalMandatoryTrainings: number;
+  overallComplianceRate: number;
+  trainingAlerts: TrainingAlert[];
+}
+
+export type TrainingType = typeof TrainingType[keyof typeof TrainingType];
+
+
+export const TrainingType = {
+  mandatory: 'mandatory',
+  optional: 'optional',
+} as const;
+
+export interface Training {
+  id: number;
+  name: string;
+  description?: string | null;
+  type: TrainingType;
+  validityMonths?: number | null;
+  targetRole?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TrainingInputType = typeof TrainingInputType[keyof typeof TrainingInputType];
+
+
+export const TrainingInputType = {
+  mandatory: 'mandatory',
+  optional: 'optional',
+} as const;
+
+export interface TrainingInput {
+  name: string;
+  description?: string | null;
+  type?: TrainingInputType;
+  validityMonths?: number | null;
+  targetRole?: string | null;
+}
+
+export type EmployeeTrainingTrainingType = typeof EmployeeTrainingTrainingType[keyof typeof EmployeeTrainingTrainingType];
+
+
+export const EmployeeTrainingTrainingType = {
+  mandatory: 'mandatory',
+  optional: 'optional',
+} as const;
+
+export type EmployeeTrainingStatus = typeof EmployeeTrainingStatus[keyof typeof EmployeeTrainingStatus];
+
+
+export const EmployeeTrainingStatus = {
+  up_to_date: 'up_to_date',
+  expiring_soon: 'expiring_soon',
+  expired: 'expired',
+  not_done: 'not_done',
+} as const;
+
+export interface EmployeeTraining {
+  id: number;
+  employeeId: number;
+  trainingId: number;
+  trainingName: string;
+  trainingType: EmployeeTrainingTrainingType;
+  validityMonths?: number | null;
+  completedAt?: string | null;
+  expiresAt?: string | null;
+  evidenceUrl?: string | null;
+  status: EmployeeTrainingStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EmployeeTrainingRecordStatus = typeof EmployeeTrainingRecordStatus[keyof typeof EmployeeTrainingRecordStatus];
+
+
+export const EmployeeTrainingRecordStatus = {
+  up_to_date: 'up_to_date',
+  expiring_soon: 'expiring_soon',
+  expired: 'expired',
+  not_done: 'not_done',
+} as const;
+
+export interface EmployeeTrainingRecord {
+  id: number;
+  employeeId: number;
+  trainingId: number;
+  completedAt?: string | null;
+  expiresAt?: string | null;
+  evidenceUrl?: string | null;
+  status: EmployeeTrainingRecordStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeeTrainingInput {
+  trainingId: number;
+  completedAt?: string | null;
+  evidenceUrl?: string | null;
+  notes?: string | null;
+}
+
+export interface EmployeeTrainingUpdate {
+  completedAt?: string | null;
+  evidenceUrl?: string | null;
+  notes?: string | null;
+}
+
+export interface TrainingMatrixEmployee {
+  id: number;
+  name: string;
+  role: string;
+  department?: string | null;
+}
+
+export type TrainingMatrixTrainingType = typeof TrainingMatrixTrainingType[keyof typeof TrainingMatrixTrainingType];
+
+
+export const TrainingMatrixTrainingType = {
+  mandatory: 'mandatory',
+  optional: 'optional',
+} as const;
+
+export interface TrainingMatrixTraining {
+  id: number;
+  name: string;
+  type: TrainingMatrixTrainingType;
+  validityMonths?: number | null;
+}
+
+export type TrainingMatrixCellStatus = typeof TrainingMatrixCellStatus[keyof typeof TrainingMatrixCellStatus];
+
+
+export const TrainingMatrixCellStatus = {
+  up_to_date: 'up_to_date',
+  expiring_soon: 'expiring_soon',
+  expired: 'expired',
+  not_done: 'not_done',
+} as const;
+
+export interface TrainingMatrixCell {
+  employeeId: number;
+  trainingId: number;
+  status: TrainingMatrixCellStatus;
+  completedAt?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface TrainingMatrix {
+  employees: TrainingMatrixEmployee[];
+  trainings: TrainingMatrixTraining[];
+  cells: TrainingMatrixCell[];
+}
+
+export interface TrainingComplianceDept {
+  department: string;
+  totalEmployees: number;
+  compliant: number;
+  complianceRate: number;
 }
 
 export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus];
@@ -2034,6 +2212,23 @@ employeeId?: string;
  * Format: YYYY-MM
  */
 month?: string;
+};
+
+export type ListTrainingsParams = {
+search?: string;
+type?: ListTrainingsType;
+};
+
+export type ListTrainingsType = typeof ListTrainingsType[keyof typeof ListTrainingsType];
+
+
+export const ListTrainingsType = {
+  mandatory: 'mandatory',
+  optional: 'optional',
+} as const;
+
+export type GetTrainingMatrixParams = {
+dept?: string;
 };
 
 export type ListProjectsParams = {
