@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, desc, asc, sql, isNull } from "drizzle-orm";
+import { and, eq, gte, lte, desc, sql, isNull } from "drizzle-orm";
 import {
   db,
   qualityInspectionsTable,
@@ -10,6 +10,9 @@ import {
   productsTable,
   productLotsTable,
   stockMovementsTable,
+  purchaseOrdersTable,
+  purchaseOrderItemsTable,
+  suppliersTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -419,9 +422,6 @@ router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Respon
     return;
   }
 
-  // Fetch parameters for snapshot
-  const params = await db.select().from(analysisParametersTable).where(eq(analysisParametersTable.analysisId, id));
-
   await db.transaction(async (tx) => {
     const now = new Date();
 
@@ -433,10 +433,13 @@ router.post("/qualidade/analyses/:id/complete", async (req: Request, res: Respon
       startedAt: existing.startedAt ?? now,
     }).where(eq(qualityAnalysesTable.id, id));
 
-    // Auto-mark pending parameters
+    // Auto-mark pending parameters (null isConforming) with bulk result
     await tx.update(analysisParametersTable).set({ isConforming: result === "approved" }).where(
       and(eq(analysisParametersTable.analysisId, id), isNull(analysisParametersTable.isConforming))
     );
+
+    // FIX #3: Fetch params AFTER auto-mark so snapshot reflects final values
+    const params = await tx.select().from(analysisParametersTable).where(eq(analysisParametersTable.analysisId, id));
 
     // CQ ↔ Estoque: idempotent lot state transition (FIX #5)
     if (existing.lotId) {
@@ -570,6 +573,19 @@ router.post("/qualidade/analyses/:id/parameters", async (req: Request, res: Resp
   const { parameterName, specification, minValue, maxValue, resultValue, unit, isConforming } = req.body;
   if (!parameterName?.trim()) { res.status(400).json({ error: "Nome do parâmetro é obrigatório" }); return; }
 
+  // FIX #2 (POST): auto-compute conformance from min/max range at creation, same as PUT
+  let resolvedIsConforming: boolean | null = isConforming !== undefined && isConforming !== null ? Boolean(isConforming) : null;
+  if (resultValue && resolvedIsConforming === null) {
+    const rv = parseFloat(resultValue);
+    if (!isNaN(rv)) {
+      const min = minValue ? parseFloat(minValue) : null;
+      const max = maxValue ? parseFloat(maxValue) : null;
+      if (min !== null || max !== null) {
+        resolvedIsConforming = (min === null || rv >= min) && (max === null || rv <= max);
+      }
+    }
+  }
+
   const [param] = await db.insert(analysisParametersTable).values({
     analysisId,
     parameterName: parameterName.trim(),
@@ -578,7 +594,7 @@ router.post("/qualidade/analyses/:id/parameters", async (req: Request, res: Resp
     maxValue: maxValue || null,
     resultValue: resultValue || null,
     unit: unit || null,
-    isConforming: isConforming !== undefined && isConforming !== null ? Boolean(isConforming) : null,
+    isConforming: resolvedIsConforming,
   }).returning();
 
   res.status(201).json(param);
@@ -705,6 +721,39 @@ router.get("/qualidade/dashboard", async (req: Request, res: Response): Promise<
       rejectionRate: Number(r.totalCount) > 0 ? Math.round((Number(r.rejectCount) / Number(r.totalCount)) * 100) : 0,
     }));
 
+  // FIX #1: Supplier quality KPIs — join quality_analyses → purchase_order_items → purchase_orders → suppliers
+  const supplierQualityRaw = await db
+    .select({
+      supplierId: suppliersTable.id,
+      supplierName: suppliersTable.name,
+      approvedCount: sql<number>`COUNT(*) FILTER (WHERE ${qualityAnalysesTable.status} = 'approved')::int`,
+      rejectedCount: sql<number>`COUNT(*) FILTER (WHERE ${qualityAnalysesTable.status} = 'rejected')::int`,
+      totalCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(qualityAnalysesTable)
+    .innerJoin(purchaseOrderItemsTable, eq(purchaseOrderItemsTable.productId, qualityAnalysesTable.productId!))
+    .innerJoin(purchaseOrdersTable, eq(purchaseOrdersTable.id, purchaseOrderItemsTable.purchaseOrderId))
+    .innerJoin(suppliersTable, eq(suppliersTable.id, purchaseOrdersTable.supplierId))
+    .where(
+      and(
+        sql`${qualityAnalysesTable.status} IN ('approved','rejected')`,
+        sql`${qualityAnalysesTable.productId} IS NOT NULL`
+      )
+    )
+    .groupBy(suppliersTable.id, suppliersTable.name)
+    .having(sql`COUNT(*) > 0`)
+    .orderBy(sql`COUNT(*) FILTER (WHERE ${qualityAnalysesTable.status} = 'rejected') DESC`)
+    .limit(10);
+
+  const supplierQuality = supplierQualityRaw.map((s) => ({
+    supplierId: Number(s.supplierId),
+    supplierName: s.supplierName,
+    approvedCount: Number(s.approvedCount),
+    rejectedCount: Number(s.rejectedCount),
+    totalCount: Number(s.totalCount),
+    approvalRate: Number(s.totalCount) > 0 ? Math.round((Number(s.approvedCount) / Number(s.totalCount)) * 100) : 0,
+  }));
+
   res.json({
     totalInspections: total,
     approvedCount: approved,
@@ -721,6 +770,7 @@ router.get("/qualidade/dashboard", async (req: Request, res: Response): Promise<
     avgAnalysisDaysStr,
     recentAnalyses,
     topRejectedParameters,
+    supplierQuality,
   });
 });
 

@@ -2115,6 +2115,14 @@ export const GetQualidadeDashboardResponse = zod.object({
   "rejectCount": zod.number(),
   "totalCount": zod.number(),
   "rejectionRate": zod.number()
+})).optional(),
+  "supplierQuality": zod.array(zod.object({
+  "supplierId": zod.number(),
+  "supplierName": zod.string(),
+  "approvedCount": zod.number(),
+  "rejectedCount": zod.number(),
+  "totalCount": zod.number(),
+  "approvalRate": zod.number()
 })).optional()
 })
 

@@ -9,6 +9,7 @@ import type { ParameterRejectionStat } from './parameterRejectionStat';
 import type { QualityAnalysis } from './qualityAnalysis';
 import type { QualityInspection } from './qualityInspection';
 import type { QualityNcr } from './qualityNcr';
+import type { SupplierQualityStat } from './supplierQualityStat';
 
 export interface QualidadeDashboard {
   totalInspections: number;
@@ -26,4 +27,5 @@ export interface QualidadeDashboard {
   avgAnalysisDaysStr: string;
   recentAnalyses: QualityAnalysis[];
   topRejectedParameters?: ParameterRejectionStat[];
+  supplierQuality?: SupplierQualityStat[];
 }

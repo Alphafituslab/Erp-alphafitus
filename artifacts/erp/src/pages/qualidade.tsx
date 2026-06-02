@@ -1431,6 +1431,53 @@ export default function QualidadePage() {
               </Card>
             </div>
 
+            {/* Supplier quality ranking */}
+            {(dashboard?.supplierQuality ?? []).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-primary" />
+                    Taxa de aprovação CQ por fornecedor
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead className="text-right">Aprovadas</TableHead>
+                        <TableHead className="text-right">Reprovadas</TableHead>
+                        <TableHead className="text-right">Taxa</TableHead>
+                        <TableHead className="w-44">Barra</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(dashboard?.supplierQuality ?? []).map((s) => (
+                        <TableRow key={s.supplierId}>
+                          <TableCell className="font-medium text-sm">{s.supplierName}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums text-green-600 font-semibold">{s.approvedCount}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums text-destructive font-semibold">{s.rejectedCount}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums font-semibold">
+                            <span className={s.approvalRate >= 90 ? "text-green-600" : s.approvalRate >= 70 ? "text-yellow-600" : "text-destructive"}>
+                              {s.approvalRate}%
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${s.approvalRate >= 90 ? "bg-green-500" : s.approvalRate >= 70 ? "bg-yellow-400" : "bg-destructive"}`}
+                                style={{ width: `${Math.min(s.approvalRate, 100)}%` }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
             {/* FIX #4: Top rejected parameters panel */}
             {(dashboard?.topRejectedParameters ?? []).length > 0 && (
               <Card>

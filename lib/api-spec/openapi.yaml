@@ -5404,6 +5404,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ParameterRejectionStat"
+        supplierQuality:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupplierQualityStat"
 
     QualityAnalysis:
       type: object
@@ -5653,6 +5657,29 @@ components:
         totalCount:
           type: integer
         rejectionRate:
+          type: number
+
+    SupplierQualityStat:
+      type: object
+      required:
+        - supplierId
+        - supplierName
+        - approvedCount
+        - rejectedCount
+        - totalCount
+        - approvalRate
+      properties:
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+        approvedCount:
+          type: integer
+        rejectedCount:
+          type: integer
+        totalCount:
+          type: integer
+        approvalRate:
           type: number
 
     # ── Compras schemas ─────────────────────────────────────────────────────────

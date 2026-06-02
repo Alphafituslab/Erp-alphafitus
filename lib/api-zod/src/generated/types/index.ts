@@ -206,6 +206,7 @@ export * from './supplierApprovalInput';
 export * from './supplierApprovalInputApprovalStatus';
 export * from './supplierApprovalStatus';
 export * from './supplierInput';
+export * from './supplierQualityStat';
 export * from './topSupplier';
 export * from './updatePurchaseOrderStatusInput';
 export * from './updatePurchaseOrderStatusInputStatus';

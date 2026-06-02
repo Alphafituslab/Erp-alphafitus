@@ -846,6 +846,15 @@ export interface ParameterRejectionStat {
   rejectionRate: number;
 }
 
+export interface SupplierQualityStat {
+  supplierId: number;
+  supplierName: string;
+  approvedCount: number;
+  rejectedCount: number;
+  totalCount: number;
+  approvalRate: number;
+}
+
 export interface QualidadeDashboard {
   totalInspections: number;
   approvedCount: number;
@@ -862,6 +871,7 @@ export interface QualidadeDashboard {
   avgAnalysisDaysStr: string;
   recentAnalyses: QualityAnalysis[];
   topRejectedParameters?: ParameterRejectionStat[];
+  supplierQuality?: SupplierQualityStat[];
 }
 
 export interface AnalysisParameter {
