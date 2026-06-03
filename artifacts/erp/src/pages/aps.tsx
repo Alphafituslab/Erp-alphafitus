@@ -77,6 +77,18 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface Shift {
+  id: number;
+  workCenterId: number;
+  date: string;
+  shiftName: string;
+  startTime: string;
+  endTime: string;
+  availableHours: string;
+  isBlocked: boolean;
+  blockReason?: string | null;
+}
+
 interface WorkCenter {
   id: number;
   name: string;
@@ -605,6 +617,142 @@ function ScheduleDialog({
   );
 }
 
+// ─── Shift Dialog ─────────────────────────────────────────────────────────────
+
+function ShiftDialog({ open, onClose, shift, workCenters }: {
+  open: boolean; onClose: () => void; shift?: Shift | null; workCenters: WorkCenter[];
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const create = useCreateProductionShift();
+  const update = useUpdateProductionShift();
+  const [form, setForm] = useState({
+    workCenterId: "",
+    date: todayStr(),
+    shiftName: "Turno 1",
+    startTime: "07:00",
+    endTime: "15:00",
+    availableHours: "8",
+    isBlocked: false,
+    blockReason: "",
+  });
+
+  useEffect(() => {
+    if (shift) {
+      setForm({
+        workCenterId: shift.workCenterId.toString(),
+        date: shift.date,
+        shiftName: shift.shiftName,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        availableHours: shift.availableHours?.toString() ?? "8",
+        isBlocked: shift.isBlocked ?? false,
+        blockReason: shift.blockReason ?? "",
+      });
+    } else {
+      setForm({ workCenterId: "", date: todayStr(), shiftName: "Turno 1", startTime: "07:00", endTime: "15:00", availableHours: "8", isBlocked: false, blockReason: "" });
+    }
+  }, [shift, open]);
+
+  const handleSubmit = () => {
+    if (!form.workCenterId || !form.date) { toast({ title: "Preencha os campos obrigatórios", variant: "destructive" }); return; }
+    const payload: any = {
+      workCenterId: parseInt(form.workCenterId, 10),
+      date: form.date,
+      shiftName: form.shiftName,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      availableHours: parseFloat(form.availableHours),
+      isBlocked: form.isBlocked,
+      blockReason: form.isBlocked ? form.blockReason : null,
+    };
+    const op = shift ? update.mutateAsync({ id: shift.id, data: payload }) : create.mutateAsync({ data: payload });
+    op.then(() => {
+      qc.invalidateQueries({ queryKey: getListProductionShiftsQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetApsDashboardQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetApsAlertsQueryKey() });
+      toast({ title: shift ? "Turno atualizado" : "Turno registrado" });
+      onClose();
+    }).catch((e: any) => toast({ title: e?.response?.data?.error ?? e?.message ?? "Erro", variant: "destructive" }));
+  };
+
+  const isPending = create.isPending || update.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{shift ? "Editar Turno" : "Novo Turno"}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Centro de Trabalho *</Label>
+            <Select value={form.workCenterId} onValueChange={v => setForm(f => ({ ...f, workCenterId: v }))}>
+              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>
+                {workCenters.map(wc => <SelectItem key={wc.id} value={wc.id.toString()}>{wc.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Data *</Label>
+              <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Nome do Turno</Label>
+              <Select value={form.shiftName} onValueChange={v => setForm(f => ({ ...f, shiftName: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Turno 1">Turno 1 (manhã)</SelectItem>
+                  <SelectItem value="Turno 2">Turno 2 (tarde)</SelectItem>
+                  <SelectItem value="Turno 3">Turno 3 (noite)</SelectItem>
+                  <SelectItem value="Extra">Extra</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label>Início</Label>
+              <Input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Fim</Label>
+              <Input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Horas disponíveis</Label>
+              <Input type="number" step="0.5" min="0" max="24" value={form.availableHours} onChange={e => setForm(f => ({ ...f, availableHours: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="isBlocked"
+              checked={form.isBlocked}
+              onChange={e => setForm(f => ({ ...f, isBlocked: e.target.checked }))}
+              className="w-4 h-4 accent-destructive cursor-pointer"
+            />
+            <Label htmlFor="isBlocked" className="cursor-pointer text-destructive">Turno bloqueado (parada, manutenção, feriado)</Label>
+          </div>
+          {form.isBlocked && (
+            <div>
+              <Label>Motivo do bloqueio</Label>
+              <Textarea value={form.blockReason} onChange={e => setForm(f => ({ ...f, blockReason: e.target.value }))} placeholder="Ex: Manutenção preventiva, feriado nacional..." rows={2} />
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={isPending} variant={form.isBlocked ? "destructive" : "default"}>
+            {isPending ? <RefreshCw className="size-4 animate-spin mr-2" /> : null}
+            {shift ? "Salvar" : "Registrar Turno"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Auto-Schedule Dialog ─────────────────────────────────────────────────────
 
 function AutoScheduleDialog({ open, onClose, workCenters }: { open: boolean; onClose: () => void; workCenters: WorkCenter[] }) {
@@ -749,10 +897,15 @@ export default function ApsPage() {
 
   const [wcDialog, setWcDialog] = useState<{ open: boolean; wc?: WorkCenter | null }>({ open: false });
   const [schedDialog, setSchedDialog] = useState<{ open: boolean; entry?: ScheduleEntry | null }>({ open: false });
+  const [shiftDialog, setShiftDialog] = useState<{ open: boolean; shift?: Shift | null }>({ open: false });
   const [autoDialog, setAutoDialog] = useState(false);
   const [simDialog, setSimDialog] = useState(false);
   const [rescheduleDialog, setRescheduleDialog] = useState<{ open: boolean; entryId: number; newWcId: number; newDate: string } | null>(null);
   const [rescheduleReason, setRescheduleReason] = useState("");
+
+  const [shiftsWcId, setShiftsWcId] = useState("");
+  const [shiftsStartDate, setShiftsStartDate] = useState(todayStr());
+  const [shiftsEndDate, setShiftsEndDate] = useState(addDays(todayStr(), 14));
 
   const { data: workCenters = [] } = useListWorkCenters({ active: "true" } as any);
   const { data: allWorkCenters = [] } = useListWorkCenters({} as any);
@@ -762,6 +915,17 @@ export default function ApsPage() {
   } as any);
   const { data: dashboard } = useGetApsDashboard();
   const { data: alerts = [] } = useGetApsAlerts();
+  const deleteShift = useDeleteProductionShift();
+  const { data: shifts = [] } = useListProductionShifts(
+    Object.fromEntries(
+      Object.entries({
+        workCenterId: shiftsWcId ? parseInt(shiftsWcId, 10) : undefined,
+        startDate: shiftsStartDate || undefined,
+        endDate: shiftsEndDate || undefined,
+      }).filter(([, v]) => v !== undefined)
+    ) as any,
+    { query: { enabled: tab === "shifts" } as any }
+  );
 
   const deleteSchedule = useDeleteApsScheduleEntry();
   const updateSchedule = useUpdateApsScheduleEntry();
@@ -857,6 +1021,7 @@ export default function ApsPage() {
           <TabsList>
             <TabsTrigger value="gantt">Gantt</TabsTrigger>
             <TabsTrigger value="schedule">Programações</TabsTrigger>
+            <TabsTrigger value="shifts">Turnos</TabsTrigger>
             <TabsTrigger value="work-centers">Centros de Trabalho</TabsTrigger>
             <TabsTrigger value="alerts" className="flex items-center gap-1.5">
               Alertas
@@ -989,6 +1154,111 @@ export default function ApsPage() {
             </Card>
           </TabsContent>
 
+          {/* ─── Shifts Tab ─── */}
+          <TabsContent value="shifts" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="size-4 text-cyan-500" />
+                    Calendário de Turnos
+                  </CardTitle>
+                  <Button size="sm" onClick={() => setShiftDialog({ open: true, shift: null })}>
+                    <Plus className="size-4 mr-1.5" /> Novo Turno
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Filters */}
+                <div className="flex flex-wrap gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs whitespace-nowrap">Centro:</Label>
+                    <Select value={shiftsWcId} onValueChange={setShiftsWcId}>
+                      <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        {(allWorkCenters as WorkCenter[]).map(wc => <SelectItem key={wc.id} value={wc.id.toString()}>{wc.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">De:</Label>
+                    <Input type="date" className="h-8 text-xs w-36" value={shiftsStartDate} onChange={e => setShiftsStartDate(e.target.value)} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">Até:</Label>
+                    <Input type="date" className="h-8 text-xs w-36" value={shiftsEndDate} onChange={e => setShiftsEndDate(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-muted-foreground">
+                        <th className="text-left py-2 px-3">Data</th>
+                        <th className="text-left py-2 px-3">Centro de Trabalho</th>
+                        <th className="text-left py-2 px-3">Turno</th>
+                        <th className="text-left py-2 px-3">Horário</th>
+                        <th className="text-left py-2 px-3">Horas Disp.</th>
+                        <th className="text-left py-2 px-3">Status</th>
+                        <th className="py-2 px-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(shifts as Shift[]).length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                            <Clock className="size-8 mx-auto mb-2 opacity-30" />
+                            <p>Nenhum turno registrado para o período selecionado</p>
+                          </td>
+                        </tr>
+                      )}
+                      {(shifts as Shift[]).map(s => {
+                        const wc = (allWorkCenters as WorkCenter[]).find(w => w.id === s.workCenterId);
+                        return (
+                          <tr key={s.id} className={cn("border-b hover:bg-muted/30", s.isBlocked && "bg-red-50 dark:bg-red-950/20")}>
+                            <td className="py-2 px-3 font-medium whitespace-nowrap">{s.date}</td>
+                            <td className="py-2 px-3">{wc?.name ?? `CT #${s.workCenterId}`}</td>
+                            <td className="py-2 px-3">{s.shiftName}</td>
+                            <td className="py-2 px-3 whitespace-nowrap text-muted-foreground">{s.startTime} – {s.endTime}</td>
+                            <td className="py-2 px-3 text-center">{s.availableHours}h</td>
+                            <td className="py-2 px-3">
+                              {s.isBlocked ? (
+                                <div>
+                                  <Badge variant="destructive" className="text-xs">Bloqueado</Badge>
+                                  {s.blockReason && <p className="text-xs text-muted-foreground mt-0.5 max-w-[180px] truncate">{s.blockReason}</p>}
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-green-600 border-green-400">Disponível</Badge>
+                              )}
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setShiftDialog({ open: true, shift: s })}>
+                                  <Settings className="size-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive hover:text-destructive" onClick={() => {
+                                  deleteShift.mutateAsync({ id: s.id }).then(() => {
+                                    qc.invalidateQueries({ queryKey: getListProductionShiftsQueryKey() });
+                                    qc.invalidateQueries({ queryKey: getGetApsDashboardQueryKey() });
+                                    qc.invalidateQueries({ queryKey: getGetApsAlertsQueryKey() });
+                                    toast({ title: "Turno removido" });
+                                  });
+                                }}>
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* ─── Work Centers Tab ─── */}
           <TabsContent value="work-centers" className="mt-4">
             <div className="flex justify-end mb-3">
@@ -1069,12 +1339,54 @@ export default function ApsPage() {
           {/* ─── Utilization / OEE Tab ─── */}
           <TabsContent value="utilization" className="mt-4">
             <div className="grid gap-4">
-              {/* OEE Overview Card */}
+              {/* OEE Simplified Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <TrendingUp className="size-4 text-cyan-500" />
-                    Capacidade por Centro de Trabalho (próximos 7 dias)
+                    OEE Simplificado — Últimos 7 dias
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    OEE = Disponibilidade × Performance. Disponibilidade: horas programadas / horas de capacidade. Performance: horas concluídas / horas programadas.
+                  </p>
+                  {(!dashboard?.oeeByWorkCenter || (dashboard.oeeByWorkCenter as any[]).length === 0) ? (
+                    <p className="text-muted-foreground text-sm text-center py-8">Sem dados de OEE — nenhuma entrada concluída nos últimos 7 dias</p>
+                  ) : (
+                    <div className="space-y-5">
+                      {(dashboard.oeeByWorkCenter as any[]).map((o, i) => {
+                        const oeeColor = o.oee >= 70 ? "bg-green-500" : o.oee >= 45 ? "bg-yellow-500" : "bg-red-500";
+                        return (
+                          <div key={i} className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-medium">{o.workCenterName ?? `CT #${o.workCenterId}`}</span>
+                              <span className={cn("font-bold text-base", o.oee >= 70 ? "text-green-600" : o.oee >= 45 ? "text-yellow-600" : "text-red-600")}>
+                                OEE {o.oee}%
+                              </span>
+                            </div>
+                            <div className="h-4 bg-muted rounded-full overflow-hidden">
+                              <div className={cn("h-full rounded-full transition-all", oeeColor)} style={{ width: `${o.oee}%` }} />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                              <span>📅 Disponib.: <strong>{o.availability}%</strong></span>
+                              <span>⚡ Perf.: <strong>{o.performance}%</strong></span>
+                              <span>✅ Concluído: <strong>{parseFloat(o.doneHours ?? 0).toFixed(1)}h</strong> / {parseFloat(o.plannedHours ?? 0).toFixed(1)}h programadas</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Capacity Utilization next 7 days */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Factory className="size-4 text-cyan-500" />
+                    Carga de Capacidade (próximos 7 dias)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1147,6 +1459,12 @@ export default function ApsPage() {
         onClose={() => setSchedDialog({ open: false })}
         entry={schedDialog.entry}
         workCenters={workCenters as WorkCenter[]}
+      />
+      <ShiftDialog
+        open={shiftDialog.open}
+        onClose={() => setShiftDialog({ open: false })}
+        shift={shiftDialog.shift}
+        workCenters={allWorkCenters as WorkCenter[]}
       />
       <AutoScheduleDialog open={autoDialog} onClose={() => setAutoDialog(false)} workCenters={workCenters as WorkCenter[]} />
       <SimulateDialog open={simDialog} onClose={() => setSimDialog(false)} workCenters={allWorkCenters as WorkCenter[]} />

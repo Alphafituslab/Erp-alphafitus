@@ -10696,6 +10696,10 @@ components:
           type: array
           items:
             type: object
+        oeeByWorkCenter:
+          type: array
+          items:
+            type: object
         upcoming:
           type: array
           items:

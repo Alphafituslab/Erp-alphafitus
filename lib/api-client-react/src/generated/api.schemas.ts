@@ -2462,6 +2462,8 @@ export type ApsDashboardByStatus = { [key: string]: unknown };
 
 export type ApsDashboardUtilizationByWorkCenterItem = { [key: string]: unknown };
 
+export type ApsDashboardOeeByWorkCenterItem = { [key: string]: unknown };
+
 export type ApsDashboardUpcomingItem = { [key: string]: unknown };
 
 export interface ApsDashboard {
@@ -2474,6 +2476,7 @@ export interface ApsDashboard {
   blockedShiftsToday: number;
   byStatus: ApsDashboardByStatus;
   utilizationByWorkCenter: ApsDashboardUtilizationByWorkCenterItem[];
+  oeeByWorkCenter?: ApsDashboardOeeByWorkCenterItem[];
   upcoming: ApsDashboardUpcomingItem[];
 }
 

@@ -275,9 +275,16 @@ router.post("/aps/schedule/auto", async (req: Request, res: Response): Promise<v
   const baseDate = startDate ? new Date(startDate) : new Date();
   const hpe = parseFloat(hoursPerEntry ?? "8");
 
-  // Get open POs not yet scheduled on this work center
+  // Get open POs that do NOT already have an active APS schedule entry (on any work center)
   const openOrders = await db.select().from(productionOrdersTable)
-    .where(sql`${productionOrdersTable.status} IN ('planned','released')`)
+    .where(and(
+      sql`${productionOrdersTable.status} IN ('planned','released')`,
+      sql`NOT EXISTS (
+        SELECT 1 FROM aps_schedule s
+        WHERE s.production_order_id = ${productionOrdersTable.id}
+        AND s.status NOT IN ('done','cancelled')
+      )`,
+    ))
     .orderBy(asc(productionOrdersTable.scheduledEnd), asc(productionOrdersTable.id));
 
   // Get already-scheduled entries for this WC in the future
@@ -414,6 +421,39 @@ router.get("/aps/dashboard", async (req: Request, res: Response): Promise<void> 
     .orderBy(apsScheduleTable.scheduledStart)
     .limit(10);
 
+  // OEE simplified: done hours / available capacity hours (past 7 days) × 100 per work center
+  const past7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 16);
+  const oeeData = await db.select({
+    workCenterId: apsScheduleTable.workCenterId,
+    workCenterName: workCentersTable.name,
+    capacityHoursPerShift: workCentersTable.capacityHoursPerShift,
+    doneHours: sql<number>`COALESCE(SUM(CASE WHEN ${apsScheduleTable.status} = 'done' THEN EXTRACT(EPOCH FROM (${apsScheduleTable.scheduledEnd}::timestamp - ${apsScheduleTable.scheduledStart}::timestamp)) / 3600 ELSE 0 END), 0)::numeric(8,2)`,
+    plannedHours: sql<number>`COALESCE(SUM(EXTRACT(EPOCH FROM (${apsScheduleTable.scheduledEnd}::timestamp - ${apsScheduleTable.scheduledStart}::timestamp)) / 3600), 0)::numeric(8,2)`,
+  })
+    .from(apsScheduleTable)
+    .leftJoin(workCentersTable, eq(apsScheduleTable.workCenterId, workCentersTable.id))
+    .where(and(gte(apsScheduleTable.scheduledStart, past7), lte(apsScheduleTable.scheduledEnd, now)))
+    .groupBy(apsScheduleTable.workCenterId, workCentersTable.name, workCentersTable.capacityHoursPerShift);
+
+  const oeeByWorkCenter = oeeData.map(o => {
+    const capacityHours = parseFloat(o.capacityHoursPerShift ?? "8") * 5; // 5-day week
+    const doneHours = parseFloat((o.doneHours ?? 0).toString());
+    const plannedHours = parseFloat((o.plannedHours ?? 0).toString());
+    const availability = capacityHours > 0 ? Math.min(1, plannedHours / capacityHours) : 0;
+    const performance = plannedHours > 0 ? Math.min(1, doneHours / plannedHours) : 0;
+    const oee = parseFloat((availability * performance * 100).toFixed(1));
+    return {
+      workCenterId: o.workCenterId,
+      workCenterName: o.workCenterName,
+      capacityHours,
+      doneHours,
+      plannedHours,
+      availability: parseFloat((availability * 100).toFixed(1)),
+      performance: parseFloat((performance * 100).toFixed(1)),
+      oee,
+    };
+  });
+
   const byStatus = Object.fromEntries(statusCounts.map(r => [r.status, Number(r.count)]));
   const totalScheduled = statusCounts.reduce((s, r) => s + Number(r.count), 0);
   const totalDone = Number(byStatus["done"] ?? 0);
@@ -430,6 +470,7 @@ router.get("/aps/dashboard", async (req: Request, res: Response): Promise<void> 
     blockedShiftsToday: Number(blockedRow?.count ?? 0),
     byStatus,
     utilizationByWorkCenter: utilization,
+    oeeByWorkCenter,
     upcoming,
   });
 });
@@ -496,6 +537,54 @@ router.get("/aps/alerts", async (req: Request, res: Response): Promise<void> => 
   const unscheduled = Number(unscheduledRow?.count ?? 0);
   if (unscheduled > 0) {
     alerts.push({ type: "unscheduled", severity: "medium", message: `${unscheduled} ordem(ns) de produção abertas sem programação APS` });
+  }
+
+  // 5. Due-date at risk: scheduled end is later than the planned end of the linked production order
+  const dueDateAtRisk = await db.execute(sql`
+    SELECT s.id, s.order_number, s.product_name, s.scheduled_end, po.scheduled_end as op_due
+    FROM aps_schedule s
+    JOIN production_orders po ON s.production_order_id = po.id
+    WHERE s.status NOT IN ('done','cancelled')
+    AND po.scheduled_end IS NOT NULL
+    AND po.scheduled_end <> ''
+    AND s.scheduled_end > po.scheduled_end
+    LIMIT 10
+  `);
+  for (const row of dueDateAtRisk.rows as any[]) {
+    alerts.push({
+      type: "due_date_risk",
+      severity: "high",
+      message: `OP "${row.order_number ?? row.product_name}" programada para terminar em ${row.scheduled_end?.slice(0, 10)}, mas prazo da OP é ${row.op_due?.slice(0, 10)} — prazo em risco`,
+      entityId: row.id,
+    });
+  }
+
+  // 6. Material availability risk: released OPs starting in the next 3 days still in 'planned' status (not released)
+  const next3 = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 16);
+  const materialRisk = await db.select({
+    id: apsScheduleTable.id,
+    orderNumber: apsScheduleTable.orderNumber,
+    productName: apsScheduleTable.productName,
+    scheduledStart: apsScheduleTable.scheduledStart,
+  }).from(apsScheduleTable)
+    .where(and(
+      sql`${apsScheduleTable.status} = 'planned'`,
+      sql`${apsScheduleTable.scheduledStart} <= ${next3}`,
+      sql`${apsScheduleTable.scheduledStart} >= ${now}`,
+      sql`EXISTS (
+        SELECT 1 FROM production_orders po
+        WHERE po.id = ${apsScheduleTable.productionOrderId}
+        AND po.status = 'planned'
+      )`,
+    ))
+    .limit(10);
+  for (const e of materialRisk) {
+    alerts.push({
+      type: "material_risk",
+      severity: "medium",
+      message: `OP "${e.orderNumber ?? e.productName}" inicia em ${e.scheduledStart?.slice(0, 10)} mas ainda está como "Planejada" (não liberada para produção) — verifique disponibilidade de materiais`,
+      entityId: e.id,
+    });
   }
 
   res.json(alerts);

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ApsDashboardByStatus } from './apsDashboardByStatus';
+import type { ApsDashboardOeeByWorkCenterItem } from './apsDashboardOeeByWorkCenterItem';
 import type { ApsDashboardUpcomingItem } from './apsDashboardUpcomingItem';
 import type { ApsDashboardUtilizationByWorkCenterItem } from './apsDashboardUtilizationByWorkCenterItem';
 
@@ -19,5 +20,6 @@ export interface ApsDashboard {
   blockedShiftsToday: number;
   byStatus: ApsDashboardByStatus;
   utilizationByWorkCenter: ApsDashboardUtilizationByWorkCenterItem[];
+  oeeByWorkCenter?: ApsDashboardOeeByWorkCenterItem[];
   upcoming: ApsDashboardUpcomingItem[];
 }

@@ -5142,6 +5142,9 @@ export const GetApsDashboardResponse = zod.object({
   "utilizationByWorkCenter": zod.array(zod.object({
 
 }).passthrough()),
+  "oeeByWorkCenter": zod.array(zod.object({
+
+}).passthrough()).optional(),
   "upcoming": zod.array(zod.object({
 
 }).passthrough())

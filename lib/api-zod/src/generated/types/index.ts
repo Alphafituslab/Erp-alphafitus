@@ -14,6 +14,7 @@ export * from './apsAutoScheduleInput';
 export * from './apsAutoScheduleResult';
 export * from './apsDashboard';
 export * from './apsDashboardByStatus';
+export * from './apsDashboardOeeByWorkCenterItem';
 export * from './apsDashboardUpcomingItem';
 export * from './apsDashboardUtilizationByWorkCenterItem';
 export * from './apsScheduleEntry';
