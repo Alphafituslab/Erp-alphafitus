@@ -63,9 +63,8 @@ app.use(
 
 app.use("/api", router);
 
-// Serve uploaded evidence files
+// Ensure uploads directory exists (file serving is handled by authenticated route in rh.ts)
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-app.use("/api/uploads", express.static(uploadsDir));
 
 export default app;

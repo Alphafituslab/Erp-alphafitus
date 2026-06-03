@@ -409,8 +409,17 @@ router.delete("/rh/attendance/:id", async (req: Request, res: Response): Promise
 router.post("/rh/upload-evidence", upload.single("file"), (req: Request, res: Response): void => {
   if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
   if (!req.file) { res.status(400).json({ error: "Nenhum arquivo enviado" }); return; }
-  const url = `/api/uploads/evidence/${req.file.filename}`;
+  const url = `/api/rh/evidence/${req.file.filename}`;
   res.json({ url, filename: req.file.originalname, size: req.file.size });
+});
+
+// Authenticated evidence file download — requires active session (no public static serving)
+router.get("/rh/evidence/:filename", (req: Request, res: Response): void => {
+  if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
+  const filename = path.basename(String(req.params.filename)); // strip any path traversal
+  const filePath = path.join(uploadsDir, filename);
+  if (!fs.existsSync(filePath)) { res.status(404).json({ error: "Arquivo não encontrado" }); return; }
+  res.sendFile(filePath);
 });
 
 // ─── Trainings CRUD ───────────────────────────────────────────────────────────
@@ -521,6 +530,11 @@ router.get("/rh/employees/:id/trainings", async (req: Request, res: Response): P
   if (!requireAuth(req, res)) return;
   const empId = parseId(req.params.id, res);
   if (empId === null) return;
+
+  // Verify employee exists — return 404 for unknown IDs (aligns OpenAPI contract)
+  const [emp] = await db.select({ id: employeesTable.id }).from(employeesTable).where(eq(employeesTable.id, empId)).limit(1);
+  if (!emp) { res.status(404).json({ error: "Employee not found" }); return; }
+
   const rows = await db
     .select({
       id: employeeTrainingsTable.id,
@@ -875,14 +889,28 @@ router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> =
       });
     }
   }
-  // Sort: expired first, then expiring_soon by days ascending
+  // Sort: expired first, then expiring_soon_30 (≤30 days), then expiring_soon (31-60 days) by days asc
   const trainingAlerts = alertsRaw
     .sort((a, b) => {
-      if (a.status === "expired" && b.status !== "expired") return -1;
-      if (b.status === "expired" && a.status !== "expired") return 1;
+      const rank = (x: typeof a) => {
+        if (x.status === "expired") return 0;
+        if (x.status === "expiring_soon" && (x.daysUntilExpiry ?? 61) <= 30) return 1;
+        return 2;
+      };
+      const dr = rank(a) - rank(b);
+      if (dr !== 0) return dr;
       return (a.daysUntilExpiry ?? 0) - (b.daysUntilExpiry ?? 0);
     })
-    .slice(0, 15);
+    .slice(0, 15)
+    .map((a) => ({
+      ...a,
+      // Provide explicit urgency bucket so frontend/API consumers can group alerts
+      urgency: a.status === "expired"
+        ? "expired"
+        : (a.daysUntilExpiry ?? 61) <= 30
+          ? "expiring_30"
+          : "expiring_60",
+    }));
 
   // Training hours completed this month (sum durationHours of trainings completed this month)
   const monthStart = new Date(month + "-01T00:00:00Z");
