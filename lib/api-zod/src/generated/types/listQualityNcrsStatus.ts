@@ -11,6 +11,10 @@ export type ListQualityNcrsStatus = typeof ListQualityNcrsStatus[keyof typeof Li
 
 export const ListQualityNcrsStatus = {
   open: 'open',
+  investigation: 'investigation',
+  action_plan: 'action_plan',
+  execution: 'execution',
+  effectiveness_check: 'effectiveness_check',
   in_progress: 'in_progress',
   resolved: 'resolved',
   closed: 'closed',

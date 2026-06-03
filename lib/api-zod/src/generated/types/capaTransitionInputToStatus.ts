@@ -6,16 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type QualityNcrStatus = typeof QualityNcrStatus[keyof typeof QualityNcrStatus];
+export type CapaTransitionInputToStatus = typeof CapaTransitionInputToStatus[keyof typeof CapaTransitionInputToStatus];
 
 
-export const QualityNcrStatus = {
-  open: 'open',
+export const CapaTransitionInputToStatus = {
   investigation: 'investigation',
   action_plan: 'action_plan',
   execution: 'execution',
   effectiveness_check: 'effectiveness_check',
-  in_progress: 'in_progress',
-  resolved: 'resolved',
   closed: 'closed',
+  resolved: 'resolved',
 } as const;

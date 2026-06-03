@@ -13,6 +13,13 @@ import {
   useDeleteQualityNcr,
   useResolveQualityNcr,
   useGetQualidadeDashboard,
+  useGetQualityNcr,
+  useTransitionQualityNcr,
+  useListCapaActions,
+  useCreateCapaAction,
+  useUpdateCapaAction,
+  useDeleteCapaAction,
+  useGetCapaDashboard,
   useListProducts,
   useListProductLots,
   useListQualityAnalyses,
@@ -32,6 +39,9 @@ import {
   getListQualityAnalysesQueryKey,
   getGetQualityAnalysisQueryKey,
   getListQualityCertificatesQueryKey,
+  getGetQualityNcrQueryKey,
+  getListCapaActionsQueryKey,
+  getGetCapaDashboardQueryKey,
 } from "@workspace/api-client-react";
 import type {
   QualityInspection,
@@ -40,6 +50,7 @@ import type {
   QualityAnalysisDetail,
   AnalysisParameter,
   QualityCertificate,
+  CapaAction,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +78,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Plus, Pencil, Trash2, ClipboardCheck, ShieldAlert, ThumbsUp,
   AlertTriangle, CheckCheck, FlaskConical, Download, Play, CheckCircle2,
-  XCircle, Clock, Eye,
+  XCircle, Clock, Eye, Wrench, ChevronRight, ListChecks, Search, ArrowRight,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -397,12 +408,14 @@ const ncrSchema = z.object({
   title: z.string().min(1, "Obrigatório"),
   description: z.string().optional(),
   severity: z.enum(["low", "medium", "high", "critical"]),
-  status: z.enum(["open", "in_progress", "resolved", "closed"]),
+  status: z.enum(["open", "investigation", "action_plan", "execution", "effectiveness_check", "in_progress", "resolved", "closed"]),
   rootCause: z.string().optional(),
   correctiveAction: z.string().optional(),
   reportedBy: z.string().optional(),
   assignedTo: z.string().optional(),
   dueDate: z.string().optional(),
+  ncType: z.enum(["receiving", "production", "finished_goods", "customer", "other"]).optional(),
+  origin: z.string().optional(),
 });
 type NcrForm = z.infer<typeof ncrSchema>;
 
@@ -433,7 +446,9 @@ function NcrDialog({
       reportedBy: editing.reportedBy ?? "",
       assignedTo: editing.assignedTo ?? "",
       dueDate: editing.dueDate ?? "",
-    } : { inspectionId: "", productId: "", title: "", description: "", severity: "medium", status: "open", rootCause: "", correctiveAction: "", reportedBy: "", assignedTo: "", dueDate: "" },
+      ncType: (editing.ncType as NcrForm["ncType"]) ?? undefined,
+      origin: editing.origin ?? "",
+    } : { inspectionId: "", productId: "", title: "", description: "", severity: "medium", status: "open", rootCause: "", correctiveAction: "", reportedBy: "", assignedTo: "", dueDate: "", origin: "" },
   });
   const onSubmit = form.handleSubmit((data) => {
     const payload = {
@@ -448,6 +463,8 @@ function NcrDialog({
       reportedBy: data.reportedBy || null,
       assignedTo: data.assignedTo || null,
       dueDate: data.dueDate || null,
+      ncType: data.ncType || null,
+      origin: data.origin || null,
     };
     if (editing) {
       updateM.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
@@ -516,6 +533,10 @@ function NcrDialog({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="open">Aberta</SelectItem>
+                    <SelectItem value="investigation">Investigação</SelectItem>
+                    <SelectItem value="action_plan">Plano de Ação</SelectItem>
+                    <SelectItem value="execution">Execução</SelectItem>
+                    <SelectItem value="effectiveness_check">Verificação</SelectItem>
                     <SelectItem value="in_progress">Em andamento</SelectItem>
                     <SelectItem value="resolved">Resolvida</SelectItem>
                     <SelectItem value="closed">Fechada</SelectItem>
@@ -523,6 +544,25 @@ function NcrDialog({
                 </Select>
               )} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Tipo de NC</label>
+              <Controller control={form.control} name="ncType" render={({ field }) => (
+                <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">— Nenhum —</SelectItem>
+                    <SelectItem value="receiving">Recebimento</SelectItem>
+                    <SelectItem value="production">Produção</SelectItem>
+                    <SelectItem value="finished_goods">Produto acabado</SelectItem>
+                    <SelectItem value="customer">Cliente</SelectItem>
+                    <SelectItem value="other">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              )} />
+            </div>
+            <div className="space-y-1"><label className="text-sm font-medium">Origem</label><Input {...form.register("origin")} placeholder="Ex: Fornecedor XYZ" /></div>
           </div>
           <div className="space-y-1"><label className="text-sm font-medium">Descrição</label><Input {...form.register("description")} /></div>
           <div className="space-y-1"><label className="text-sm font-medium">Causa raiz</label><Input {...form.register("rootCause")} /></div>
@@ -539,6 +579,444 @@ function NcrDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── CAPA Status helpers ──────────────────────────────────────────────────────
+
+const CAPA_STEPS = [
+  { key: "open",               label: "Aberta" },
+  { key: "investigation",      label: "Investigação" },
+  { key: "action_plan",        label: "Plano de Ação" },
+  { key: "execution",          label: "Execução" },
+  { key: "effectiveness_check",label: "Verificação" },
+  { key: "closed",             label: "Encerrada" },
+];
+
+function capaStepIndex(status: string) {
+  const i = CAPA_STEPS.findIndex((s) => s.key === status);
+  return i === -1 ? 0 : i;
+}
+
+const CAPA_NEXT: Record<string, string> = {
+  open:                "investigation",
+  investigation:       "action_plan",
+  action_plan:         "execution",
+  execution:           "effectiveness_check",
+  effectiveness_check: "closed",
+};
+
+const CAPA_NEXT_LABEL: Record<string, string> = {
+  open:                "Iniciar Investigação",
+  investigation:       "Enviar para Plano de Ação",
+  action_plan:         "Iniciar Execução",
+  execution:           "Verificar Eficácia",
+  effectiveness_check: "Encerrar CAPA",
+};
+
+function ncTypeLabel(t: string | null | undefined) {
+  if (!t) return "—";
+  return { receiving: "Recebimento", production: "Produção", finished_goods: "Produto acabado", customer: "Cliente", other: "Outro" }[t] ?? t;
+}
+
+function actionTypeLabel(t: string) {
+  return t === "corrective" ? "Corretiva" : "Preventiva";
+}
+
+function actionStatusBadge(s: string) {
+  const map: Record<string, string> = { pending: "bg-slate-100 text-slate-700", in_progress: "bg-blue-100 text-blue-700", done: "bg-green-100 text-green-700", overdue: "bg-red-100 text-red-700" };
+  const labelMap: Record<string, string> = { pending: "Pendente", in_progress: "Em andamento", done: "Concluída", overdue: "Atrasada" };
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${map[s] ?? "bg-slate-100 text-slate-700"}`}>{labelMap[s] ?? s}</span>;
+}
+
+// ─── CAPA Action Form (inline) ────────────────────────────────────────────────
+
+const capaActionSchema = z.object({
+  actionType: z.enum(["corrective", "preventive"]),
+  description: z.string().min(1, "Obrigatório"),
+  responsible: z.string().optional(),
+  dueDate: z.string().optional(),
+  notes: z.string().optional(),
+});
+type CapaActionForm = z.infer<typeof capaActionSchema>;
+
+function CapaActionDialog({
+  open, onClose, ncrId, editing,
+}: {
+  open: boolean; onClose: () => void; ncrId: number; editing?: CapaAction | null;
+}) {
+  const qc = useQueryClient();
+  const createM = useCreateCapaAction();
+  const updateM = useUpdateCapaAction();
+  const form = useForm<CapaActionForm>({
+    resolver: zodResolver(capaActionSchema),
+    values: editing ? {
+      actionType: editing.actionType as CapaActionForm["actionType"],
+      description: editing.description,
+      responsible: editing.responsible ?? "",
+      dueDate: editing.dueDate ?? "",
+      notes: editing.notes ?? "",
+    } : { actionType: "corrective", description: "", responsible: "", dueDate: "", notes: "" },
+  });
+  const onSubmit = form.handleSubmit((data) => {
+    const invalidate = () => {
+      qc.invalidateQueries({ queryKey: getListCapaActionsQueryKey(ncrId) });
+      qc.invalidateQueries({ queryKey: getGetQualityNcrQueryKey(ncrId) });
+    };
+    const payload = { ...data, responsible: data.responsible || null, dueDate: data.dueDate || null, notes: data.notes || null };
+    if (editing) {
+      updateM.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
+    } else {
+      createM.mutate({ id: ncrId, data: payload }, { onSuccess: () => { invalidate(); onClose(); form.reset(); } });
+    }
+  });
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{editing ? "Editar Ação CAPA" : "Nova Ação CAPA"}</DialogTitle></DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-3 pt-1">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Tipo *</label>
+            <Controller control={form.control} name="actionType" render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="corrective">Corretiva</SelectItem>
+                  <SelectItem value="preventive">Preventiva</SelectItem>
+                </SelectContent>
+              </Select>
+            )} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Descrição da ação *</label>
+            <Textarea {...form.register("description")} rows={3} placeholder="Descreva a ação a ser tomada…" />
+            {form.formState.errors.description && <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className="text-sm font-medium">Responsável</label><Input {...form.register("responsible")} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium">Prazo</label><Input {...form.register("dueDate")} type="date" /></div>
+          </div>
+          <div className="space-y-1"><label className="text-sm font-medium">Observações</label><Input {...form.register("notes")} /></div>
+          <DialogFooter className="pt-1">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={createM.isPending || updateM.isPending}>{createM.isPending || updateM.isPending ? "Salvando…" : "Salvar"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── NCR CAPA Detail Dialog ───────────────────────────────────────────────────
+
+function NcrCapaDialog({ ncrId, open, onClose }: { ncrId: number | null; open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [capaTab, setCapaTab] = useState("investigation");
+  const [actionDialog, setActionDialog] = useState(false);
+  const [editingAction, setEditingAction] = useState<CapaAction | null>(null);
+  const [deleteAction, setDeleteAction] = useState<CapaAction | null>(null);
+  const [completeAction, setCompleteAction] = useState<CapaAction | null>(null);
+
+  // Investigation fields
+  const [whyAnalysis, setWhyAnalysis] = useState("");
+  const [ishikawaCategories, setIshikawaCategories] = useState("");
+  const [investigatedBy, setInvestigatedBy] = useState("");
+  // Verification fields
+  const [verifiedBy, setVerifiedBy] = useState("");
+  const [verificationNotes, setVerificationNotes] = useState("");
+  const [closedBy, setClosedBy] = useState("");
+
+  const { data: ncr, isLoading } = useGetQualityNcr(ncrId ?? 0, { query: { enabled: !!ncrId } as any });
+  const { data: actions = [], isLoading: actionsLoading } = useListCapaActions(ncrId ?? 0, { query: { enabled: !!ncrId } as any });
+
+  const transitionM = useTransitionQualityNcr();
+  const updateCapaM = useUpdateCapaAction();
+  const deleteCapaM = useDeleteCapaAction();
+
+  const invalidateAll = () => {
+    if (!ncrId) return;
+    qc.invalidateQueries({ queryKey: getGetQualityNcrQueryKey(ncrId) });
+    qc.invalidateQueries({ queryKey: getListCapaActionsQueryKey(ncrId) });
+    qc.invalidateQueries({ queryKey: getListQualityNcrsQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetQualidadeDashboardQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetCapaDashboardQueryKey() });
+  };
+
+  // Sync local state when NCR data loads
+  const ncrStatus = ncr?.status ?? "open";
+  const stepIdx = capaStepIndex(ncrStatus);
+  const nextStatus = CAPA_NEXT[ncrStatus];
+
+  const handleTransition = (toStatus: string, extra?: object) => {
+    if (!ncrId) return;
+    transitionM.mutate({ id: ncrId, data: { toStatus, ...extra } as any }, {
+      onSuccess: () => { invalidateAll(); },
+    });
+  };
+
+  const handleCompleteAction = (action: CapaAction) => {
+    updateCapaM.mutate({ id: action.id, data: { status: "done", completedAt: new Date().toISOString() } as any }, {
+      onSuccess: () => {
+        if (ncrId) qc.invalidateQueries({ queryKey: getListCapaActionsQueryKey(ncrId) });
+      },
+    });
+  };
+
+  if (!open) return null;
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-primary" />
+              Workflow CAPA — NCR #{ncrId}
+              {ncr && <span className="text-sm font-normal text-muted-foreground truncate max-w-[300px]">{ncr.title}</span>}
+            </DialogTitle>
+          </DialogHeader>
+
+          {isLoading && <div className="py-10 text-center text-muted-foreground">Carregando…</div>}
+
+          {!isLoading && ncr && (
+            <div className="space-y-4">
+              {/* Status Stepper */}
+              <div className="flex items-center gap-0 overflow-x-auto pb-1">
+                {CAPA_STEPS.map((step, i) => (
+                  <div key={step.key} className="flex items-center shrink-0">
+                    <div className={`flex flex-col items-center gap-0.5 ${i <= stepIdx ? "text-primary" : "text-muted-foreground"}`}>
+                      <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors ${i < stepIdx ? "bg-primary border-primary text-primary-foreground" : i === stepIdx ? "border-primary text-primary bg-primary/10" : "border-muted bg-transparent"}`}>
+                        {i < stepIdx ? <CheckCheck className="h-3.5 w-3.5" /> : i + 1}
+                      </div>
+                      <span className="text-[10px] leading-tight whitespace-nowrap">{step.label}</span>
+                    </div>
+                    {i < CAPA_STEPS.length - 1 && (
+                      <div className={`h-0.5 w-8 mx-1 mt-[-10px] ${i < stepIdx ? "bg-primary" : "bg-muted"}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* NCR Info row */}
+              <div className="grid grid-cols-3 gap-3 text-sm border rounded-lg p-3 bg-muted/30">
+                <div><span className="text-muted-foreground text-xs">Severidade</span><br /><StatusBadge status={ncr.severity} /></div>
+                <div><span className="text-muted-foreground text-xs">Tipo</span><br /><span className="font-medium">{ncTypeLabel(ncr.ncType)}</span></div>
+                <div><span className="text-muted-foreground text-xs">Responsável</span><br /><span className="font-medium">{ncr.assignedTo ?? "—"}</span></div>
+              </div>
+
+              {/* Tabs */}
+              <Tabs value={capaTab} onValueChange={setCapaTab}>
+                <TabsList>
+                  <TabsTrigger value="investigation">Investigação</TabsTrigger>
+                  <TabsTrigger value="actions">
+                    Plano de Ação
+                    {actions.filter((a) => a.status !== "done").length > 0 && (
+                      <span className="ml-1.5 rounded-full bg-amber-500 text-white text-[10px] px-1.5 py-0.5">{actions.filter((a) => a.status !== "done").length}</span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="verification">Verificação / Encerramento</TabsTrigger>
+                </TabsList>
+
+                {/* ── Investigation tab ── */}
+                <TabsContent value="investigation" className="space-y-3 mt-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">5 Porquês (análise de causa raiz)</label>
+                    <Textarea
+                      rows={5}
+                      placeholder={"Por quê 1: …\nPor quê 2: …\nPor quê 3: …\nPor quê 4: …\nPor quê 5: …"}
+                      defaultValue={ncr.whyAnalysis ?? ""}
+                      onChange={(e) => setWhyAnalysis(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Descreva cada nível de causa em linha separada</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Diagrama de Ishikawa — categorias afetadas</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {["Método", "Máquina", "Mão de obra", "Material", "Meio ambiente", "Medição"].map((cat) => {
+                        const isSelected = (ishikawaCategories || ncr.ishikawaCategories || "").split(",").map((s) => s.trim()).includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              const current = (ishikawaCategories || ncr.ishikawaCategories || "").split(",").map((s) => s.trim()).filter(Boolean);
+                              const next = isSelected ? current.filter((c) => c !== cat) : [...current, cat];
+                              setIshikawaCategories(next.join(", "));
+                            }}
+                            className={`text-xs px-3 py-2 rounded-lg border font-medium transition-colors ${isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted/60 border-border"}`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {(ishikawaCategories || ncr.ishikawaCategories) && (
+                      <p className="text-xs text-muted-foreground">Selecionadas: {ishikawaCategories || ncr.ishikawaCategories}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Investigado por</label>
+                    <Input defaultValue={ncr.investigatedBy ?? ""} onChange={(e) => setInvestigatedBy(e.target.value)} placeholder="Nome do responsável pela investigação" />
+                  </div>
+                  {ncrStatus !== "closed" && ncrStatus !== "resolved" && (
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        disabled={transitionM.isPending}
+                        onClick={() => handleTransition(nextStatus ?? "investigation", {
+                          whyAnalysis: whyAnalysis || ncr.whyAnalysis,
+                          ishikawaCategories: ishikawaCategories || ncr.ishikawaCategories,
+                          investigatedBy: investigatedBy || ncr.investigatedBy,
+                        })}
+                      >
+                        {transitionM.isPending ? "Salvando…" : (CAPA_NEXT_LABEL[ncrStatus] ?? "Avançar")}
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* ── Action Plan tab ── */}
+                <TabsContent value="actions" className="space-y-3 mt-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{actions.length} ação(ões) cadastrada(s)</p>
+                    <Button size="sm" onClick={() => { setEditingAction(null); setActionDialog(true); }}>
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar Ação
+                    </Button>
+                  </div>
+                  {actionsLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
+                  {!actionsLoading && actions.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
+                      <ListChecks className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Nenhuma ação cadastrada ainda</p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {actions.map((action) => (
+                      <div key={action.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">{actionTypeLabel(action.actionType)}</Badge>
+                              {actionStatusBadge(action.status)}
+                            </div>
+                            <p className="text-sm font-medium mt-1">{action.description}</p>
+                            {action.responsible && <p className="text-xs text-muted-foreground">Responsável: {action.responsible}</p>}
+                            {action.dueDate && <p className="text-xs text-muted-foreground">Prazo: {fmtDate(action.dueDate)}</p>}
+                            {action.completedAt && <p className="text-xs text-green-600">Concluída em {fmtDateTime(action.completedAt)}</p>}
+                            {action.notes && <p className="text-xs text-muted-foreground italic">{action.notes}</p>}
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            {action.status !== "done" && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" title="Concluir" onClick={() => handleCompleteAction(action)}>
+                                <CheckCheck className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => { setEditingAction(action); setActionDialog(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Excluir" onClick={() => setDeleteAction(action)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {ncrStatus === "action_plan" && actions.length > 0 && (
+                    <div className="flex justify-end pt-1">
+                      <Button disabled={transitionM.isPending} onClick={() => handleTransition("execution")}>
+                        {transitionM.isPending ? "Salvando…" : "Iniciar Execução"}
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+                  {ncrStatus === "execution" && actions.every((a) => a.status === "done") && (
+                    <div className="flex justify-end pt-1">
+                      <Button disabled={transitionM.isPending} onClick={() => handleTransition("effectiveness_check")}>
+                        {transitionM.isPending ? "Salvando…" : "Verificar Eficácia"}
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* ── Verification / Closure tab ── */}
+                <TabsContent value="verification" className="space-y-3 mt-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Verificado por</label>
+                    <Input defaultValue={ncr.verifiedBy ?? ""} onChange={(e) => setVerifiedBy(e.target.value)} placeholder="Responsável pela verificação de eficácia" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Notas de verificação</label>
+                    <Textarea rows={3} defaultValue={ncr.verificationNotes ?? ""} onChange={(e) => setVerificationNotes(e.target.value)} placeholder="Descreva como foi feita a verificação de eficácia…" />
+                  </div>
+                  {ncr.verifiedAt && <p className="text-xs text-green-600">Verificado em {fmtDateTime(ncr.verifiedAt)}</p>}
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Encerrado por</label>
+                    <Input defaultValue={ncr.closedBy ?? ""} onChange={(e) => setClosedBy(e.target.value)} placeholder="Responsável pelo encerramento" />
+                  </div>
+                  {ncr.closedAt && <p className="text-xs text-green-600">Encerrado em {fmtDateTime(ncr.closedAt)}</p>}
+                  {ncrStatus !== "closed" && ncrStatus !== "resolved" && (
+                    <div className="flex justify-end gap-2 pt-1">
+                      {ncrStatus === "effectiveness_check" && (
+                        <Button
+                          disabled={transitionM.isPending}
+                          onClick={() => handleTransition("closed", {
+                            verifiedBy: verifiedBy || ncr.verifiedBy,
+                            verificationNotes: verificationNotes || ncr.verificationNotes,
+                            closedBy: closedBy || ncr.closedBy,
+                          })}
+                        >
+                          {transitionM.isPending ? "Salvando…" : "Encerrar CAPA"}
+                          <CheckCircle2 className="h-4 w-4 ml-1" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {(ncrStatus === "closed" || ncrStatus === "resolved") && (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                      <p className="text-sm text-green-800 font-medium">CAPA encerrada com sucesso.</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Action sub-dialogs */}
+      {ncrId && (
+        <CapaActionDialog open={actionDialog} onClose={() => { setActionDialog(false); setEditingAction(null); }} ncrId={ncrId} editing={editingAction} />
+      )}
+
+      <AlertDialog open={!!deleteAction} onOpenChange={(v) => !v && setDeleteAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir ação CAPA?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação será excluída permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!deleteAction || !ncrId) return;
+                deleteCapaM.mutate({ id: deleteAction.id }, {
+                  onSuccess: () => {
+                    qc.invalidateQueries({ queryKey: getListCapaActionsQueryKey(ncrId) });
+                    setDeleteAction(null);
+                  },
+                });
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -1125,6 +1603,7 @@ export default function QualidadePage() {
   const [editingNcr, setEditingNcr] = useState<QualityNcr | null>(null);
   const [deleteNcr, setDeleteNcr] = useState<QualityNcr | null>(null);
   const [resolveNcr, setResolveNcr] = useState<QualityNcr | null>(null);
+  const [capaDialogNcrId, setCapaDialogNcrId] = useState<number | null>(null);
 
   // Analysis state
   const [analysisSearch, setAnalysisSearch] = useState("");
@@ -1141,6 +1620,7 @@ export default function QualidadePage() {
   const { data: inspections = [], isLoading: inspLoading } = useListQualityInspections({});
   const { data: ncrs = [], isLoading: ncrsLoading } = useListQualityNcrs({});
   const { data: dashboard } = useGetQualidadeDashboard();
+  const { data: capaDashboard } = useGetCapaDashboard();
   const { data: products = [] } = useListProducts({});
   const { data: analyses = [], isLoading: analysesLoading } = useListQualityAnalyses({});
   const { data: certificates = [], isLoading: certsLoading } = useListQualityCertificates();
@@ -1524,6 +2004,91 @@ export default function QualidadePage() {
                 </CardContent>
               </Card>
             )}
+            {/* CAPA Dashboard KPIs */}
+            {capaDashboard && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">CAPA — Ações Corretivas e Preventivas</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className={(capaDashboard.totalOpen ?? 0) > 0 ? "cursor-pointer hover:border-amber-400 transition-colors" : ""} onClick={() => { if ((capaDashboard.totalOpen ?? 0) > 0) { setNcrStatusFilter("all"); setActiveTab("ncrs"); } }}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">NCRs CAPA em aberto</CardTitle>
+                      <ShieldAlert className="h-4 w-4 text-amber-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className={`text-2xl font-semibold ${(capaDashboard.totalOpen ?? 0) > 0 ? "text-amber-600" : ""}`}>{capaDashboard.totalOpen ?? 0}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{capaDashboard.totalClosed ?? 0} encerradas</p>
+                    </CardContent>
+                  </Card>
+                  <Card className={(capaDashboard.overdueActionsCount ?? 0) > 0 ? "border-red-300" : ""}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Ações atrasadas</CardTitle>
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className={`text-2xl font-semibold ${(capaDashboard.overdueActionsCount ?? 0) > 0 ? "text-destructive" : ""}`}>{capaDashboard.overdueActionsCount ?? 0}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{capaDashboard.openActionsCount ?? 0} pendentes no total</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Prazo médio encerramento</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-semibold">{capaDashboard.avgClosureDays != null ? `${Math.round(capaDashboard.avgClosureDays)}d` : "—"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Da abertura ao encerramento</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">NCRs atrasadas</CardTitle>
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className={`text-2xl font-semibold ${(capaDashboard.overdueNcrsCount ?? 0) > 0 ? "text-destructive" : ""}`}>{capaDashboard.overdueNcrsCount ?? 0}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Com prazo vencido e ainda abertas</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {(capaDashboard.upcomingActions ?? []).length > 0 && (
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <ListChecks className="h-4 w-4 text-primary" />
+                        Próximas ações CAPA a vencer
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Responsável</TableHead>
+                            <TableHead>Prazo</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(capaDashboard.upcomingActions ?? []).map((a) => (
+                            <TableRow key={a.id}>
+                              <TableCell className="text-sm font-medium max-w-[250px] truncate">{a.description}</TableCell>
+                              <TableCell><Badge variant="outline" className="text-xs">{a.actionType === "corrective" ? "Corretiva" : "Preventiva"}</Badge></TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{a.responsible ?? "—"}</TableCell>
+                              <TableCell className="text-sm whitespace-nowrap">{a.dueDate ? fmtDate(a.dueDate) : "—"}</TableCell>
+                              <TableCell>{actionStatusBadge(a.status)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* ── ANALYSES TAB ──────────────────────────────────────────────── */}
@@ -1810,10 +2375,14 @@ export default function QualidadePage() {
                   onChange={(e) => setNcrSearch(e.target.value)}
                 />
                 <Select value={ncrStatusFilter} onValueChange={setNcrStatusFilter}>
-                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os status</SelectItem>
                     <SelectItem value="open">Aberta</SelectItem>
+                    <SelectItem value="investigation">Investigação</SelectItem>
+                    <SelectItem value="action_plan">Plano de Ação</SelectItem>
+                    <SelectItem value="execution">Execução</SelectItem>
+                    <SelectItem value="effectiveness_check">Verificação</SelectItem>
                     <SelectItem value="in_progress">Em andamento</SelectItem>
                     <SelectItem value="resolved">Resolvida</SelectItem>
                     <SelectItem value="closed">Fechada</SelectItem>
@@ -1866,6 +2435,9 @@ export default function QualidadePage() {
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{ncr.dueDate ? fmtDate(ncr.dueDate) : "—"}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" title="Workflow CAPA" onClick={() => setCapaDialogNcrId(ncr.id)}>
+                              <Wrench className="h-4 w-4" />
+                            </Button>
                             {(ncr.status === "open" || ncr.status === "in_progress") && (
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" title="Resolver" onClick={() => setResolveNcr(ncr)}>
                                 <CheckCheck className="h-4 w-4" />
@@ -1894,6 +2466,8 @@ export default function QualidadePage() {
       <InspectionDialog open={inspDialog} onClose={() => { setInspDialog(false); setEditingInsp(null); }} editing={editingInsp} products={activeProducts} />
 
       <NcrDialog open={ncrDialog} onClose={() => { setNcrDialog(false); setEditingNcr(null); }} editing={editingNcr} products={activeProducts} inspections={inspections} />
+
+      <NcrCapaDialog ncrId={capaDialogNcrId} open={!!capaDialogNcrId} onClose={() => setCapaDialogNcrId(null)} />
 
       <AnalysisDialog open={analysisDialog} onClose={() => { setAnalysisDialog(false); setEditingAnalysis(null); }} editing={editingAnalysis} products={activeProducts} />
 

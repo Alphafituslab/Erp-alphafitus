@@ -1915,7 +1915,7 @@ export const DeleteQualityInspectionResponse = zod.object({
  * @summary List non-conformance reports with optional filters
  */
 export const ListQualityNcrsQueryParams = zod.object({
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']).optional(),
   "severity": zod.enum(['low', 'medium', 'high', 'critical']).optional(),
   "productId": zod.coerce.number().optional()
 })
@@ -1928,13 +1928,25 @@ export const ListQualityNcrsResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string().nullish(),
   "severity": zod.enum(['low', 'medium', 'high', 'critical']),
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
   "rootCause": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "reportedBy": zod.string().nullish(),
   "assignedTo": zod.string().nullish(),
   "dueDate": zod.string().nullish(),
   "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1951,66 +1963,20 @@ export const CreateQualityNcrBody = zod.object({
   "title": zod.string(),
   "description": zod.string().nullish(),
   "severity": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']).nullish(),
-  "rootCause": zod.string().nullish(),
-  "correctiveAction": zod.string().nullish(),
-  "reportedBy": zod.string().nullish(),
-  "assignedTo": zod.string().nullish(),
-  "dueDate": zod.string().nullish()
-})
-
-
-/**
- * @summary Update a non-conformance report
- */
-export const UpdateQualityNcrParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const UpdateQualityNcrBody = zod.object({
-  "inspectionId": zod.number().nullish(),
-  "productId": zod.number().nullish(),
-  "productName": zod.string().nullish(),
-  "title": zod.string(),
-  "description": zod.string().nullish(),
-  "severity": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']).nullish(),
-  "rootCause": zod.string().nullish(),
-  "correctiveAction": zod.string().nullish(),
-  "reportedBy": zod.string().nullish(),
-  "assignedTo": zod.string().nullish(),
-  "dueDate": zod.string().nullish()
-})
-
-export const UpdateQualityNcrResponse = zod.object({
-  "id": zod.number(),
-  "inspectionId": zod.number().nullish(),
-  "productId": zod.number().nullish(),
-  "productName": zod.string().nullish(),
-  "title": zod.string(),
-  "description": zod.string().nullish(),
-  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']).nullish(),
   "rootCause": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "reportedBy": zod.string().nullish(),
   "assignedTo": zod.string().nullish(),
   "dueDate": zod.string().nullish(),
-  "resolvedAt": zod.coerce.date().nullish(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-
-
-/**
- * @summary Delete a non-conformance report
- */
-export const DeleteQualityNcrParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const DeleteQualityNcrResponse = zod.object({
-  "ok": zod.boolean()
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish()
 })
 
 
@@ -2033,15 +1999,354 @@ export const ResolveQualityNcrResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullish(),
   "severity": zod.enum(['low', 'medium', 'high', 'critical']),
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
   "rootCause": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "reportedBy": zod.string().nullish(),
   "assignedTo": zod.string().nullish(),
   "dueDate": zod.string().nullish(),
   "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get NCR detail with CAPA actions
+ */
+export const GetQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetQualityNcrResponse = zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "actions": zod.array(zod.object({
+  "id": zod.number(),
+  "ncrId": zod.number(),
+  "actionType": zod.enum(['corrective', 'preventive']),
+  "description": zod.string(),
+  "responsible": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "evidence": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'done', 'overdue']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).optional()
+}))
+
+
+/**
+ * @summary Update a non-conformance report
+ */
+export const UpdateQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateQualityNcrBody = zod.object({
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']).nullish(),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish()
+})
+
+export const UpdateQualityNcrResponse = zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a non-conformance report
+ */
+export const DeleteQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteQualityNcrResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Transition NCR to next CAPA workflow status
+ */
+export const TransitionQualityNcrParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const TransitionQualityNcrBody = zod.object({
+  "toStatus": zod.enum(['investigation', 'action_plan', 'execution', 'effectiveness_check', 'closed', 'resolved']),
+  "investigatedBy": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish()
+})
+
+export const TransitionQualityNcrResponse = zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List CAPA actions for a NCR
+ */
+export const ListCapaActionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCapaActionsResponseItem = zod.object({
+  "id": zod.number(),
+  "ncrId": zod.number(),
+  "actionType": zod.enum(['corrective', 'preventive']),
+  "description": zod.string(),
+  "responsible": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "evidence": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'done', 'overdue']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListCapaActionsResponse = zod.array(ListCapaActionsResponseItem)
+
+
+/**
+ * @summary Create a CAPA action for a NCR
+ */
+export const CreateCapaActionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreateCapaActionBody = zod.object({
+  "actionType": zod.enum(['corrective', 'preventive']).nullish(),
+  "description": zod.string(),
+  "responsible": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "evidence": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'done']).nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a CAPA action
+ */
+export const UpdateCapaActionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateCapaActionBody = zod.object({
+  "actionType": zod.enum(['corrective', 'preventive']).nullish(),
+  "description": zod.string(),
+  "responsible": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "evidence": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'done']).nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateCapaActionResponse = zod.object({
+  "id": zod.number(),
+  "ncrId": zod.number(),
+  "actionType": zod.enum(['corrective', 'preventive']),
+  "description": zod.string(),
+  "responsible": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "evidence": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'done', 'overdue']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a CAPA action
+ */
+export const DeleteCapaActionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCapaActionResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary CAPA dashboard KPIs and open NCR summary
+ */
+export const GetCapaDashboardResponse = zod.object({
+  "totalOpen": zod.number(),
+  "totalClosed": zod.number(),
+  "byStatus": zod.object({
+
+}).passthrough(),
+  "byType": zod.object({
+
+}).passthrough(),
+  "overdueNcrsCount": zod.number(),
+  "overdueActionsCount": zod.number(),
+  "openActionsCount": zod.number(),
+  "avgClosureDays": zod.number().nullish(),
+  "recentOpenNcrs": zod.array(zod.object({
+  "id": zod.number(),
+  "inspectionId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "severity": zod.enum(['low', 'medium', 'high', 'critical']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
+  "rootCause": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "reportedBy": zod.string().nullish(),
+  "assignedTo": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "upcomingActions": zod.array(zod.object({
+  "id": zod.number(),
+  "ncrId": zod.number(),
+  "actionType": zod.enum(['corrective', 'preventive']),
+  "description": zod.string(),
+  "responsible": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),
+  "completedAt": zod.coerce.date().nullish(),
+  "evidence": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'done', 'overdue']),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
 })
 
 
@@ -2078,13 +2383,25 @@ export const GetQualidadeDashboardResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullish(),
   "severity": zod.enum(['low', 'medium', 'high', 'critical']),
-  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "status": zod.enum(['open', 'investigation', 'action_plan', 'execution', 'effectiveness_check', 'in_progress', 'resolved', 'closed']),
   "rootCause": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "reportedBy": zod.string().nullish(),
   "assignedTo": zod.string().nullish(),
   "dueDate": zod.string().nullish(),
   "resolvedAt": zod.coerce.date().nullish(),
+  "ncType": zod.enum(['receiving', 'production', 'finished_goods', 'customer', 'other']).nullish(),
+  "origin": zod.string().nullish(),
+  "whyAnalysis": zod.string().nullish(),
+  "ishikawaCategories": zod.string().nullish(),
+  "investigatedBy": zod.string().nullish(),
+  "investigatedAt": zod.coerce.date().nullish(),
+  "actionPlanApprovedAt": zod.coerce.date().nullish(),
+  "verifiedBy": zod.string().nullish(),
+  "verifiedAt": zod.coerce.date().nullish(),
+  "verificationNotes": zod.string().nullish(),
+  "closedBy": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),

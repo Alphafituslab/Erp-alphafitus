@@ -2327,7 +2327,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [open, in_progress, resolved, closed]
+            enum: [open, investigation, action_plan, execution, effectiveness_check, in_progress, resolved, closed]
         - name: severity
           in: query
           schema:
@@ -2382,7 +2382,75 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /qualidade/ncrs/{id}/resolve:
+    post:
+      operationId: resolveQualityNcr
+      tags: [qualidade]
+      summary: Mark a NCR as resolved
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveNcrInput"
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityNcr"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Qualidade: NCR Detail + CAPA ────────────────────────────────────────────
+
   /qualidade/ncrs/{id}:
+    get:
+      operationId: getQualityNcr
+      tags: [qualidade]
+      summary: Get NCR detail with CAPA actions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: NCR detail with actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NcrDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     put:
       operationId: updateQualityNcr
       tags: [qualidade]
@@ -2448,11 +2516,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /qualidade/ncrs/{id}/resolve:
+  /qualidade/ncrs/{id}/transition:
     post:
-      operationId: resolveQualityNcr
+      operationId: transitionQualityNcr
       tags: [qualidade]
-      summary: Mark a NCR as resolved
+      summary: Transition NCR to next CAPA workflow status
       parameters:
         - name: id
           in: path
@@ -2460,24 +2528,177 @@ paths:
           schema:
             type: integer
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ResolveNcrInput"
+              $ref: "#/components/schemas/CapaTransitionInput"
       responses:
         "200":
-          description: Resolved
+          description: Updated
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/QualityNcr"
+        "400":
+          description: Invalid transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/ncrs/{id}/actions:
+    get:
+      operationId: listCapaActions
+      tags: [qualidade]
+      summary: List CAPA actions for a NCR
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of CAPA actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CapaAction"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCapaAction
+      tags: [qualidade]
+      summary: Create a CAPA action for a NCR
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapaActionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapaAction"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/capa/actions/{id}:
+    put:
+      operationId: updateCapaAction
+      tags: [qualidade]
+      summary: Update a CAPA action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapaActionInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapaAction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCapaAction
+      tags: [qualidade]
+      summary: Delete a CAPA action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/capa/dashboard:
+    get:
+      operationId: getCapaDashboard
+      tags: [qualidade]
+      summary: CAPA dashboard KPIs and open NCR summary
+      responses:
+        "200":
+          description: CAPA dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapaDashboard"
         "401":
           description: Not authenticated
           content:
@@ -6610,7 +6831,7 @@ components:
           enum: [low, medium, high, critical]
         status:
           type: string
-          enum: [open, in_progress, resolved, closed]
+          enum: [open, investigation, action_plan, execution, effectiveness_check, in_progress, resolved, closed]
         rootCause:
           type: string
           nullable: true
@@ -6630,12 +6851,203 @@ components:
           type: string
           format: date-time
           nullable: true
+        ncType:
+          type: string
+          enum: [receiving, production, finished_goods, customer, other]
+          nullable: true
+        origin:
+          type: string
+          nullable: true
+        whyAnalysis:
+          type: string
+          nullable: true
+        ishikawaCategories:
+          type: string
+          nullable: true
+        investigatedBy:
+          type: string
+          nullable: true
+        investigatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        actionPlanApprovedAt:
+          type: string
+          format: date-time
+          nullable: true
+        verifiedBy:
+          type: string
+          nullable: true
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        verificationNotes:
+          type: string
+          nullable: true
+        closedBy:
+          type: string
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+
+    NcrDetail:
+      allOf:
+        - $ref: "#/components/schemas/QualityNcr"
+        - type: object
+          properties:
+            actions:
+              type: array
+              items:
+                $ref: "#/components/schemas/CapaAction"
+
+    CapaAction:
+      type: object
+      required:
+        - id
+        - ncrId
+        - actionType
+        - description
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        ncrId:
+          type: integer
+        actionType:
+          type: string
+          enum: [corrective, preventive]
+        description:
+          type: string
+        responsible:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidence:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, in_progress, done, overdue]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CapaActionInput:
+      type: object
+      required:
+        - description
+      properties:
+        actionType:
+          type: string
+          enum: [corrective, preventive]
+          nullable: true
+        description:
+          type: string
+        responsible:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        evidence:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, in_progress, done]
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    CapaTransitionInput:
+      type: object
+      required:
+        - toStatus
+      properties:
+        toStatus:
+          type: string
+          enum: [investigation, action_plan, execution, effectiveness_check, closed, resolved]
+        investigatedBy:
+          type: string
+          nullable: true
+        whyAnalysis:
+          type: string
+          nullable: true
+        ishikawaCategories:
+          type: string
+          nullable: true
+        verifiedBy:
+          type: string
+          nullable: true
+        verificationNotes:
+          type: string
+          nullable: true
+        closedBy:
+          type: string
+          nullable: true
+
+    CapaDashboard:
+      type: object
+      required:
+        - totalOpen
+        - totalClosed
+        - byStatus
+        - byType
+        - overdueNcrsCount
+        - overdueActionsCount
+        - openActionsCount
+        - recentOpenNcrs
+        - upcomingActions
+      properties:
+        totalOpen:
+          type: integer
+        totalClosed:
+          type: integer
+        byStatus:
+          type: object
+        byType:
+          type: object
+        overdueNcrsCount:
+          type: integer
+        overdueActionsCount:
+          type: integer
+        openActionsCount:
+          type: integer
+        avgClosureDays:
+          type: number
+          nullable: true
+        recentOpenNcrs:
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityNcr"
+        upcomingActions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapaAction"
 
     QualityNcrInput:
       type: object
@@ -6662,7 +7074,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [open, in_progress, resolved, closed]
+          enum: [open, investigation, action_plan, execution, effectiveness_check, in_progress, resolved, closed]
           nullable: true
         rootCause:
           type: string
@@ -6677,6 +7089,31 @@ components:
           type: string
           nullable: true
         dueDate:
+          type: string
+          nullable: true
+        ncType:
+          type: string
+          enum: [receiving, production, finished_goods, customer, other]
+          nullable: true
+        origin:
+          type: string
+          nullable: true
+        whyAnalysis:
+          type: string
+          nullable: true
+        ishikawaCategories:
+          type: string
+          nullable: true
+        investigatedBy:
+          type: string
+          nullable: true
+        verifiedBy:
+          type: string
+          nullable: true
+        verificationNotes:
+          type: string
+          nullable: true
+        closedBy:
           type: string
           nullable: true
 

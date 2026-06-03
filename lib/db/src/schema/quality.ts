@@ -28,13 +28,42 @@ export const qualityNcrsTable = pgTable("quality_ncrs", {
   title: text("title").notNull(),
   description: text("description"),
   severity: text("severity").notNull().default("medium"), // low | medium | high | critical
-  status: text("status").notNull().default("open"), // open | in_progress | resolved | closed
+  // CAPA workflow status: open | investigation | action_plan | execution | effectiveness_check | closed | in_progress | resolved
+  status: text("status").notNull().default("open"),
   rootCause: text("root_cause"),
   correctiveAction: text("corrective_action"),
   reportedBy: text("reported_by"),
   assignedTo: text("assigned_to"),
   dueDate: text("due_date"), // YYYY-MM-DD
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  // CAPA-specific fields
+  ncType: text("nc_type"), // receiving | production | finished_goods | customer | other
+  origin: text("origin"), // free-text module origin
+  whyAnalysis: text("why_analysis"), // JSON: string[] — 5-porquês
+  ishikawaCategories: text("ishikawa_categories"), // JSON: {mao_de_obra, maquina, metodo, material, meio_ambiente, medicao}
+  investigatedBy: text("investigated_by"),
+  investigatedAt: timestamp("investigated_at", { withTimezone: true }),
+  actionPlanApprovedAt: timestamp("action_plan_approved_at", { withTimezone: true }),
+  verifiedBy: text("verified_by"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  verificationNotes: text("verification_notes"),
+  closedBy: text("closed_by"),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const capaActionsTable = pgTable("capa_actions", {
+  id: serial("id").primaryKey(),
+  ncrId: integer("ncr_id").notNull().references(() => qualityNcrsTable.id, { onDelete: "cascade" }),
+  actionType: text("action_type").notNull().default("corrective"), // corrective | preventive
+  description: text("description").notNull(),
+  responsible: text("responsible"),
+  dueDate: text("due_date"), // YYYY-MM-DD
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  evidence: text("evidence"), // description of evidence / link
+  status: text("status").notNull().default("pending"), // pending | in_progress | done | overdue
+  notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -101,7 +130,7 @@ export const qualityInspectionsRelations = relations(qualityInspectionsTable, ({
   ncrs: many(qualityNcrsTable),
 }));
 
-export const qualityNcrsRelations = relations(qualityNcrsTable, ({ one }) => ({
+export const qualityNcrsRelations = relations(qualityNcrsTable, ({ one, many }) => ({
   inspection: one(qualityInspectionsTable, {
     fields: [qualityNcrsTable.inspectionId],
     references: [qualityInspectionsTable.id],
@@ -109,6 +138,14 @@ export const qualityNcrsRelations = relations(qualityNcrsTable, ({ one }) => ({
   product: one(productsTable, {
     fields: [qualityNcrsTable.productId],
     references: [productsTable.id],
+  }),
+  capaActions: many(capaActionsTable),
+}));
+
+export const capaActionsRelations = relations(capaActionsTable, ({ one }) => ({
+  ncr: one(qualityNcrsTable, {
+    fields: [capaActionsTable.ncrId],
+    references: [qualityNcrsTable.id],
   }),
 }));
 
@@ -140,6 +177,10 @@ export type QualityInspection = typeof qualityInspectionsTable.$inferSelect;
 export const insertQualityNcrSchema = createInsertSchema(qualityNcrsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertQualityNcr = z.infer<typeof insertQualityNcrSchema>;
 export type QualityNcr = typeof qualityNcrsTable.$inferSelect;
+
+export const insertCapaActionSchema = createInsertSchema(capaActionsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCapaAction = z.infer<typeof insertCapaActionSchema>;
+export type CapaAction = typeof capaActionsTable.$inferSelect;
 
 export const insertQualityAnalysisSchema = createInsertSchema(qualityAnalysesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertQualityAnalysis = z.infer<typeof insertQualityAnalysisSchema>;

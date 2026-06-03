@@ -5,6 +5,7 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { QualityNcrInputNcType } from './qualityNcrInputNcType';
 import type { QualityNcrInputSeverity } from './qualityNcrInputSeverity';
 import type { QualityNcrInputStatus } from './qualityNcrInputStatus';
 
@@ -21,4 +22,12 @@ export interface QualityNcrInput {
   reportedBy?: string | null;
   assignedTo?: string | null;
   dueDate?: string | null;
+  ncType?: QualityNcrInputNcType;
+  origin?: string | null;
+  whyAnalysis?: string | null;
+  ishikawaCategories?: string | null;
+  investigatedBy?: string | null;
+  verifiedBy?: string | null;
+  verificationNotes?: string | null;
+  closedBy?: string | null;
 }

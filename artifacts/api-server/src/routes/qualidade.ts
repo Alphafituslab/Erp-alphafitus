@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, desc, sql, isNull } from "drizzle-orm";
+import { and, eq, gte, lte, desc, sql, isNull, lt } from "drizzle-orm";
 import {
   db,
   qualityInspectionsTable,
   qualityNcrsTable,
+  capaActionsTable,
   qualityAnalysesTable,
   analysisParametersTable,
   qualityCertificatesTable,
@@ -176,7 +177,7 @@ router.get("/qualidade/ncrs", async (req: Request, res: Response): Promise<void>
 router.post("/qualidade/ncrs", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { inspectionId, productId, productName, title, description, severity, status, rootCause, correctiveAction, reportedBy, assignedTo, dueDate } = req.body;
+  const { inspectionId, productId, productName, title, description, severity, status, rootCause, correctiveAction, reportedBy, assignedTo, dueDate, ncType, origin } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Título é obrigatório" }); return; }
 
   let resolvedProductName = productName || null;
@@ -199,6 +200,8 @@ router.post("/qualidade/ncrs", async (req: Request, res: Response): Promise<void
     assignedTo: assignedTo || null,
     dueDate: dueDate || null,
     resolvedAt: null,
+    ncType: ncType || null,
+    origin: origin || null,
   }).returning();
 
   res.status(201).json(ncr);
@@ -209,7 +212,7 @@ router.put("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<v
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
-  const { inspectionId, productId, productName, title, description, severity, status, rootCause, correctiveAction, reportedBy, assignedTo, dueDate } = req.body;
+  const { inspectionId, productId, productName, title, description, severity, status, rootCause, correctiveAction, reportedBy, assignedTo, dueDate, ncType, origin, whyAnalysis, ishikawaCategories, investigatedBy, verifiedBy, verificationNotes, closedBy } = req.body;
   if (!title?.trim()) { res.status(400).json({ error: "Título é obrigatório" }); return; }
 
   let resolvedProductName = productName || null;
@@ -231,6 +234,14 @@ router.put("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<v
     reportedBy: reportedBy || null,
     assignedTo: assignedTo || null,
     dueDate: dueDate || null,
+    ncType: ncType || null,
+    origin: origin || null,
+    whyAnalysis: whyAnalysis || null,
+    ishikawaCategories: ishikawaCategories || null,
+    investigatedBy: investigatedBy || null,
+    verifiedBy: verifiedBy || null,
+    verificationNotes: verificationNotes || null,
+    closedBy: closedBy || null,
   }).where(eq(qualityNcrsTable.id, id)).returning();
 
   if (!ncr) { res.status(404).json({ error: "NCR não encontrada" }); return; }
@@ -771,6 +782,255 @@ router.get("/qualidade/dashboard", async (req: Request, res: Response): Promise<
     recentAnalyses,
     topRejectedParameters,
     supplierQuality,
+  });
+});
+
+// ─── CAPA: NCR Detail ─────────────────────────────────────────────────────────
+
+router.get("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [ncr] = await db.select().from(qualityNcrsTable).where(eq(qualityNcrsTable.id, id));
+  if (!ncr) { res.status(404).json({ error: "NCR não encontrada" }); return; }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const actions = await db.select().from(capaActionsTable).where(eq(capaActionsTable.ncrId, id)).orderBy(capaActionsTable.id);
+  // Auto-mark overdue actions
+  const enrichedActions = actions.map((a) => ({
+    ...a,
+    status: a.status !== "done" && a.dueDate && a.dueDate < today ? "overdue" : a.status,
+  }));
+
+  res.json({ ...ncr, actions: enrichedActions });
+});
+
+// ─── CAPA: Status Transition ──────────────────────────────────────────────────
+
+const CAPA_TRANSITIONS: Record<string, string[]> = {
+  open:                 ["investigation", "closed"],
+  investigation:        ["action_plan", "closed"],
+  action_plan:          ["execution", "closed"],
+  execution:            ["effectiveness_check", "closed"],
+  effectiveness_check:  ["closed"],
+  in_progress:          ["investigation", "resolved", "closed"],
+  resolved:             ["closed"],
+};
+
+router.post("/qualidade/ncrs/:id/transition", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const { toStatus, investigatedBy, verifiedBy, verificationNotes, closedBy, whyAnalysis, ishikawaCategories } = req.body ?? {};
+  if (!toStatus) { res.status(400).json({ error: "toStatus é obrigatório" }); return; }
+
+  const [existing] = await db.select().from(qualityNcrsTable).where(eq(qualityNcrsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "NCR não encontrada" }); return; }
+
+  const allowed = CAPA_TRANSITIONS[existing.status] ?? [];
+  if (!allowed.includes(toStatus)) {
+    res.status(400).json({ error: `Transição inválida: ${existing.status} → ${toStatus}. Permitidas: ${allowed.join(", ")}` });
+    return;
+  }
+
+  const now = new Date();
+  const updates: Record<string, unknown> = { status: toStatus };
+
+  if (toStatus === "investigation") {
+    updates.investigatedBy = investigatedBy || req.session.userName || null;
+    updates.investigatedAt = now;
+    if (whyAnalysis) updates.whyAnalysis = whyAnalysis;
+    if (ishikawaCategories) updates.ishikawaCategories = ishikawaCategories;
+  }
+  if (toStatus === "action_plan") {
+    updates.actionPlanApprovedAt = now;
+  }
+  if (toStatus === "effectiveness_check") {
+    updates.verifiedBy = verifiedBy || req.session.userName || null;
+    updates.verifiedAt = now;
+    if (verificationNotes) updates.verificationNotes = verificationNotes;
+  }
+  if (toStatus === "closed") {
+    updates.closedBy = closedBy || req.session.userName || null;
+    updates.closedAt = now;
+    updates.resolvedAt = now;
+    if (verifiedBy) { updates.verifiedBy = verifiedBy; updates.verifiedAt = now; }
+    if (verificationNotes) updates.verificationNotes = verificationNotes;
+  }
+  if (toStatus === "resolved") updates.resolvedAt = now;
+
+  const [updated] = await db.update(qualityNcrsTable).set(updates).where(eq(qualityNcrsTable.id, id)).returning();
+  res.json(updated);
+});
+
+// ─── CAPA: Actions CRUD ───────────────────────────────────────────────────────
+
+router.get("/qualidade/ncrs/:id/actions", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const actions = await db.select().from(capaActionsTable).where(eq(capaActionsTable.ncrId, id)).orderBy(capaActionsTable.id);
+  const enriched = actions.map((a) => ({
+    ...a,
+    status: a.status !== "done" && a.dueDate && a.dueDate < today ? "overdue" : a.status,
+  }));
+  res.json(enriched);
+});
+
+router.post("/qualidade/ncrs/:id/actions", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const ncrId = parseId(req.params.id, res);
+  if (ncrId === null) return;
+
+  const [ncr] = await db.select({ id: qualityNcrsTable.id }).from(qualityNcrsTable).where(eq(qualityNcrsTable.id, ncrId));
+  if (!ncr) { res.status(404).json({ error: "NCR não encontrada" }); return; }
+
+  const { actionType, description, responsible, dueDate, evidence, status, notes } = req.body;
+  if (!description?.trim()) { res.status(400).json({ error: "Descrição é obrigatória" }); return; }
+
+  const [action] = await db.insert(capaActionsTable).values({
+    ncrId,
+    actionType: actionType || "corrective",
+    description: description.trim(),
+    responsible: responsible || null,
+    dueDate: dueDate || null,
+    evidence: evidence || null,
+    status: status || "pending",
+    notes: notes || null,
+  }).returning();
+
+  res.status(201).json(action);
+});
+
+router.put("/qualidade/capa/actions/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const { actionType, description, responsible, dueDate, evidence, status, notes } = req.body;
+  if (!description?.trim()) { res.status(400).json({ error: "Descrição é obrigatória" }); return; }
+
+  const completedAt = status === "done" ? new Date() : null;
+
+  const [action] = await db.update(capaActionsTable).set({
+    actionType: actionType || "corrective",
+    description: description.trim(),
+    responsible: responsible || null,
+    dueDate: dueDate || null,
+    evidence: evidence || null,
+    status: status || "pending",
+    notes: notes || null,
+    completedAt,
+  }).where(eq(capaActionsTable.id, id)).returning();
+
+  if (!action) { res.status(404).json({ error: "Ação não encontrada" }); return; }
+  res.json(action);
+});
+
+router.delete("/qualidade/capa/actions/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [deleted] = await db.delete(capaActionsTable).where(eq(capaActionsTable.id, id)).returning({ id: capaActionsTable.id });
+  if (!deleted) { res.status(404).json({ error: "Ação não encontrada" }); return; }
+  res.json({ ok: true });
+});
+
+// ─── CAPA: Dashboard ──────────────────────────────────────────────────────────
+
+router.get("/qualidade/capa/dashboard", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // NCR counts by status
+  const statusCounts = await db
+    .select({ status: qualityNcrsTable.status, count: sql<number>`COUNT(*)::int` })
+    .from(qualityNcrsTable)
+    .groupBy(qualityNcrsTable.status);
+
+  // NCR counts by type
+  const typeCounts = await db
+    .select({ ncType: qualityNcrsTable.ncType, count: sql<number>`COUNT(*)::int` })
+    .from(qualityNcrsTable)
+    .groupBy(qualityNcrsTable.ncType);
+
+  // Average closure time (days) for closed NCRs
+  const [avgClosure] = await db
+    .select({ avg: sql<string>`AVG(EXTRACT(EPOCH FROM (closed_at - created_at)) / 86400)::text` })
+    .from(qualityNcrsTable)
+    .where(sql`${qualityNcrsTable.closedAt} IS NOT NULL`);
+
+  // Overdue open actions
+  const [overdueActions] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(capaActionsTable)
+    .where(and(
+      sql`${capaActionsTable.status} != 'done'`,
+      sql`${capaActionsTable.dueDate} < ${today}`,
+    ));
+
+  // Total open actions
+  const [openActions] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(capaActionsTable)
+    .where(sql`${capaActionsTable.status} != 'done'`);
+
+  // NCRs with overdue main due date
+  const [overdueNcrs] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(qualityNcrsTable)
+    .where(and(
+      sql`${qualityNcrsTable.status} NOT IN ('closed','resolved')`,
+      sql`${qualityNcrsTable.dueDate} IS NOT NULL`,
+      sql`${qualityNcrsTable.dueDate} < ${today}`,
+    ));
+
+  // Recent open NCRs
+  const recentOpenNcrs = await db
+    .select()
+    .from(qualityNcrsTable)
+    .where(sql`${qualityNcrsTable.status} NOT IN ('closed','resolved')`)
+    .orderBy(sql`CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`, desc(qualityNcrsTable.createdAt))
+    .limit(10);
+
+  // Actions approaching deadline (next 7 days, not done)
+  const sevenDaysLater = new Date();
+  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+  const deadline = sevenDaysLater.toISOString().slice(0, 10);
+  const upcomingActions = await db
+    .select()
+    .from(capaActionsTable)
+    .where(and(
+      sql`${capaActionsTable.status} != 'done'`,
+      sql`${capaActionsTable.dueDate} IS NOT NULL`,
+      sql`${capaActionsTable.dueDate} >= ${today}`,
+      sql`${capaActionsTable.dueDate} <= ${deadline}`,
+    ))
+    .orderBy(capaActionsTable.dueDate)
+    .limit(10);
+
+  const byStatus = Object.fromEntries(statusCounts.map((r) => [r.status, Number(r.count)]));
+  const byType = Object.fromEntries(typeCounts.map((r) => [r.ncType ?? "other", Number(r.count)]));
+  const totalOpen = statusCounts.filter((r) => !["closed", "resolved"].includes(r.status)).reduce((s, r) => s + Number(r.count), 0);
+  const totalClosed = (byStatus["closed"] ?? 0) + (byStatus["resolved"] ?? 0);
+  const avgDays = avgClosure?.avg ? parseFloat(avgClosure.avg) : null;
+
+  res.json({
+    totalOpen,
+    totalClosed,
+    byStatus,
+    byType,
+    overdueNcrsCount: Number(overdueNcrs?.count ?? 0),
+    overdueActionsCount: Number(overdueActions?.count ?? 0),
+    openActionsCount: Number(openActions?.count ?? 0),
+    avgClosureDays: avgDays !== null ? parseFloat(avgDays.toFixed(1)) : null,
+    recentOpenNcrs,
+    upcomingActions,
   });
 });
 

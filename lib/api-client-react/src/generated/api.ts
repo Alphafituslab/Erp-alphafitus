@@ -26,6 +26,10 @@ import type {
   AttendanceLogInput,
   AttendanceSummary,
   AuthUser,
+  CapaAction,
+  CapaActionInput,
+  CapaDashboard,
+  CapaTransitionInput,
   CashflowMonth,
   Client,
   ClientInput,
@@ -90,6 +94,7 @@ import type {
   LotTransferInput,
   MarkPaidInput,
   MaterialNeeds,
+  NcrDetail,
   PriceHistoryPoint,
   ProducaoDashboard,
   Product,
@@ -5490,6 +5495,155 @@ export const useCreateQualityNcr = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCreateQualityNcrMutationOptions(options));
     }
 
+export const getResolveQualityNcrUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/ncrs/${id}/resolve`
+}
+
+/**
+ * @summary Mark a NCR as resolved
+ */
+export const resolveQualityNcr = async (id: number,
+    resolveNcrInput?: ResolveNcrInput, options?: RequestInit): Promise<QualityNcr> => {
+
+  return customFetch<QualityNcr>(getResolveQualityNcrUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      resolveNcrInput,)
+  }
+);}
+
+
+
+
+export const getResolveQualityNcrMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveQualityNcr>>, TError,{id: number;data?: BodyType<ResolveNcrInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveQualityNcr>>, TError,{id: number;data?: BodyType<ResolveNcrInput>}, TContext> => {
+
+const mutationKey = ['resolveQualityNcr'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveQualityNcr>>, {id: number;data?: BodyType<ResolveNcrInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveQualityNcr(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveQualityNcrMutationResult = NonNullable<Awaited<ReturnType<typeof resolveQualityNcr>>>
+    export type ResolveQualityNcrMutationBody = BodyType<ResolveNcrInput> | undefined
+    export type ResolveQualityNcrMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Mark a NCR as resolved
+ */
+export const useResolveQualityNcr = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveQualityNcr>>, TError,{id: number;data?: BodyType<ResolveNcrInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveQualityNcr>>,
+        TError,
+        {id: number;data?: BodyType<ResolveNcrInput>},
+        TContext
+      > => {
+      return useMutation(getResolveQualityNcrMutationOptions(options));
+    }
+
+export const getGetQualityNcrUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/ncrs/${id}`
+}
+
+/**
+ * @summary Get NCR detail with CAPA actions
+ */
+export const getQualityNcr = async (id: number, options?: RequestInit): Promise<NcrDetail> => {
+
+  return customFetch<NcrDetail>(getGetQualityNcrUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQualityNcrQueryKey = (id: number,) => {
+    return [
+    `/api/qualidade/ncrs/${id}`
+    ] as const;
+    }
+
+
+export const getGetQualityNcrQueryOptions = <TData = Awaited<ReturnType<typeof getQualityNcr>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQualityNcr>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQualityNcrQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQualityNcr>>> = ({ signal }) => getQualityNcr(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQualityNcr>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQualityNcrQueryResult = NonNullable<Awaited<ReturnType<typeof getQualityNcr>>>
+export type GetQualityNcrQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get NCR detail with CAPA actions
+ */
+
+export function useGetQualityNcr<TData = Awaited<ReturnType<typeof getQualityNcr>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQualityNcr>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQualityNcrQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getUpdateQualityNcrUrl = (id: number,) => {
 
 
@@ -5632,38 +5786,38 @@ export const useDeleteQualityNcr = <TError = ErrorType<ErrorResponse>,
       return useMutation(getDeleteQualityNcrMutationOptions(options));
     }
 
-export const getResolveQualityNcrUrl = (id: number,) => {
+export const getTransitionQualityNcrUrl = (id: number,) => {
 
 
 
 
-  return `/api/qualidade/ncrs/${id}/resolve`
+  return `/api/qualidade/ncrs/${id}/transition`
 }
 
 /**
- * @summary Mark a NCR as resolved
+ * @summary Transition NCR to next CAPA workflow status
  */
-export const resolveQualityNcr = async (id: number,
-    resolveNcrInput?: ResolveNcrInput, options?: RequestInit): Promise<QualityNcr> => {
+export const transitionQualityNcr = async (id: number,
+    capaTransitionInput: CapaTransitionInput, options?: RequestInit): Promise<QualityNcr> => {
 
-  return customFetch<QualityNcr>(getResolveQualityNcrUrl(id),
+  return customFetch<QualityNcr>(getTransitionQualityNcrUrl(id),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      resolveNcrInput,)
+      capaTransitionInput,)
   }
 );}
 
 
 
 
-export const getResolveQualityNcrMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveQualityNcr>>, TError,{id: number;data?: BodyType<ResolveNcrInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof resolveQualityNcr>>, TError,{id: number;data?: BodyType<ResolveNcrInput>}, TContext> => {
+export const getTransitionQualityNcrMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionQualityNcr>>, TError,{id: number;data: BodyType<CapaTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transitionQualityNcr>>, TError,{id: number;data: BodyType<CapaTransitionInput>}, TContext> => {
 
-const mutationKey = ['resolveQualityNcr'];
+const mutationKey = ['transitionQualityNcr'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -5673,10 +5827,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveQualityNcr>>, {id: number;data?: BodyType<ResolveNcrInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transitionQualityNcr>>, {id: number;data: BodyType<CapaTransitionInput>}> = (props) => {
           const {id,data} = props ?? {};
 
-          return  resolveQualityNcr(id,data,requestOptions)
+          return  transitionQualityNcr(id,data,requestOptions)
         }
 
 
@@ -5686,23 +5840,391 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ResolveQualityNcrMutationResult = NonNullable<Awaited<ReturnType<typeof resolveQualityNcr>>>
-    export type ResolveQualityNcrMutationBody = BodyType<ResolveNcrInput> | undefined
-    export type ResolveQualityNcrMutationError = ErrorType<ErrorResponse>
+    export type TransitionQualityNcrMutationResult = NonNullable<Awaited<ReturnType<typeof transitionQualityNcr>>>
+    export type TransitionQualityNcrMutationBody = BodyType<CapaTransitionInput>
+    export type TransitionQualityNcrMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Mark a NCR as resolved
+ * @summary Transition NCR to next CAPA workflow status
  */
-export const useResolveQualityNcr = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveQualityNcr>>, TError,{id: number;data?: BodyType<ResolveNcrInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useTransitionQualityNcr = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionQualityNcr>>, TError,{id: number;data: BodyType<CapaTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof resolveQualityNcr>>,
+        Awaited<ReturnType<typeof transitionQualityNcr>>,
         TError,
-        {id: number;data?: BodyType<ResolveNcrInput>},
+        {id: number;data: BodyType<CapaTransitionInput>},
         TContext
       > => {
-      return useMutation(getResolveQualityNcrMutationOptions(options));
+      return useMutation(getTransitionQualityNcrMutationOptions(options));
     }
+
+export const getListCapaActionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/ncrs/${id}/actions`
+}
+
+/**
+ * @summary List CAPA actions for a NCR
+ */
+export const listCapaActions = async (id: number, options?: RequestInit): Promise<CapaAction[]> => {
+
+  return customFetch<CapaAction[]>(getListCapaActionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCapaActionsQueryKey = (id: number,) => {
+    return [
+    `/api/qualidade/ncrs/${id}/actions`
+    ] as const;
+    }
+
+
+export const getListCapaActionsQueryOptions = <TData = Awaited<ReturnType<typeof listCapaActions>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCapaActions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCapaActionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCapaActions>>> = ({ signal }) => listCapaActions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCapaActions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCapaActionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCapaActions>>>
+export type ListCapaActionsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List CAPA actions for a NCR
+ */
+
+export function useListCapaActions<TData = Awaited<ReturnType<typeof listCapaActions>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCapaActions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCapaActionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCapaActionUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/ncrs/${id}/actions`
+}
+
+/**
+ * @summary Create a CAPA action for a NCR
+ */
+export const createCapaAction = async (id: number,
+    capaActionInput: CapaActionInput, options?: RequestInit): Promise<CapaAction> => {
+
+  return customFetch<CapaAction>(getCreateCapaActionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      capaActionInput,)
+  }
+);}
+
+
+
+
+export const getCreateCapaActionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCapaAction>>, TError,{id: number;data: BodyType<CapaActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCapaAction>>, TError,{id: number;data: BodyType<CapaActionInput>}, TContext> => {
+
+const mutationKey = ['createCapaAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCapaAction>>, {id: number;data: BodyType<CapaActionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createCapaAction(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCapaActionMutationResult = NonNullable<Awaited<ReturnType<typeof createCapaAction>>>
+    export type CreateCapaActionMutationBody = BodyType<CapaActionInput>
+    export type CreateCapaActionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a CAPA action for a NCR
+ */
+export const useCreateCapaAction = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCapaAction>>, TError,{id: number;data: BodyType<CapaActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCapaAction>>,
+        TError,
+        {id: number;data: BodyType<CapaActionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCapaActionMutationOptions(options));
+    }
+
+export const getUpdateCapaActionUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/capa/actions/${id}`
+}
+
+/**
+ * @summary Update a CAPA action
+ */
+export const updateCapaAction = async (id: number,
+    capaActionInput: CapaActionInput, options?: RequestInit): Promise<CapaAction> => {
+
+  return customFetch<CapaAction>(getUpdateCapaActionUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      capaActionInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCapaActionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCapaAction>>, TError,{id: number;data: BodyType<CapaActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCapaAction>>, TError,{id: number;data: BodyType<CapaActionInput>}, TContext> => {
+
+const mutationKey = ['updateCapaAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCapaAction>>, {id: number;data: BodyType<CapaActionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCapaAction(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCapaActionMutationResult = NonNullable<Awaited<ReturnType<typeof updateCapaAction>>>
+    export type UpdateCapaActionMutationBody = BodyType<CapaActionInput>
+    export type UpdateCapaActionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a CAPA action
+ */
+export const useUpdateCapaAction = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCapaAction>>, TError,{id: number;data: BodyType<CapaActionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCapaAction>>,
+        TError,
+        {id: number;data: BodyType<CapaActionInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCapaActionMutationOptions(options));
+    }
+
+export const getDeleteCapaActionUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/capa/actions/${id}`
+}
+
+/**
+ * @summary Delete a CAPA action
+ */
+export const deleteCapaAction = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteCapaActionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCapaActionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCapaAction>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCapaAction>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCapaAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCapaAction>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCapaAction(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCapaActionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCapaAction>>>
+
+    export type DeleteCapaActionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a CAPA action
+ */
+export const useDeleteCapaAction = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCapaAction>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCapaAction>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCapaActionMutationOptions(options));
+    }
+
+export const getGetCapaDashboardUrl = () => {
+
+
+
+
+  return `/api/qualidade/capa/dashboard`
+}
+
+/**
+ * @summary CAPA dashboard KPIs and open NCR summary
+ */
+export const getCapaDashboard = async ( options?: RequestInit): Promise<CapaDashboard> => {
+
+  return customFetch<CapaDashboard>(getGetCapaDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCapaDashboardQueryKey = () => {
+    return [
+    `/api/qualidade/capa/dashboard`
+    ] as const;
+    }
+
+
+export const getGetCapaDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getCapaDashboard>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCapaDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCapaDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCapaDashboard>>> = ({ signal }) => getCapaDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCapaDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCapaDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getCapaDashboard>>>
+export type GetCapaDashboardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary CAPA dashboard KPIs and open NCR summary
+ */
+
+export function useGetCapaDashboard<TData = Awaited<ReturnType<typeof getCapaDashboard>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCapaDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCapaDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetQualidadeDashboardUrl = () => {
 

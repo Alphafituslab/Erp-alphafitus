@@ -737,9 +737,24 @@ export type QualityNcrStatus = typeof QualityNcrStatus[keyof typeof QualityNcrSt
 
 export const QualityNcrStatus = {
   open: 'open',
+  investigation: 'investigation',
+  action_plan: 'action_plan',
+  execution: 'execution',
+  effectiveness_check: 'effectiveness_check',
   in_progress: 'in_progress',
   resolved: 'resolved',
   closed: 'closed',
+} as const;
+
+export type QualityNcrNcType = typeof QualityNcrNcType[keyof typeof QualityNcrNcType] | null;
+
+
+export const QualityNcrNcType = {
+  receiving: 'receiving',
+  production: 'production',
+  finished_goods: 'finished_goods',
+  customer: 'customer',
+  other: 'other',
 } as const;
 
 export interface QualityNcr {
@@ -757,8 +772,123 @@ export interface QualityNcr {
   assignedTo?: string | null;
   dueDate?: string | null;
   resolvedAt?: string | null;
+  ncType?: QualityNcrNcType;
+  origin?: string | null;
+  whyAnalysis?: string | null;
+  ishikawaCategories?: string | null;
+  investigatedBy?: string | null;
+  investigatedAt?: string | null;
+  actionPlanApprovedAt?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  verificationNotes?: string | null;
+  closedBy?: string | null;
+  closedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type CapaActionActionType = typeof CapaActionActionType[keyof typeof CapaActionActionType];
+
+
+export const CapaActionActionType = {
+  corrective: 'corrective',
+  preventive: 'preventive',
+} as const;
+
+export type CapaActionStatus = typeof CapaActionStatus[keyof typeof CapaActionStatus];
+
+
+export const CapaActionStatus = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  done: 'done',
+  overdue: 'overdue',
+} as const;
+
+export interface CapaAction {
+  id: number;
+  ncrId: number;
+  actionType: CapaActionActionType;
+  description: string;
+  responsible?: string | null;
+  dueDate?: string | null;
+  completedAt?: string | null;
+  evidence?: string | null;
+  status: CapaActionStatus;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NcrDetail = QualityNcr & {
+  actions?: CapaAction[];
+};
+
+export type CapaActionInputActionType = typeof CapaActionInputActionType[keyof typeof CapaActionInputActionType] | null;
+
+
+export const CapaActionInputActionType = {
+  corrective: 'corrective',
+  preventive: 'preventive',
+} as const;
+
+export type CapaActionInputStatus = typeof CapaActionInputStatus[keyof typeof CapaActionInputStatus] | null;
+
+
+export const CapaActionInputStatus = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+export interface CapaActionInput {
+  actionType?: CapaActionInputActionType;
+  description: string;
+  responsible?: string | null;
+  dueDate?: string | null;
+  evidence?: string | null;
+  status?: CapaActionInputStatus;
+  notes?: string | null;
+}
+
+export type CapaTransitionInputToStatus = typeof CapaTransitionInputToStatus[keyof typeof CapaTransitionInputToStatus];
+
+
+export const CapaTransitionInputToStatus = {
+  investigation: 'investigation',
+  action_plan: 'action_plan',
+  execution: 'execution',
+  effectiveness_check: 'effectiveness_check',
+  closed: 'closed',
+  resolved: 'resolved',
+} as const;
+
+export interface CapaTransitionInput {
+  toStatus: CapaTransitionInputToStatus;
+  investigatedBy?: string | null;
+  whyAnalysis?: string | null;
+  ishikawaCategories?: string | null;
+  verifiedBy?: string | null;
+  verificationNotes?: string | null;
+  closedBy?: string | null;
+}
+
+export type CapaDashboardByStatus = { [key: string]: unknown };
+
+export type CapaDashboardByType = { [key: string]: unknown };
+
+export interface CapaDashboard {
+  totalOpen: number;
+  totalClosed: number;
+  byStatus: CapaDashboardByStatus;
+  byType: CapaDashboardByType;
+  overdueNcrsCount: number;
+  overdueActionsCount: number;
+  openActionsCount: number;
+  avgClosureDays?: number | null;
+  recentOpenNcrs: QualityNcr[];
+  upcomingActions: CapaAction[];
 }
 
 export type QualityNcrInputSeverity = typeof QualityNcrInputSeverity[keyof typeof QualityNcrInputSeverity] | null;
@@ -776,9 +906,24 @@ export type QualityNcrInputStatus = typeof QualityNcrInputStatus[keyof typeof Qu
 
 export const QualityNcrInputStatus = {
   open: 'open',
+  investigation: 'investigation',
+  action_plan: 'action_plan',
+  execution: 'execution',
+  effectiveness_check: 'effectiveness_check',
   in_progress: 'in_progress',
   resolved: 'resolved',
   closed: 'closed',
+} as const;
+
+export type QualityNcrInputNcType = typeof QualityNcrInputNcType[keyof typeof QualityNcrInputNcType] | null;
+
+
+export const QualityNcrInputNcType = {
+  receiving: 'receiving',
+  production: 'production',
+  finished_goods: 'finished_goods',
+  customer: 'customer',
+  other: 'other',
 } as const;
 
 export interface QualityNcrInput {
@@ -794,6 +939,14 @@ export interface QualityNcrInput {
   reportedBy?: string | null;
   assignedTo?: string | null;
   dueDate?: string | null;
+  ncType?: QualityNcrInputNcType;
+  origin?: string | null;
+  whyAnalysis?: string | null;
+  ishikawaCategories?: string | null;
+  investigatedBy?: string | null;
+  verifiedBy?: string | null;
+  verificationNotes?: string | null;
+  closedBy?: string | null;
 }
 
 export interface ResolveNcrInput {
@@ -2412,6 +2565,10 @@ export type ListQualityNcrsStatus = typeof ListQualityNcrsStatus[keyof typeof Li
 
 export const ListQualityNcrsStatus = {
   open: 'open',
+  investigation: 'investigation',
+  action_plan: 'action_plan',
+  execution: 'execution',
+  effectiveness_check: 'effectiveness_check',
   in_progress: 'in_progress',
   resolved: 'resolved',
   closed: 'closed',
