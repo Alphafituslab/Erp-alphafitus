@@ -29,6 +29,7 @@ import type {
   CapaAction,
   CapaActionInput,
   CapaDashboard,
+  CapaEvidence,
   CapaTransitionInput,
   CashflowMonth,
   Client,
@@ -6147,6 +6148,230 @@ export const useDeleteCapaAction = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteCapaActionMutationOptions(options));
+    }
+
+export const getListCapaEvidencesUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/capa/actions/${id}/evidence`
+}
+
+/**
+ * @summary List evidence files for a CAPA action
+ */
+export const listCapaEvidences = async (id: number, options?: RequestInit): Promise<CapaEvidence[]> => {
+
+  return customFetch<CapaEvidence[]>(getListCapaEvidencesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCapaEvidencesQueryKey = (id: number,) => {
+    return [
+    `/api/qualidade/capa/actions/${id}/evidence`
+    ] as const;
+    }
+
+
+export const getListCapaEvidencesQueryOptions = <TData = Awaited<ReturnType<typeof listCapaEvidences>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCapaEvidences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCapaEvidencesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCapaEvidences>>> = ({ signal }) => listCapaEvidences(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCapaEvidences>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCapaEvidencesQueryResult = NonNullable<Awaited<ReturnType<typeof listCapaEvidences>>>
+export type ListCapaEvidencesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List evidence files for a CAPA action
+ */
+
+export function useListCapaEvidences<TData = Awaited<ReturnType<typeof listCapaEvidences>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCapaEvidences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCapaEvidencesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDownloadCapaEvidenceUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/capa/evidence/${id}/download`
+}
+
+/**
+ * @summary Download a CAPA evidence file
+ */
+export const downloadCapaEvidence = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadCapaEvidenceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadCapaEvidenceQueryKey = (id: number,) => {
+    return [
+    `/api/qualidade/capa/evidence/${id}/download`
+    ] as const;
+    }
+
+
+export const getDownloadCapaEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof downloadCapaEvidence>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCapaEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadCapaEvidenceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadCapaEvidence>>> = ({ signal }) => downloadCapaEvidence(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadCapaEvidence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadCapaEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof downloadCapaEvidence>>>
+export type DownloadCapaEvidenceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Download a CAPA evidence file
+ */
+
+export function useDownloadCapaEvidence<TData = Awaited<ReturnType<typeof downloadCapaEvidence>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCapaEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadCapaEvidenceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteCapaEvidenceUrl = (id: number,) => {
+
+
+
+
+  return `/api/qualidade/capa/evidence/${id}`
+}
+
+/**
+ * @summary Delete a CAPA evidence file
+ */
+export const deleteCapaEvidence = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteCapaEvidenceUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCapaEvidenceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCapaEvidence>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCapaEvidence>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCapaEvidence'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCapaEvidence>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCapaEvidence(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCapaEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCapaEvidence>>>
+
+    export type DeleteCapaEvidenceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a CAPA evidence file
+ */
+export const useDeleteCapaEvidence = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCapaEvidence>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCapaEvidence>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCapaEvidenceMutationOptions(options));
     }
 
 export const getGetCapaDashboardUrl = () => {

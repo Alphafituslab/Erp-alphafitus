@@ -825,6 +825,16 @@ export type NcrDetail = QualityNcr & {
   actions?: CapaAction[];
 };
 
+export interface CapaEvidence {
+  id: number;
+  capaActionId: number;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes?: number | null;
+  uploadedBy?: string | null;
+  uploadedAt: string;
+}
+
 export type CapaActionInputActionType = typeof CapaActionInputActionType[keyof typeof CapaActionInputActionType] | null;
 
 
@@ -889,6 +899,7 @@ export interface CapaDashboard {
   byType: CapaDashboardByType;
   byOrigin: CapaDashboardByOrigin;
   recurrenceCount: number;
+  recurrenceRate?: number;
   recurrentProducts?: CapaDashboardRecurrentProductsItem[];
   overdueNcrsCount: number;
   overdueActionsCount: number;

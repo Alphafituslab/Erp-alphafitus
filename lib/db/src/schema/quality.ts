@@ -68,6 +68,17 @@ export const capaActionsTable = pgTable("capa_actions", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+export const capaEvidencesTable = pgTable("capa_evidences", {
+  id: serial("id").primaryKey(),
+  capaActionId: integer("capa_action_id").notNull().references(() => capaActionsTable.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type").notNull().default("application/octet-stream"),
+  fileSizeBytes: integer("file_size_bytes"),
+  fileData: text("file_data").notNull(), // base64-encoded content
+  uploadedBy: text("uploaded_by"),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ─── Quality Analyses ──────────────────────────────────────────────────────────
 
 export const qualityAnalysesTable = pgTable("quality_analyses", {
@@ -142,10 +153,18 @@ export const qualityNcrsRelations = relations(qualityNcrsTable, ({ one, many }) 
   capaActions: many(capaActionsTable),
 }));
 
-export const capaActionsRelations = relations(capaActionsTable, ({ one }) => ({
+export const capaActionsRelations = relations(capaActionsTable, ({ one, many }) => ({
   ncr: one(qualityNcrsTable, {
     fields: [capaActionsTable.ncrId],
     references: [qualityNcrsTable.id],
+  }),
+  evidences: many(capaEvidencesTable),
+}));
+
+export const capaEvidencesRelations = relations(capaEvidencesTable, ({ one }) => ({
+  capaAction: one(capaActionsTable, {
+    fields: [capaEvidencesTable.capaActionId],
+    references: [capaActionsTable.id],
   }),
 }));
 
@@ -181,6 +200,10 @@ export type QualityNcr = typeof qualityNcrsTable.$inferSelect;
 export const insertCapaActionSchema = createInsertSchema(capaActionsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCapaAction = z.infer<typeof insertCapaActionSchema>;
 export type CapaAction = typeof capaActionsTable.$inferSelect;
+
+export const insertCapaEvidenceSchema = createInsertSchema(capaEvidencesTable).omit({ id: true, uploadedAt: true });
+export type InsertCapaEvidence = z.infer<typeof insertCapaEvidenceSchema>;
+export type CapaEvidence = typeof capaEvidencesTable.$inferSelect;
 
 export const insertQualityAnalysisSchema = createInsertSchema(qualityAnalysesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertQualityAnalysis = z.infer<typeof insertQualityAnalysisSchema>;

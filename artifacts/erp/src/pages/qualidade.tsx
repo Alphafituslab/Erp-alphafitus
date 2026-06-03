@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,9 @@ import {
   useUpdateCapaAction,
   useDeleteCapaAction,
   useGetCapaDashboard,
+  useListCapaEvidences,
+  useDeleteCapaEvidence,
+  getListCapaEvidencesQueryKey,
   useListProducts,
   useListProductLots,
   useListQualityAnalyses,
@@ -51,6 +54,7 @@ import type {
   AnalysisParameter,
   QualityCertificate,
   CapaAction,
+  CapaEvidence,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +82,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Plus, Pencil, Trash2, ClipboardCheck, ShieldAlert, ThumbsUp,
   AlertTriangle, CheckCheck, FlaskConical, Download, Play, CheckCircle2,
+  Paperclip, Upload,
   XCircle, Clock, Eye, Wrench, ChevronRight, ListChecks, Search, ArrowRight,
 } from "lucide-react";
 import jsPDF from "jspdf";
@@ -641,6 +646,79 @@ const capaActionSchema = z.object({
 });
 type CapaActionForm = z.infer<typeof capaActionSchema>;
 
+function CapaEvidenceSection({ actionId }: { actionId: number }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const { data: evidences = [] } = useListCapaEvidences(actionId, { query: { enabled: !!actionId } as any });
+  const deleteM = useDeleteCapaEvidence();
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setUploadErr("Arquivo deve ter no máximo 5 MB"); return; }
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/qualidade/capa/actions/${actionId}/evidence`, { method: "POST", body: fd, credentials: "include" });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); setUploadErr((err as any).error ?? "Erro no upload"); return; }
+      qc.invalidateQueries({ queryKey: getListCapaEvidencesQueryKey(actionId) });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const fmtSize = (bytes: number | null | undefined) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">Arquivos de evidência</label>
+        <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+          <Upload className="h-3 w-3 mr-1" />
+          {uploading ? "Enviando…" : "Anexar arquivo"}
+        </Button>
+        <input ref={fileRef} type="file" className="hidden" accept="*/*" onChange={handleUpload} />
+      </div>
+      {uploadErr && <p className="text-xs text-destructive">{uploadErr}</p>}
+      {evidences.length > 0 ? (
+        <div className="border rounded-md divide-y">
+          {evidences.map((ev: CapaEvidence) => (
+            <div key={ev.id} className="flex items-center gap-2 px-3 py-2">
+              <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+              <a
+                href={`/api/qualidade/capa/evidence/${ev.id}/download`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-primary underline truncate flex-1"
+              >{ev.fileName}</a>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{fmtSize(ev.fileSizeBytes)}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-destructive"
+                onClick={() => deleteM.mutate({ id: ev.id }, { onSuccess: () => qc.invalidateQueries({ queryKey: getListCapaEvidencesQueryKey(actionId) }) })}
+              ><Trash2 className="h-3 w-3" /></Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">Nenhum arquivo anexado.</p>
+      )}
+    </div>
+  );
+}
+
 function CapaActionDialog({
   open, onClose, ncrId, editing,
 }: {
@@ -699,10 +777,11 @@ function CapaActionDialog({
             <div className="space-y-1"><label className="text-sm font-medium">Prazo</label><Input {...form.register("dueDate")} type="date" /></div>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Evidência de conclusão</label>
+            <label className="text-sm font-medium">Evidência de conclusão (texto)</label>
             <Textarea {...form.register("evidence")} rows={2} placeholder="Descreva a evidência da conclusão (relatório, medição, foto referência…)" />
           </div>
           <div className="space-y-1"><label className="text-sm font-medium">Observações</label><Input {...form.register("notes")} /></div>
+          {editing && <CapaEvidenceSection actionId={editing.id} />}
           <DialogFooter className="pt-1">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={createM.isPending || updateM.isPending}>{createM.isPending || updateM.isPending ? "Salvando…" : "Salvar"}</Button>
@@ -2151,12 +2230,14 @@ export default function QualidadePage() {
                   </Card>
                   <Card className={(capaDashboard.recurrenceCount ?? 0) > 0 ? "border-orange-300" : ""}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">Reincidências</CardTitle>
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Reincidência</CardTitle>
                       <AlertTriangle className={`h-4 w-4 ${(capaDashboard.recurrenceCount ?? 0) > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
                     </CardHeader>
                     <CardContent>
-                      <p className={`text-2xl font-semibold ${(capaDashboard.recurrenceCount ?? 0) > 0 ? "text-orange-600" : ""}`}>{capaDashboard.recurrenceCount ?? 0}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Produtos com múltiplas NCRs</p>
+                      <p className={`text-2xl font-semibold ${(capaDashboard.recurrenceCount ?? 0) > 0 ? "text-orange-600" : ""}`}>
+                        {(capaDashboard.recurrenceRate as number | undefined) != null ? `${capaDashboard.recurrenceRate}%` : "0%"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{capaDashboard.recurrenceCount ?? 0} produto(s) com múltiplas NCRs</p>
                     </CardContent>
                   </Card>
                 </div>

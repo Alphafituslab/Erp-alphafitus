@@ -19,6 +19,7 @@ export interface CapaDashboard {
   byType: CapaDashboardByType;
   byOrigin: CapaDashboardByOrigin;
   recurrenceCount: number;
+  recurrenceRate?: number;
   recurrentProducts?: CapaDashboardRecurrentProductsItem[];
   overdueNcrsCount: number;
   overdueActionsCount: number;

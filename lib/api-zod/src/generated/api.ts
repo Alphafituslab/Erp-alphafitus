@@ -2288,6 +2288,45 @@ export const DeleteCapaActionResponse = zod.object({
 
 
 /**
+ * @summary List evidence files for a CAPA action
+ */
+export const ListCapaEvidencesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCapaEvidencesResponseItem = zod.object({
+  "id": zod.number(),
+  "capaActionId": zod.number(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "fileSizeBytes": zod.number().nullish(),
+  "uploadedBy": zod.string().nullish(),
+  "uploadedAt": zod.string()
+})
+export const ListCapaEvidencesResponse = zod.array(ListCapaEvidencesResponseItem)
+
+
+/**
+ * @summary Download a CAPA evidence file
+ */
+export const DownloadCapaEvidenceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Delete a CAPA evidence file
+ */
+export const DeleteCapaEvidenceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCapaEvidenceResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
  * @summary CAPA dashboard KPIs and open NCR summary
  */
 export const GetCapaDashboardResponse = zod.object({
@@ -2303,6 +2342,7 @@ export const GetCapaDashboardResponse = zod.object({
 
 }).passthrough(),
   "recurrenceCount": zod.number(),
+  "recurrenceRate": zod.number().optional(),
   "recurrentProducts": zod.array(zod.object({
 
 }).passthrough()).optional(),

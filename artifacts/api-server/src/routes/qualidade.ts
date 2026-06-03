@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
 import { and, eq, gte, lte, desc, sql, isNull, lt } from "drizzle-orm";
+import multer from "multer";
 import {
   db,
   qualityInspectionsTable,
   qualityNcrsTable,
   capaActionsTable,
+  capaEvidencesTable,
   qualityAnalysesTable,
   analysisParametersTable,
   qualityCertificatesTable,
@@ -16,6 +18,8 @@ import {
   suppliersTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router: IRouter = Router();
 
@@ -808,13 +812,16 @@ router.get("/qualidade/ncrs/:id", async (req: Request, res: Response): Promise<v
 
 // ─── CAPA: Status Transition ──────────────────────────────────────────────────
 
+// Sequential CAPA workflow: each stage must be reached in order.
+// Direct jumps to "closed" are not allowed except from effectiveness_check.
 const CAPA_TRANSITIONS: Record<string, string[]> = {
-  open:                 ["investigation", "closed"],
-  investigation:        ["action_plan", "closed"],
-  action_plan:          ["execution", "closed"],
-  execution:            ["effectiveness_check", "closed"],
+  open:                 ["investigation"],
+  investigation:        ["action_plan"],
+  action_plan:          ["execution"],
+  execution:            ["effectiveness_check"],
   effectiveness_check:  ["closed"],
-  in_progress:          ["investigation", "resolved", "closed"],
+  // Legacy BC statuses (pre-CAPA) — allow limited forward movement
+  in_progress:          ["investigation", "resolved"],
   resolved:             ["closed"],
 };
 
@@ -831,8 +838,56 @@ router.post("/qualidade/ncrs/:id/transition", async (req: Request, res: Response
 
   const allowed = CAPA_TRANSITIONS[existing.status] ?? [];
   if (!allowed.includes(toStatus)) {
-    res.status(400).json({ error: `Transição inválida: ${existing.status} → ${toStatus}. Permitidas: ${allowed.join(", ")}` });
+    res.status(400).json({ error: `Transição inválida: ${existing.status} → ${toStatus}. O fluxo CAPA exige progressão sequencial: open → investigation → action_plan → execution → effectiveness_check → closed.` });
     return;
+  }
+
+  // ── Stage prerequisite enforcement ────────────────────────────────────────
+  // investigation → action_plan: must have root cause analysis (5-porquês)
+  if (toStatus === "action_plan") {
+    const why = (whyAnalysis ?? existing.whyAnalysis ?? "").trim();
+    if (!why) {
+      res.status(400).json({ error: "Análise de causa raiz (5-Porquês) é obrigatória antes de avançar para Plano de Ação." });
+      return;
+    }
+  }
+
+  // action_plan → execution: must have at least 1 CAPA action defined
+  if (toStatus === "execution") {
+    const [{ count }] = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(capaActionsTable)
+      .where(eq(capaActionsTable.ncrId, id));
+    if (Number(count) === 0) {
+      res.status(400).json({ error: "Cadastre pelo menos uma ação CAPA antes de iniciar a Execução." });
+      return;
+    }
+  }
+
+  // execution → effectiveness_check: must have at least 1 completed action
+  if (toStatus === "effectiveness_check") {
+    const [{ count }] = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(capaActionsTable)
+      .where(and(eq(capaActionsTable.ncrId, id), eq(capaActionsTable.status, "done")));
+    if (Number(count) === 0) {
+      res.status(400).json({ error: "Pelo menos uma ação CAPA deve estar concluída (status 'done') antes de avançar para Verificação de Eficácia." });
+      return;
+    }
+  }
+
+  // effectiveness_check → closed: quality role gate (admin or manager) + required fields
+  if (toStatus === "closed") {
+    const role = req.session.role;
+    if (role !== "admin" && role !== "manager") {
+      res.status(403).json({ error: "Apenas usuários com perfil Gerente ou Administrador podem encerrar uma CAPA." });
+      return;
+    }
+    const notes = verificationNotes ?? existing.verificationNotes ?? "";
+    if (!notes.trim()) {
+      res.status(400).json({ error: "Notas de verificação de eficácia são obrigatórias para encerrar a CAPA." });
+      return;
+    }
   }
 
   const now = new Date();
@@ -846,6 +901,8 @@ router.post("/qualidade/ncrs/:id/transition", async (req: Request, res: Response
   }
   if (toStatus === "action_plan") {
     updates.actionPlanApprovedAt = now;
+    if (whyAnalysis) updates.whyAnalysis = whyAnalysis;
+    if (ishikawaCategories) updates.ishikawaCategories = ishikawaCategories;
   }
   if (toStatus === "effectiveness_check") {
     updates.verifiedBy = verifiedBy || req.session.userName || null;
@@ -856,7 +913,8 @@ router.post("/qualidade/ncrs/:id/transition", async (req: Request, res: Response
     updates.closedBy = closedBy || req.session.userName || null;
     updates.closedAt = now;
     updates.resolvedAt = now;
-    if (verifiedBy) { updates.verifiedBy = verifiedBy; updates.verifiedAt = now; }
+    updates.verifiedBy = verifiedBy || existing.verifiedBy || req.session.userName || null;
+    updates.verifiedAt = existing.verifiedAt ?? now;
     if (verificationNotes) updates.verificationNotes = verificationNotes;
   }
   if (toStatus === "resolved") updates.resolvedAt = now;
@@ -937,6 +995,88 @@ router.delete("/qualidade/capa/actions/:id", async (req: Request, res: Response)
   if (id === null) return;
   const [deleted] = await db.delete(capaActionsTable).where(eq(capaActionsTable.id, id)).returning({ id: capaActionsTable.id });
   if (!deleted) { res.status(404).json({ error: "Ação não encontrada" }); return; }
+  res.json({ ok: true });
+});
+
+// ─── CAPA: Evidence File Upload ────────────────────────────────────────────────
+
+router.post(
+  "/qualidade/capa/actions/:id/evidence",
+  upload.single("file"),
+  async (req: Request, res: Response): Promise<void> => {
+    if (!requireAuth(req, res)) return;
+    const id = parseId(req.params.id, res);
+    if (id === null) return;
+    if (!req.file) { res.status(400).json({ error: "Arquivo não enviado" }); return; }
+
+    const [action] = await db.select({ id: capaActionsTable.id }).from(capaActionsTable).where(eq(capaActionsTable.id, id));
+    if (!action) { res.status(404).json({ error: "Ação não encontrada" }); return; }
+
+    const fileData = req.file.buffer.toString("base64");
+    const [evidence] = await db.insert(capaEvidencesTable).values({
+      capaActionId: id,
+      fileName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      fileSizeBytes: req.file.size,
+      fileData,
+      uploadedBy: req.session.userName || null,
+    }).returning();
+
+    res.status(201).json({
+      id: evidence.id,
+      capaActionId: evidence.capaActionId,
+      fileName: evidence.fileName,
+      mimeType: evidence.mimeType,
+      fileSizeBytes: evidence.fileSizeBytes,
+      uploadedBy: evidence.uploadedBy,
+      uploadedAt: evidence.uploadedAt,
+    });
+  }
+);
+
+router.get("/qualidade/capa/actions/:id/evidence", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const files = await db
+    .select({
+      id: capaEvidencesTable.id,
+      capaActionId: capaEvidencesTable.capaActionId,
+      fileName: capaEvidencesTable.fileName,
+      mimeType: capaEvidencesTable.mimeType,
+      fileSizeBytes: capaEvidencesTable.fileSizeBytes,
+      uploadedBy: capaEvidencesTable.uploadedBy,
+      uploadedAt: capaEvidencesTable.uploadedAt,
+    })
+    .from(capaEvidencesTable)
+    .where(eq(capaEvidencesTable.capaActionId, id))
+    .orderBy(capaEvidencesTable.uploadedAt);
+
+  res.json(files);
+});
+
+router.get("/qualidade/capa/evidence/:id/download", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [ev] = await db.select().from(capaEvidencesTable).where(eq(capaEvidencesTable.id, id));
+  if (!ev) { res.status(404).json({ error: "Evidência não encontrada" }); return; }
+
+  const buf = Buffer.from(ev.fileData, "base64");
+  res.setHeader("Content-Type", ev.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(ev.fileName)}"`);
+  res.setHeader("Content-Length", buf.length);
+  res.end(buf);
+});
+
+router.delete("/qualidade/capa/evidence/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+  const [deleted] = await db.delete(capaEvidencesTable).where(eq(capaEvidencesTable.id, id)).returning({ id: capaEvidencesTable.id });
+  if (!deleted) { res.status(404).json({ error: "Evidência não encontrada" }); return; }
   res.json({ ok: true });
 });
 
@@ -1036,8 +1176,12 @@ router.get("/qualidade/capa/dashboard", async (req: Request, res: Response): Pro
   const byOrigin = Object.fromEntries(originCounts.map((r) => [r.origin ?? "other", Number(r.count)]));
   const totalOpen = statusCounts.filter((r) => !["closed", "resolved"].includes(r.status)).reduce((s, r) => s + Number(r.count), 0);
   const totalClosed = (byStatus["closed"] ?? 0) + (byStatus["resolved"] ?? 0);
+  const totalNcrs = totalOpen + totalClosed;
   const avgDays = avgClosure?.avg ? parseFloat(avgClosure.avg) : null;
   const recurrenceCount = recurrenceRows.length;
+  // Recurrence rate = % of total NCRs that belong to products with >1 NCR
+  const recurrentNcrCount = recurrenceRows.reduce((s, r) => s + Number(r.count), 0);
+  const recurrenceRate = totalNcrs > 0 ? parseFloat(((recurrentNcrCount / totalNcrs) * 100).toFixed(1)) : 0;
 
   res.json({
     totalOpen,
@@ -1046,6 +1190,7 @@ router.get("/qualidade/capa/dashboard", async (req: Request, res: Response): Pro
     byType,
     byOrigin,
     recurrenceCount,
+    recurrenceRate,
     recurrentProducts: recurrenceRows,
     overdueNcrsCount: Number(overdueNcrs?.count ?? 0),
     overdueActionsCount: Number(overdueActions?.count ?? 0),

@@ -2687,6 +2687,96 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /qualidade/capa/actions/{id}/evidence:
+    get:
+      operationId: listCapaEvidences
+      tags: [qualidade]
+      summary: List evidence files for a CAPA action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of evidence files (without raw data)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CapaEvidence"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/capa/evidence/{id}/download:
+    get:
+      operationId: downloadCapaEvidence
+      tags: [qualidade]
+      summary: Download a CAPA evidence file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: File binary
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qualidade/capa/evidence/{id}:
+    delete:
+      operationId: deleteCapaEvidence
+      tags: [qualidade]
+      summary: Delete a CAPA evidence file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /qualidade/capa/dashboard:
     get:
       operationId: getCapaDashboard
@@ -6909,6 +6999,32 @@ components:
               items:
                 $ref: "#/components/schemas/CapaAction"
 
+    CapaEvidence:
+      type: object
+      required:
+        - id
+        - capaActionId
+        - fileName
+        - mimeType
+        - uploadedAt
+      properties:
+        id:
+          type: integer
+        capaActionId:
+          type: integer
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSizeBytes:
+          type: integer
+          nullable: true
+        uploadedBy:
+          type: string
+          nullable: true
+        uploadedAt:
+          type: string
+
     CapaAction:
       type: object
       required:
@@ -7037,6 +7153,8 @@ components:
           type: object
         recurrenceCount:
           type: integer
+        recurrenceRate:
+          type: number
         recurrentProducts:
           type: array
           items:

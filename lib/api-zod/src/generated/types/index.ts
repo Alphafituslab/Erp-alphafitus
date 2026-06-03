@@ -26,6 +26,7 @@ export * from './capaDashboardByOrigin';
 export * from './capaDashboardByStatus';
 export * from './capaDashboardByType';
 export * from './capaDashboardRecurrentProductsItem';
+export * from './capaEvidence';
 export * from './capaTransitionInput';
 export * from './capaTransitionInputToStatus';
 export * from './cashflowMonth';
