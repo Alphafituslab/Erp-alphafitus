@@ -553,6 +553,7 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
   const [stage] = await db.select().from(productionStagesTable).where(eq(productionStagesTable.id, id));
   if (!stage) { res.status(404).json({ error: "Etapa não encontrada" }); return; }
   if (stage.status !== "in_progress") { res.status(400).json({ error: "Etapa não está em andamento" }); return; }
+
   const { qtyOut, losses, notes, consumptions } = req.body as {
     qtyOut?: string | number;
     losses?: string | number;
@@ -565,94 +566,129 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
       notes?: string;
     }>;
   };
+
+  // ── Phase 1: Validate all consumptions BEFORE any writes ────────────────
+  // Enforce: weighing stage requires at least one lot consumption
+  const isWeighing = stage.stageType === "weighing";
+  const consumptionList = Array.isArray(consumptions) ? consumptions.filter((c) => c.lotId && c.actualQty) : [];
+  if (isWeighing && consumptionList.length === 0) {
+    res.status(400).json({ error: "A etapa de pesagem exige o registro de pelo menos um lote de matéria-prima consumido." });
+    return;
+  }
+
+  // Pre-validate each consumption and build enriched records (no DB writes yet)
+  type EnrichedConsumption = {
+    formulaItemId: number | null;
+    productId: number | null;
+    productName: string;
+    lotId: number;
+    internalLot: string | null;
+    plannedQty: string | null;
+    actualQty: string;
+    unit: string;
+    notes: string | null;
+  };
+  const enriched: EnrichedConsumption[] = [];
+  const recordedBy = req.session.userName ?? "Sistema";
+
+  for (const c of consumptionList) {
+    const [lot] = await db
+      .select({
+        internalLot: productLotsTable.internalLot,
+        productId: productLotsTable.productId,
+        productName: productsTable.name,
+        cqStatus: productLotsTable.cqStatus,
+        availableQty: productLotsTable.availableQty,
+      })
+      .from(productLotsTable)
+      .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
+      .where(eq(productLotsTable.id, c.lotId));
+
+    if (!lot) {
+      res.status(400).json({ error: `Lote ID ${c.lotId} não encontrado.` });
+      return;
+    }
+    if (lot.cqStatus !== "approved") {
+      res.status(400).json({ error: `Lote ${lot.internalLot} não está aprovado pelo CQ (status: ${lot.cqStatus}). Só lotes aprovados podem ser consumidos.` });
+      return;
+    }
+    const actualQtyNum = parseFloat(String(c.actualQty));
+    const availableQtyNum = parseFloat(lot.availableQty ?? "0");
+    if (actualQtyNum > availableQtyNum) {
+      res.status(400).json({ error: `Saldo insuficiente no lote ${lot.internalLot}: disponível ${availableQtyNum} kg, solicitado ${actualQtyNum} kg.` });
+      return;
+    }
+
+    let productId: number | null = lot.productId ?? null;
+    let productName: string = lot.productName ?? "";
+    if (c.formulaItemId) {
+      const [fi] = await db
+        .select({ productId: formulaItemsTable.productId, productName: formulaItemsTable.productName })
+        .from(formulaItemsTable)
+        .where(eq(formulaItemsTable.id, c.formulaItemId));
+      if (fi) {
+        if (fi.productId && lot.productId && fi.productId !== lot.productId) {
+          res.status(400).json({ error: `Lote ${lot.internalLot} é de produto diferente do item da fórmula (${fi.productName}).` });
+          return;
+        }
+        productId = fi.productId ?? productId;
+        productName = fi.productName || productName;
+      }
+    }
+
+    enriched.push({
+      formulaItemId: c.formulaItemId ?? null,
+      productId,
+      productName,
+      lotId: c.lotId,
+      internalLot: lot.internalLot ?? null,
+      plannedQty: c.plannedQty ? String(c.plannedQty) : null,
+      actualQty: String(c.actualQty),
+      unit: "kg",
+      notes: c.notes ?? null,
+    });
+  }
+
+  // ── Phase 2: Atomic transaction — update stage + insert consumptions ─────
   const qtyIn = parseFloat(stage.qtyIn ?? "0");
   const qtyOutN = parseFloat(String(qtyOut ?? "0"));
   const lossesN = parseFloat(String(losses ?? "0"));
   const yieldPct = qtyIn > 0 ? ((qtyOutN / qtyIn) * 100).toFixed(2) : null;
-  const [row] = await db
-    .update(productionStagesTable)
-    .set({
-      status: "done",
-      finishedAt: new Date(),
-      qtyOut: qtyOut ? String(qtyOut) : null,
-      losses: losses ? String(lossesN) : null,
-      yieldPct: yieldPct ? String(yieldPct) : null,
-      notes: notes || stage.notes,
-    })
-    .where(eq(productionStagesTable.id, id))
-    .returning();
 
-  // Record material consumptions (lot traceability) — required for weighing stage
-  if (Array.isArray(consumptions) && consumptions.length > 0) {
-    const recordedBy = req.session.userName ?? "Sistema";
-    for (const c of consumptions) {
-      if (!c.lotId || !c.actualQty) continue;
+  const row = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(productionStagesTable)
+      .set({
+        status: "done",
+        finishedAt: new Date(),
+        qtyOut: qtyOut ? String(qtyOut) : null,
+        losses: losses ? String(lossesN) : null,
+        yieldPct: yieldPct ? String(yieldPct) : null,
+        notes: notes || stage.notes,
+      })
+      .where(eq(productionStagesTable.id, id))
+      .returning();
 
-      // Resolve lot details for snapshot + validation
-      const [lot] = await db
-        .select({
-          internalLot: productLotsTable.internalLot,
-          productId: productLotsTable.productId,
-          productName: productsTable.name,
-          cqStatus: productLotsTable.cqStatus,
-          availableQty: productLotsTable.availableQty,
-        })
-        .from(productLotsTable)
-        .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
-        .where(eq(productLotsTable.id, c.lotId));
-      if (!lot) {
-        res.status(400).json({ error: `Lote ID ${c.lotId} não encontrado.` });
-        return;
-      }
-
-      // Validate CQ approval
-      if (lot.cqStatus !== "approved") {
-        res.status(400).json({ error: `Lote ${lot.internalLot} não está aprovado pelo CQ (status atual: ${lot.cqStatus}). Só é permitido consumir lotes aprovados.` });
-        return;
-      }
-
-      // Validate available balance
-      const actualQtyNum = parseFloat(String(c.actualQty));
-      const availableQtyNum = parseFloat(lot.availableQty ?? "0");
-      if (actualQtyNum > availableQtyNum) {
-        res.status(400).json({ error: `Saldo insuficiente no lote ${lot.internalLot}: disponível ${availableQtyNum} kg, solicitado ${actualQtyNum} kg.` });
-        return;
-      }
-
-      // Resolve formulaItem and validate product compatibility
-      let formulaItemProductId: number | null = lot.productId ?? null;
-      let formulaItemProductName: string = lot.productName ?? "";
-      if (c.formulaItemId) {
-        const [fi] = await db
-          .select({ productId: formulaItemsTable.productId, productName: formulaItemsTable.productName })
-          .from(formulaItemsTable)
-          .where(eq(formulaItemsTable.id, c.formulaItemId));
-        if (fi) {
-          if (fi.productId && lot.productId && fi.productId !== lot.productId) {
-            res.status(400).json({ error: `Lote ${lot.internalLot} pertence a um produto diferente do especificado na fórmula (item: ${fi.productName}).` });
-            return;
-          }
-          formulaItemProductId = fi.productId ?? formulaItemProductId;
-          formulaItemProductName = fi.productName || formulaItemProductName;
-        }
-      }
-
-      await db.insert(productionMaterialConsumptionsTable).values({
-        orderId: stage.orderId,
-        stageId: id,
-        formulaItemId: c.formulaItemId ?? null,
-        productId: formulaItemProductId,
-        productName: formulaItemProductName,
-        lotId: c.lotId,
-        internalLot: lot.internalLot ?? null,
-        plannedQty: c.plannedQty ? String(c.plannedQty) : null,
-        actualQty: String(c.actualQty),
-        unit: "kg",
-        recordedBy,
-        notes: c.notes ?? null,
-      });
+    if (enriched.length > 0) {
+      await tx.insert(productionMaterialConsumptionsTable).values(
+        enriched.map((e) => ({
+          orderId: stage.orderId,
+          stageId: id,
+          formulaItemId: e.formulaItemId,
+          productId: e.productId,
+          productName: e.productName,
+          lotId: e.lotId,
+          internalLot: e.internalLot,
+          plannedQty: e.plannedQty,
+          actualQty: e.actualQty,
+          unit: e.unit,
+          recordedBy,
+          notes: e.notes,
+        }))
+      );
     }
-  }
+    return updated;
+  });
 
   res.json(row);
 });
