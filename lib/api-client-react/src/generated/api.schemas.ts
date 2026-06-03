@@ -1893,6 +1893,233 @@ export interface FiscalDashboard {
   byType: FiscalDashboardByTypeItem[];
 }
 
+export type FormulaStatus = typeof FormulaStatus[keyof typeof FormulaStatus];
+
+
+export const FormulaStatus = {
+  draft: 'draft',
+  approved: 'approved',
+  obsolete: 'obsolete',
+} as const;
+
+export interface Formula {
+  id: number;
+  productId?: number | null;
+  productName: string;
+  version: string;
+  status: FormulaStatus;
+  batchYield: string;
+  unit: string;
+  notes?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormulaInput {
+  productId?: number | null;
+  productName: string;
+  version?: string;
+  batchYield?: string;
+  unit?: string;
+  notes?: string | null;
+}
+
+export interface FormulaItem {
+  id: number;
+  formulaId: number;
+  productId?: number | null;
+  productName: string;
+  quantity: string;
+  unit: string;
+  function?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface FormulaItemInput {
+  productId?: number | null;
+  productName: string;
+  quantity: string;
+  unit?: string;
+  function?: string | null;
+  notes?: string | null;
+}
+
+export type FormulaDetail = Formula & {
+  items?: FormulaItem[];
+};
+
+export interface MaterialNeedItem {
+  id: number;
+  formulaId?: number;
+  productId?: number | null;
+  productName: string;
+  quantity: string;
+  unit: string;
+  function?: string | null;
+  needed: string;
+  available: string;
+  sufficient: boolean;
+  factor?: number;
+}
+
+export interface MaterialNeeds {
+  formula: Formula;
+  needs: MaterialNeedItem[];
+  qty: number;
+  factor: number;
+}
+
+export type ProductionOrderStatus = typeof ProductionOrderStatus[keyof typeof ProductionOrderStatus];
+
+
+export const ProductionOrderStatus = {
+  planned: 'planned',
+  released: 'released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  finished: 'finished',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ProductionOrder {
+  id: number;
+  number: string;
+  formulaId?: number | null;
+  productId?: number | null;
+  productName: string;
+  formulaVersion?: string | null;
+  batchLot?: string | null;
+  plannedQty: string;
+  actualQty?: string | null;
+  unit: string;
+  status: ProductionOrderStatus;
+  salesOrderId?: number | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  actualStart?: string | null;
+  actualEnd?: string | null;
+  releasedBy?: string | null;
+  releasedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionOrderInput {
+  formulaId?: number | null;
+  productId?: number | null;
+  productName: string;
+  plannedQty: string;
+  unit?: string;
+  salesOrderId?: number | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  notes?: string | null;
+}
+
+export interface ProductionOrderUpdateInput {
+  plannedQty?: string;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  notes?: string | null;
+  salesOrderId?: number | null;
+}
+
+export type ProductionStageStageType = typeof ProductionStageStageType[keyof typeof ProductionStageStageType];
+
+
+export const ProductionStageStageType = {
+  weighing: 'weighing',
+  mixing: 'mixing',
+  production: 'production',
+  packaging: 'packaging',
+} as const;
+
+export type ProductionStageStatus = typeof ProductionStageStatus[keyof typeof ProductionStageStatus];
+
+
+export const ProductionStageStatus = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+export interface ProductionStage {
+  id: number;
+  orderId: number;
+  stageType: ProductionStageStageType;
+  sequence: number;
+  status: ProductionStageStatus;
+  operatorId?: number | null;
+  operatorName?: string | null;
+  equipment?: string | null;
+  qtyIn?: string | null;
+  qtyOut?: string | null;
+  yieldPct?: string | null;
+  losses?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StageStartInput {
+  operatorId?: number | null;
+  operatorName?: string;
+  equipment?: string;
+  qtyIn?: string;
+}
+
+export interface StageFinishInput {
+  qtyOut?: string;
+  losses?: string;
+  notes?: string;
+}
+
+export interface StageUpdateInput {
+  operatorName?: string;
+  equipment?: string;
+  notes?: string;
+}
+
+export type ProductionOrderDetail = ProductionOrder & {
+  stages?: ProductionStage[];
+  formulaItems?: FormulaItem[];
+};
+
+export type ProductionTraceabilityFormulaItemsItem = { [key: string]: unknown };
+
+export interface ProductionTraceability {
+  order: ProductionOrder;
+  stages: ProductionStage[];
+  formulaItems: ProductionTraceabilityFormulaItemsItem[];
+}
+
+export interface ProducaoDashboard {
+  totalOrders: number;
+  inProduction: number;
+  planned: number;
+  released: number;
+  qualityCheck: number;
+  finished: number;
+  totalFormulas: number;
+  approvedFormulas: number;
+  recentOrders: ProductionOrder[];
+}
+
+export interface ProductionOrderFinishInput {
+  actualQty?: string;
+  batchLot?: string;
+}
+
+export interface ProductionOrderQualityCheckInput {
+  actualQty?: string;
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -2362,6 +2589,38 @@ export type ExportFiscalDocumentsCsvStatus = typeof ExportFiscalDocumentsCsvStat
 
 export const ExportFiscalDocumentsCsvStatus = {
   issued: 'issued',
+  cancelled: 'cancelled',
+} as const;
+
+export type ListFormulasParams = {
+search?: string;
+status?: ListFormulasStatus;
+productId?: number;
+};
+
+export type ListFormulasStatus = typeof ListFormulasStatus[keyof typeof ListFormulasStatus];
+
+
+export const ListFormulasStatus = {
+  draft: 'draft',
+  approved: 'approved',
+  obsolete: 'obsolete',
+} as const;
+
+export type ListProductionOrdersParams = {
+status?: ListProductionOrdersStatus;
+search?: string;
+};
+
+export type ListProductionOrdersStatus = typeof ListProductionOrdersStatus[keyof typeof ListProductionOrdersStatus];
+
+
+export const ListProductionOrdersStatus = {
+  planned: 'planned',
+  released: 'released',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  finished: 'finished',
   cancelled: 'cancelled',
 } as const;
 

@@ -29,6 +29,7 @@ import {
   ClipboardCheck,
   FlaskConical,
   ChevronRight,
+  Factory,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
@@ -88,6 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/vendas", label: "Vendas", icon: ShoppingCart, iconColor: "text-blue-400" },
       { href: "/estoque", label: "Estoque", icon: Package, iconColor: "text-amber-400" },
       { href: "/compras", label: "Compras", icon: Truck, iconColor: "text-purple-400" },
+      { href: "/producao", label: "Produção", icon: Factory, iconColor: "text-rose-400" },
       { href: "/qualidade", label: "Qualidade", icon: ClipboardCheck, iconColor: "text-teal-400" },
     ],
   },

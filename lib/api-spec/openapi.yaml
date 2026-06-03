@@ -30,6 +30,8 @@ tags:
     description: Fiscal documents registry — NF-e, NFS-e, NF entrada
   - name: relatorios
     description: Executive dashboard aggregating KPIs from all modules
+  - name: producao
+    description: Production module - formulas, production orders and factory floor
 paths:
   /healthz:
     get:
@@ -4369,6 +4371,970 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Produção ──────────────────────────────────────────────────────────────
+
+  /producao/formulas:
+    get:
+      operationId: listFormulas
+      tags: [producao]
+      summary: List formulas with optional filters
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, approved, obsolete]
+        - name: productId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of formulas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Formula"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createFormula
+      tags: [producao]
+      summary: Create a new formula
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FormulaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Formula"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/formulas/{id}:
+    get:
+      operationId: getFormula
+      tags: [producao]
+      summary: Get formula with items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Formula with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormulaDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateFormula
+      tags: [producao]
+      summary: Update a formula (draft only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FormulaInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Formula"
+        "400":
+          description: Validation error or formula is approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFormula
+      tags: [producao]
+      summary: Delete a draft formula
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Formula is approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/formulas/{id}/approve:
+    post:
+      operationId: approveFormula
+      tags: [producao]
+      summary: Approve a draft formula
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Formula"
+        "400":
+          description: Not in draft or no items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/formulas/{id}/obsolete:
+    post:
+      operationId: obsoleteFormula
+      tags: [producao]
+      summary: Mark a formula as obsolete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked obsolete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Formula"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/formulas/{id}/items:
+    get:
+      operationId: listFormulaItems
+      tags: [producao]
+      summary: List items for a formula
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of formula items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FormulaItem"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: addFormulaItem
+      tags: [producao]
+      summary: Add a component to a formula
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FormulaItemInput"
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormulaItem"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/formulas/{id}/needs:
+    get:
+      operationId: getFormulaMaterialNeeds
+      tags: [producao]
+      summary: Calculate material needs for 1 batch (use query /formula-needs for custom qty)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Material needs calculation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaterialNeeds"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/formula-items/{id}:
+    put:
+      operationId: updateFormulaItem
+      tags: [producao]
+      summary: Update a formula item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FormulaItemInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormulaItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteFormulaItem
+      tags: [producao]
+      summary: Remove a formula item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders:
+    get:
+      operationId: listProductionOrders
+      tags: [producao]
+      summary: List production orders with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planned, released, in_production, quality_check, finished, cancelled]
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of production orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductionOrder"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProductionOrder
+      tags: [producao]
+      summary: Create a new production order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionOrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}:
+    get:
+      operationId: getProductionOrder
+      tags: [producao]
+      summary: Get production order with stages and formula items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Production order detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrderDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateProductionOrder
+      tags: [producao]
+      summary: Update a production order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionOrderUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProductionOrder
+      tags: [producao]
+      summary: Delete a planned or cancelled production order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Cannot delete active order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/release:
+    post:
+      operationId: releaseProductionOrder
+      tags: [producao]
+      summary: Release a production order (validates material availability)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Material shortage or wrong status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/start:
+    post:
+      operationId: startProductionOrder
+      tags: [producao]
+      summary: Start production (released → in_production)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Wrong status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/quality-check:
+    post:
+      operationId: sendProductionOrderToQualityCheck
+      tags: [producao]
+      summary: Send production order to quality check
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionOrderQualityCheckInput"
+      responses:
+        "200":
+          description: Sent to quality check
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Wrong status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/finish:
+    post:
+      operationId: finishProductionOrder
+      tags: [producao]
+      summary: Finish production order (quality_check → finished)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionOrderFinishInput"
+      responses:
+        "200":
+          description: Finished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Wrong status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/cancel:
+    post:
+      operationId: cancelProductionOrder
+      tags: [producao]
+      summary: Cancel a production order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionOrder"
+        "400":
+          description: Cannot cancel finished order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/stages:
+    get:
+      operationId: listProductionStages
+      tags: [producao]
+      summary: List stages for a production order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of stages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductionStage"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/orders/{id}/traceability:
+    get:
+      operationId: getProductionTraceability
+      tags: [producao]
+      summary: Get traceability info for a production order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Traceability data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionTraceability"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/stages/{id}/start:
+    put:
+      operationId: startProductionStage
+      tags: [producao]
+      summary: Start a production stage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StageStartInput"
+      responses:
+        "200":
+          description: Stage started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionStage"
+        "400":
+          description: Stage already started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/stages/{id}/finish:
+    put:
+      operationId: finishProductionStage
+      tags: [producao]
+      summary: Finish a production stage with quantity and yield data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StageFinishInput"
+      responses:
+        "200":
+          description: Stage finished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionStage"
+        "400":
+          description: Stage not in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/stages/{id}:
+    put:
+      operationId: updateProductionStage
+      tags: [producao]
+      summary: Update stage notes/operator/equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StageUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionStage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /producao/dashboard:
+    get:
+      operationId: getProducaoDashboard
+      tags: [producao]
+      summary: Get production dashboard KPIs
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProducaoDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -7771,3 +8737,475 @@ components:
                 type: integer
               totalAmount:
                 type: string
+
+    # ─── Produção Schemas ──────────────────────────────────────────────────────
+
+    Formula:
+      type: object
+      required:
+        - id
+        - productName
+        - version
+        - status
+        - batchYield
+        - unit
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          enum: [draft, approved, obsolete]
+        batchYield:
+          type: string
+        unit:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        approvedBy:
+          type: string
+          nullable: true
+        approvedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    FormulaInput:
+      type: object
+      required:
+        - productName
+      properties:
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        version:
+          type: string
+        batchYield:
+          type: string
+        unit:
+          type: string
+        notes:
+          type: string
+          nullable: true
+
+    FormulaItem:
+      type: object
+      required:
+        - id
+        - formulaId
+        - productName
+        - quantity
+        - unit
+        - createdAt
+      properties:
+        id:
+          type: integer
+        formulaId:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        quantity:
+          type: string
+        unit:
+          type: string
+        function:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+
+    FormulaItemInput:
+      type: object
+      required:
+        - productName
+        - quantity
+      properties:
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        quantity:
+          type: string
+        unit:
+          type: string
+        function:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    FormulaDetail:
+      allOf:
+        - $ref: "#/components/schemas/Formula"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/FormulaItem"
+
+    MaterialNeedItem:
+      type: object
+      required:
+        - id
+        - productName
+        - quantity
+        - unit
+        - needed
+        - available
+        - sufficient
+      properties:
+        id:
+          type: integer
+        formulaId:
+          type: integer
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        quantity:
+          type: string
+        unit:
+          type: string
+        function:
+          type: string
+          nullable: true
+        needed:
+          type: string
+        available:
+          type: string
+        sufficient:
+          type: boolean
+        factor:
+          type: number
+
+    MaterialNeeds:
+      type: object
+      required:
+        - formula
+        - needs
+        - qty
+        - factor
+      properties:
+        formula:
+          $ref: "#/components/schemas/Formula"
+        needs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MaterialNeedItem"
+        qty:
+          type: number
+        factor:
+          type: number
+
+    ProductionOrder:
+      type: object
+      required:
+        - id
+        - number
+        - productName
+        - plannedQty
+        - unit
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+        formulaId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        formulaVersion:
+          type: string
+          nullable: true
+        batchLot:
+          type: string
+          nullable: true
+        plannedQty:
+          type: string
+        actualQty:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        status:
+          type: string
+          enum: [planned, released, in_production, quality_check, finished, cancelled]
+        salesOrderId:
+          type: integer
+          nullable: true
+        scheduledStart:
+          type: string
+          nullable: true
+        scheduledEnd:
+          type: string
+          nullable: true
+        actualStart:
+          type: string
+          nullable: true
+        actualEnd:
+          type: string
+          nullable: true
+        releasedBy:
+          type: string
+          nullable: true
+        releasedAt:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ProductionOrderInput:
+      type: object
+      required:
+        - productName
+        - plannedQty
+      properties:
+        formulaId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        plannedQty:
+          type: string
+        unit:
+          type: string
+        salesOrderId:
+          type: integer
+          nullable: true
+        scheduledStart:
+          type: string
+          nullable: true
+        scheduledEnd:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    ProductionOrderUpdateInput:
+      type: object
+      properties:
+        plannedQty:
+          type: string
+        scheduledStart:
+          type: string
+          nullable: true
+        scheduledEnd:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        salesOrderId:
+          type: integer
+          nullable: true
+
+    ProductionStage:
+      type: object
+      required:
+        - id
+        - orderId
+        - stageType
+        - sequence
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        stageType:
+          type: string
+          enum: [weighing, mixing, production, packaging]
+        sequence:
+          type: integer
+        status:
+          type: string
+          enum: [pending, in_progress, done]
+        operatorId:
+          type: integer
+          nullable: true
+        operatorName:
+          type: string
+          nullable: true
+        equipment:
+          type: string
+          nullable: true
+        qtyIn:
+          type: string
+          nullable: true
+        qtyOut:
+          type: string
+          nullable: true
+        yieldPct:
+          type: string
+          nullable: true
+        losses:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          nullable: true
+        finishedAt:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    StageStartInput:
+      type: object
+      properties:
+        operatorId:
+          type: integer
+          nullable: true
+        operatorName:
+          type: string
+        equipment:
+          type: string
+        qtyIn:
+          type: string
+
+    StageFinishInput:
+      type: object
+      properties:
+        qtyOut:
+          type: string
+        losses:
+          type: string
+        notes:
+          type: string
+
+    StageUpdateInput:
+      type: object
+      properties:
+        operatorName:
+          type: string
+        equipment:
+          type: string
+        notes:
+          type: string
+
+    ProductionOrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProductionOrder"
+        - type: object
+          properties:
+            stages:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProductionStage"
+            formulaItems:
+              type: array
+              items:
+                $ref: "#/components/schemas/FormulaItem"
+
+    ProductionTraceability:
+      type: object
+      required:
+        - order
+        - stages
+        - formulaItems
+      properties:
+        order:
+          $ref: "#/components/schemas/ProductionOrder"
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductionStage"
+        formulaItems:
+          type: array
+          items:
+            type: object
+
+    ProducaoDashboard:
+      type: object
+      required:
+        - totalOrders
+        - inProduction
+        - planned
+        - released
+        - qualityCheck
+        - finished
+        - totalFormulas
+        - approvedFormulas
+        - recentOrders
+      properties:
+        totalOrders:
+          type: integer
+        inProduction:
+          type: integer
+        planned:
+          type: integer
+        released:
+          type: integer
+        qualityCheck:
+          type: integer
+        finished:
+          type: integer
+        totalFormulas:
+          type: integer
+        approvedFormulas:
+          type: integer
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductionOrder"
+
+    ProductionOrderFinishInput:
+      type: object
+      properties:
+        actualQty:
+          type: string
+        batchLot:
+          type: string
+
+    ProductionOrderQualityCheckInput:
+      type: object
+      properties:
+        actualQty:
+          type: string

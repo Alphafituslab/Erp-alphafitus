@@ -10,6 +10,7 @@ import rhRouter from "./rh";
 import projetosRouter from "./projetos";
 import fiscalRouter from "./fiscal";
 import relatoriosRouter from "./relatorios";
+import producaoRouter from "./producao";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(rhRouter);
 router.use(projetosRouter);
 router.use(fiscalRouter);
 router.use(relatoriosRouter);
+router.use(producaoRouter);
 
 export default router;

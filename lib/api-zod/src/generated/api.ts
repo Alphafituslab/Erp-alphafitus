@@ -3501,3 +3501,846 @@ export const ExportFiscalDocumentsCsvQueryParams = zod.object({
 })
 
 
+/**
+ * @summary List formulas with optional filters
+ */
+export const ListFormulasQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']).optional(),
+  "productId": zod.coerce.number().optional()
+})
+
+export const ListFormulasResponseItem = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']),
+  "batchYield": zod.string(),
+  "unit": zod.string(),
+  "notes": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListFormulasResponse = zod.array(ListFormulasResponseItem)
+
+
+/**
+ * @summary Create a new formula
+ */
+export const CreateFormulaBody = zod.object({
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string().optional(),
+  "batchYield": zod.string().optional(),
+  "unit": zod.string().optional(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get formula with items
+ */
+export const GetFormulaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetFormulaResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']),
+  "batchYield": zod.string(),
+  "unit": zod.string(),
+  "notes": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "formulaId": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "function": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})).optional()
+}))
+
+
+/**
+ * @summary Update a formula (draft only)
+ */
+export const UpdateFormulaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateFormulaBody = zod.object({
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string().optional(),
+  "batchYield": zod.string().optional(),
+  "unit": zod.string().optional(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateFormulaResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']),
+  "batchYield": zod.string(),
+  "unit": zod.string(),
+  "notes": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a draft formula
+ */
+export const DeleteFormulaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteFormulaResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Approve a draft formula
+ */
+export const ApproveFormulaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApproveFormulaResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']),
+  "batchYield": zod.string(),
+  "unit": zod.string(),
+  "notes": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Mark a formula as obsolete
+ */
+export const ObsoleteFormulaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ObsoleteFormulaResponse = zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']),
+  "batchYield": zod.string(),
+  "unit": zod.string(),
+  "notes": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List items for a formula
+ */
+export const ListFormulaItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListFormulaItemsResponseItem = zod.object({
+  "id": zod.number(),
+  "formulaId": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "function": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListFormulaItemsResponse = zod.array(ListFormulaItemsResponseItem)
+
+
+/**
+ * @summary Add a component to a formula
+ */
+export const AddFormulaItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddFormulaItemBody = zod.object({
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string().optional(),
+  "function": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Calculate material needs for 1 batch (use query /formula-needs for custom qty)
+ */
+export const GetFormulaMaterialNeedsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetFormulaMaterialNeedsResponse = zod.object({
+  "formula": zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "version": zod.string(),
+  "status": zod.enum(['draft', 'approved', 'obsolete']),
+  "batchYield": zod.string(),
+  "unit": zod.string(),
+  "notes": zod.string().nullish(),
+  "approvedBy": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "needs": zod.array(zod.object({
+  "id": zod.number(),
+  "formulaId": zod.number().optional(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "function": zod.string().nullish(),
+  "needed": zod.string(),
+  "available": zod.string(),
+  "sufficient": zod.boolean(),
+  "factor": zod.number().optional()
+})),
+  "qty": zod.number(),
+  "factor": zod.number()
+})
+
+
+/**
+ * @summary Update a formula item
+ */
+export const UpdateFormulaItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateFormulaItemBody = zod.object({
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string().optional(),
+  "function": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateFormulaItemResponse = zod.object({
+  "id": zod.number(),
+  "formulaId": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "function": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Remove a formula item
+ */
+export const DeleteFormulaItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteFormulaItemResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List production orders with optional filters
+ */
+export const ListProductionOrdersQueryParams = zod.object({
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']).optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListProductionOrdersResponseItem = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListProductionOrdersResponse = zod.array(ListProductionOrdersResponseItem)
+
+
+/**
+ * @summary Create a new production order
+ */
+export const CreateProductionOrderBody = zod.object({
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "plannedQty": zod.string(),
+  "unit": zod.string().optional(),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get production order with stages and formula items
+ */
+export const GetProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetProductionOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "stages": zod.array(zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})).optional(),
+  "formulaItems": zod.array(zod.object({
+  "id": zod.number(),
+  "formulaId": zod.number(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "quantity": zod.string(),
+  "unit": zod.string(),
+  "function": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})).optional()
+}))
+
+
+/**
+ * @summary Update a production order
+ */
+export const UpdateProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProductionOrderBody = zod.object({
+  "plannedQty": zod.string().optional(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "salesOrderId": zod.number().nullish()
+})
+
+export const UpdateProductionOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a planned or cancelled production order
+ */
+export const DeleteProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProductionOrderResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Release a production order (validates material availability)
+ */
+export const ReleaseProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReleaseProductionOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Start production (released → in_production)
+ */
+export const StartProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const StartProductionOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Send production order to quality check
+ */
+export const SendProductionOrderToQualityCheckParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendProductionOrderToQualityCheckBody = zod.object({
+  "actualQty": zod.string().optional()
+})
+
+export const SendProductionOrderToQualityCheckResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Finish production order (quality_check → finished)
+ */
+export const FinishProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const FinishProductionOrderBody = zod.object({
+  "actualQty": zod.string().optional(),
+  "batchLot": zod.string().optional()
+})
+
+export const FinishProductionOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Cancel a production order
+ */
+export const CancelProductionOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CancelProductionOrderResponse = zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List stages for a production order
+ */
+export const ListProductionStagesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListProductionStagesResponseItem = zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListProductionStagesResponse = zod.array(ListProductionStagesResponseItem)
+
+
+/**
+ * @summary Get traceability info for a production order
+ */
+export const GetProductionTraceabilityParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetProductionTraceabilityResponse = zod.object({
+  "order": zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "stages": zod.array(zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})),
+  "formulaItems": zod.array(zod.object({
+
+}).passthrough())
+})
+
+
+/**
+ * @summary Start a production stage
+ */
+export const StartProductionStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const StartProductionStageBody = zod.object({
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().optional(),
+  "equipment": zod.string().optional(),
+  "qtyIn": zod.string().optional()
+})
+
+export const StartProductionStageResponse = zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Finish a production stage with quantity and yield data
+ */
+export const FinishProductionStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const FinishProductionStageBody = zod.object({
+  "qtyOut": zod.string().optional(),
+  "losses": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const FinishProductionStageResponse = zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update stage notes/operator/equipment
+ */
+export const UpdateProductionStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProductionStageBody = zod.object({
+  "operatorName": zod.string().optional(),
+  "equipment": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateProductionStageResponse = zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Get production dashboard KPIs
+ */
+export const GetProducaoDashboardResponse = zod.object({
+  "totalOrders": zod.number(),
+  "inProduction": zod.number(),
+  "planned": zod.number(),
+  "released": zod.number(),
+  "qualityCheck": zod.number(),
+  "finished": zod.number(),
+  "totalFormulas": zod.number(),
+  "approvedFormulas": zod.number(),
+  "recentOrders": zod.array(zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+})
+
+
