@@ -406,12 +406,20 @@ router.delete("/rh/attendance/:id", async (req: Request, res: Response): Promise
 
 // ─── Evidence Upload ──────────────────────────────────────────────────────────
 
-router.post("/rh/upload-evidence", upload.single("file"), (req: Request, res: Response): void => {
-  if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
-  if (!req.file) { res.status(400).json({ error: "Nenhum arquivo enviado" }); return; }
-  const url = `/api/rh/evidence/${req.file.filename}`;
-  res.json({ url, filename: req.file.originalname, size: req.file.size });
-});
+// Auth guard runs BEFORE multer so unauthenticated requests never write to disk
+router.post(
+  "/rh/upload-evidence",
+  (req: Request, res: Response, next) => {
+    if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
+    next();
+  },
+  upload.single("file"),
+  (req: Request, res: Response): void => {
+    if (!req.file) { res.status(400).json({ error: "Nenhum arquivo enviado" }); return; }
+    const url = `/api/rh/evidence/${req.file.filename}`;
+    res.json({ url, filename: req.file.originalname, size: req.file.size });
+  }
+);
 
 // Authenticated evidence file download — requires active session (no public static serving)
 router.get("/rh/evidence/:filename", (req: Request, res: Response): void => {
@@ -602,7 +610,7 @@ router.post("/rh/employees/:id/trainings", async (req: Request, res: Response): 
       .set({ completedAt: completedDate, expiresAt, status, evidenceUrl: evidenceUrl || null, notes: notes || null })
       .where(eq(employeeTrainingsTable.id, existing.id))
       .returning();
-    res.json(updated);
+    res.status(201).json(updated); // 201 on upsert (created or updated) aligns with OpenAPI spec
     return;
   }
 
