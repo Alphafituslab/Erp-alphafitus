@@ -2,3 +2,4 @@
 - [ERP numeric columns as strings](numeric-strings.md) — Drizzle numeric/decimal columns come back as strings in TS; always parseFloat/parseInt before arithmetic.
 - [ERP session fields](session-fields.md) — req.session.userId / req.session.role / req.session.userName; requireAuth helper pattern used throughout routes.
 - [CQ stock idempotency](cq-stock-idempotency.md) — on lot approval, delta = released - prevAvailable (not totalQty); blockedQty must be set to "0" explicitly; prevents double-counting on re-runs.
+- [Manufacturing industry context](manufacturing-context.md) — empresa é indústria manufatureira: recebe matéria-prima e transforma em produto acabado para venda; todos os módulos e textos devem refletir esse fluxo.

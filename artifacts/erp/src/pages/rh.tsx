@@ -2219,6 +2219,34 @@ export default function RhPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Training dialog */}
+      <TrainingDialog
+        open={trainingDialog}
+        onClose={() => { setTrainingDialog(false); setEditingTraining(null); }}
+        editing={editingTraining}
+      />
+
+      {/* Delete training alert */}
+      <AlertDialog open={!!deleteTrainingItem} onOpenChange={(v) => !v && setDeleteTrainingItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir treinamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O treinamento "{deleteTrainingItem?.name}" será permanentemente excluído, incluindo todos os registros de realização vinculados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTraining}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
