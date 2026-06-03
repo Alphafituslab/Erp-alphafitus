@@ -6,6 +6,7 @@ import {
   formulaItemsTable,
   productionOrdersTable,
   productionStagesTable,
+  productionMaterialConsumptionsTable,
   productsTable,
   productLotsTable,
 } from "@workspace/db";
@@ -204,6 +205,12 @@ router.put("/producao/formula-items/:id", async (req: Request, res: Response): P
   if (id === null) return;
   const [existing] = await db.select().from(formulaItemsTable).where(eq(formulaItemsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Item não encontrado" }); return; }
+  // Guard: approved / obsolete formulas are immutable
+  const [parentFormula] = await db.select({ status: formulasTable.status }).from(formulasTable).where(eq(formulasTable.id, existing.formulaId));
+  if (parentFormula && ["approved", "obsolete"].includes(parentFormula.status)) {
+    res.status(400).json({ error: "Itens de fórmulas aprovadas ou obsoletas não podem ser editados" });
+    return;
+  }
   const { productId, productName, quantity, unit, function: fn, notes } = req.body;
   const [row] = await db
     .update(formulaItemsTable)
@@ -226,6 +233,12 @@ router.delete("/producao/formula-items/:id", async (req: Request, res: Response)
   if (id === null) return;
   const [existing] = await db.select().from(formulaItemsTable).where(eq(formulaItemsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Item não encontrado" }); return; }
+  // Guard: approved / obsolete formulas are immutable
+  const [parentFormula] = await db.select({ status: formulasTable.status }).from(formulasTable).where(eq(formulasTable.id, existing.formulaId));
+  if (parentFormula && ["approved", "obsolete"].includes(parentFormula.status)) {
+    res.status(400).json({ error: "Itens de fórmulas aprovadas ou obsoletas não podem ser excluídos" });
+    return;
+  }
   await db.delete(formulaItemsTable).where(eq(formulaItemsTable.id, id));
   res.json({ success: true });
 });
@@ -520,10 +533,21 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
   const [stage] = await db.select().from(productionStagesTable).where(eq(productionStagesTable.id, id));
   if (!stage) { res.status(404).json({ error: "Etapa não encontrada" }); return; }
   if (stage.status !== "in_progress") { res.status(400).json({ error: "Etapa não está em andamento" }); return; }
-  const { qtyOut, losses, notes } = req.body;
+  const { qtyOut, losses, notes, consumptions } = req.body as {
+    qtyOut?: string | number;
+    losses?: string | number;
+    notes?: string;
+    consumptions?: Array<{
+      formulaItemId?: number;
+      lotId: number;
+      actualQty: number;
+      plannedQty?: number;
+      notes?: string;
+    }>;
+  };
   const qtyIn = parseFloat(stage.qtyIn ?? "0");
-  const qtyOutN = parseFloat(qtyOut ?? "0");
-  const lossesN = parseFloat(losses ?? "0");
+  const qtyOutN = parseFloat(String(qtyOut ?? "0"));
+  const lossesN = parseFloat(String(losses ?? "0"));
   const yieldPct = qtyIn > 0 ? ((qtyOutN / qtyIn) * 100).toFixed(2) : null;
   const [row] = await db
     .update(productionStagesTable)
@@ -537,6 +561,51 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
     })
     .where(eq(productionStagesTable.id, id))
     .returning();
+
+  // Record material consumptions (lot traceability) — required for weighing stage
+  if (Array.isArray(consumptions) && consumptions.length > 0) {
+    const recordedBy = req.session.userName ?? "Sistema";
+    for (const c of consumptions) {
+      if (!c.lotId || !c.actualQty) continue;
+      // Resolve lot details for snapshot
+      const [lot] = await db
+        .select({ internalLot: productLotsTable.internalLot, productId: productLotsTable.productId, productName: productsTable.name })
+        .from(productLotsTable)
+        .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
+        .where(eq(productLotsTable.id, c.lotId));
+      if (!lot) continue;
+
+      // Resolve formulaItem details if provided
+      let formulaItemProductId: number | null = lot.productId ?? null;
+      let formulaItemProductName: string = lot.productName ?? "";
+      if (c.formulaItemId) {
+        const [fi] = await db
+          .select({ productId: formulaItemsTable.productId, productName: formulaItemsTable.productName })
+          .from(formulaItemsTable)
+          .where(eq(formulaItemsTable.id, c.formulaItemId));
+        if (fi) {
+          formulaItemProductId = fi.productId ?? formulaItemProductId;
+          formulaItemProductName = fi.productName || formulaItemProductName;
+        }
+      }
+
+      await db.insert(productionMaterialConsumptionsTable).values({
+        orderId: stage.orderId,
+        stageId: id,
+        formulaItemId: c.formulaItemId ?? null,
+        productId: formulaItemProductId,
+        productName: formulaItemProductName,
+        lotId: c.lotId,
+        internalLot: lot.internalLot ?? null,
+        plannedQty: c.plannedQty ? String(c.plannedQty) : null,
+        actualQty: String(c.actualQty),
+        unit: "kg",
+        recordedBy,
+        notes: c.notes ?? null,
+      });
+    }
+  }
+
   res.json(row);
 });
 
@@ -567,21 +636,47 @@ router.get("/producao/orders/:id/traceability", async (req: Request, res: Respon
   if (id === null) return;
   const [order] = await db.select().from(productionOrdersTable).where(eq(productionOrdersTable.id, id));
   if (!order) { res.status(404).json({ error: "OP não encontrada" }); return; }
-  const stages = await db.select().from(productionStagesTable).where(eq(productionStagesTable.orderId, id)).orderBy(asc(productionStagesTable.sequence));
+  const stages = await db
+    .select()
+    .from(productionStagesTable)
+    .where(eq(productionStagesTable.orderId, id))
+    .orderBy(asc(productionStagesTable.sequence));
+
+  // Fetch actual consumption records for this order (real traceability by lot)
+  const consumptions = await db
+    .select({
+      id: productionMaterialConsumptionsTable.id,
+      stageId: productionMaterialConsumptionsTable.stageId,
+      formulaItemId: productionMaterialConsumptionsTable.formulaItemId,
+      productId: productionMaterialConsumptionsTable.productId,
+      productName: productionMaterialConsumptionsTable.productName,
+      lotId: productionMaterialConsumptionsTable.lotId,
+      internalLot: productionMaterialConsumptionsTable.internalLot,
+      plannedQty: productionMaterialConsumptionsTable.plannedQty,
+      actualQty: productionMaterialConsumptionsTable.actualQty,
+      unit: productionMaterialConsumptionsTable.unit,
+      recordedBy: productionMaterialConsumptionsTable.recordedBy,
+      recordedAt: productionMaterialConsumptionsTable.recordedAt,
+      notes: productionMaterialConsumptionsTable.notes,
+      // Enrich from lots table
+      supplierLot: productLotsTable.supplierLot,
+      cqStatus: productLotsTable.cqStatus,
+    })
+    .from(productionMaterialConsumptionsTable)
+    .leftJoin(productLotsTable, eq(productionMaterialConsumptionsTable.lotId, productLotsTable.id))
+    .where(eq(productionMaterialConsumptionsTable.orderId, id))
+    .orderBy(asc(productionMaterialConsumptionsTable.recordedAt));
+
+  // Also attach formula items for reference (formula snapshot at OP creation)
   let formulaItems: any[] = [];
   if (order.formulaId) {
-    formulaItems = await db.select().from(formulaItemsTable).where(eq(formulaItemsTable.formulaId, order.formulaId));
+    formulaItems = await db
+      .select()
+      .from(formulaItemsTable)
+      .where(eq(formulaItemsTable.formulaId, order.formulaId));
   }
-  // For each formula item (MP), find approved lots that were available at production time
-  const mpLots = await Promise.all(formulaItems.map(async (item) => {
-    const lots = await db
-      .select({ internalLot: productLotsTable.internalLot, supplierLot: productLotsTable.supplierLot, cqStatus: productLotsTable.cqStatus, availableQty: productLotsTable.availableQty })
-      .from(productLotsTable)
-      .where(eq(productLotsTable.productId, item.productId ?? 0))
-      .limit(5);
-    return { ...item, lots };
-  }));
-  res.json({ order, stages, formulaItems: mpLots });
+
+  res.json({ order, stages, consumptions, formulaItems });
 });
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────

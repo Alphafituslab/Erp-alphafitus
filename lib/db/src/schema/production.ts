@@ -2,6 +2,7 @@ import { pgTable, text, serial, timestamp, integer, numeric } from "drizzle-orm/
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { productsTable } from "./products";
+import { productLotsTable } from "./lots";
 import { salesOrdersTable } from "./sales-orders";
 import { z } from "zod/v4";
 
@@ -83,6 +84,25 @@ export const productionStagesTable = pgTable("production_stages", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+// ─── Consumo de Matéria-Prima (rastreabilidade real por lote) ─────────────────
+
+export const productionMaterialConsumptionsTable = pgTable("production_material_consumptions", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull().references(() => productionOrdersTable.id, { onDelete: "cascade" }),
+  stageId: integer("stage_id").references(() => productionStagesTable.id, { onDelete: "set null" }),
+  formulaItemId: integer("formula_item_id").references(() => formulaItemsTable.id, { onDelete: "set null" }),
+  productId: integer("product_id").references(() => productsTable.id),
+  productName: text("product_name").notNull(),
+  lotId: integer("lot_id").references(() => productLotsTable.id),
+  internalLot: text("internal_lot"),
+  plannedQty: numeric("planned_qty", { precision: 12, scale: 4 }),
+  actualQty: numeric("actual_qty", { precision: 12, scale: 4 }).notNull(),
+  unit: text("unit").notNull().default("kg"),
+  recordedBy: text("recorded_by"),
+  notes: text("notes"),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const formulasRelations = relations(formulasTable, ({ one, many }) => ({
@@ -121,10 +141,34 @@ export const productionOrdersRelations = relations(productionOrdersTable, ({ one
   stages: many(productionStagesTable),
 }));
 
-export const productionStagesRelations = relations(productionStagesTable, ({ one }) => ({
+export const productionStagesRelations = relations(productionStagesTable, ({ one, many }) => ({
   order: one(productionOrdersTable, {
     fields: [productionStagesTable.orderId],
     references: [productionOrdersTable.id],
+  }),
+  consumptions: many(productionMaterialConsumptionsTable),
+}));
+
+export const productionMaterialConsumptionsRelations = relations(productionMaterialConsumptionsTable, ({ one }) => ({
+  order: one(productionOrdersTable, {
+    fields: [productionMaterialConsumptionsTable.orderId],
+    references: [productionOrdersTable.id],
+  }),
+  stage: one(productionStagesTable, {
+    fields: [productionMaterialConsumptionsTable.stageId],
+    references: [productionStagesTable.id],
+  }),
+  formulaItem: one(formulaItemsTable, {
+    fields: [productionMaterialConsumptionsTable.formulaItemId],
+    references: [formulaItemsTable.id],
+  }),
+  product: one(productsTable, {
+    fields: [productionMaterialConsumptionsTable.productId],
+    references: [productsTable.id],
+  }),
+  lot: one(productLotsTable, {
+    fields: [productionMaterialConsumptionsTable.lotId],
+    references: [productLotsTable.id],
   }),
 }));
 
@@ -145,3 +189,7 @@ export type ProductionOrder = typeof productionOrdersTable.$inferSelect;
 export const insertProductionStageSchema = createInsertSchema(productionStagesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertProductionStage = z.infer<typeof insertProductionStageSchema>;
 export type ProductionStage = typeof productionStagesTable.$inferSelect;
+
+export const insertProductionMaterialConsumptionSchema = createInsertSchema(productionMaterialConsumptionsTable).omit({ id: true, recordedAt: true });
+export type InsertProductionMaterialConsumption = z.infer<typeof insertProductionMaterialConsumptionSchema>;
+export type ProductionMaterialConsumption = typeof productionMaterialConsumptionsTable.$inferSelect;
