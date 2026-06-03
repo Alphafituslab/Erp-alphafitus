@@ -34,6 +34,7 @@ import type {
   AttendanceLogInput,
   AttendanceSummary,
   AuthUser,
+  BackwardTraceResult,
   CapaAction,
   CapaActionInput,
   CapaDashboard,
@@ -67,11 +68,14 @@ import type {
   FormulaInput,
   FormulaItem,
   FormulaItemInput,
+  ForwardTraceResult,
   GetAttendanceSummaryParams,
   GetCashflowParams,
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
   GetPriceHistoryParams,
+  GetTraceabilityBackwardParams,
+  GetTraceabilityForwardParams,
   GetTraceabilityTraceParams,
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
@@ -14407,7 +14411,7 @@ export const getGetTraceabilityTraceUrl = (params: GetTraceabilityTraceParams,) 
 }
 
 /**
- * @summary Get full traceability trace for a lot number
+ * @summary Get full traceability trace for a lot number (forward + backward combined)
  */
 export const getTraceabilityTrace = async (params: GetTraceabilityTraceParams, options?: RequestInit): Promise<TraceabilityResult> => {
 
@@ -14454,7 +14458,7 @@ export type GetTraceabilityTraceQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary Get full traceability trace for a lot number
+ * @summary Get full traceability trace for a lot number (forward + backward combined)
  */
 
 export function useGetTraceabilityTrace<TData = Awaited<ReturnType<typeof getTraceabilityTrace>>, TError = ErrorType<ErrorResponse>>(
@@ -14463,6 +14467,174 @@ export function useGetTraceabilityTrace<TData = Awaited<ReturnType<typeof getTra
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTraceabilityTraceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTraceabilityForwardUrl = (params: GetTraceabilityForwardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/rastreabilidade/forward?${stringifiedParams}` : `/api/rastreabilidade/forward`
+}
+
+/**
+ * @summary Forward traceability — MP lot to production orders, PA lots, clients, fiscal docs
+ */
+export const getTraceabilityForward = async (params: GetTraceabilityForwardParams, options?: RequestInit): Promise<ForwardTraceResult> => {
+
+  return customFetch<ForwardTraceResult>(getGetTraceabilityForwardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTraceabilityForwardQueryKey = (params?: GetTraceabilityForwardParams,) => {
+    return [
+    `/api/rastreabilidade/forward`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTraceabilityForwardQueryOptions = <TData = Awaited<ReturnType<typeof getTraceabilityForward>>, TError = ErrorType<ErrorResponse>>(params: GetTraceabilityForwardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityForward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTraceabilityForwardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTraceabilityForward>>> = ({ signal }) => getTraceabilityForward(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityForward>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTraceabilityForwardQueryResult = NonNullable<Awaited<ReturnType<typeof getTraceabilityForward>>>
+export type GetTraceabilityForwardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Forward traceability — MP lot to production orders, PA lots, clients, fiscal docs
+ */
+
+export function useGetTraceabilityForward<TData = Awaited<ReturnType<typeof getTraceabilityForward>>, TError = ErrorType<ErrorResponse>>(
+ params: GetTraceabilityForwardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityForward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTraceabilityForwardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTraceabilityBackwardUrl = (params: GetTraceabilityBackwardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/rastreabilidade/backward?${stringifiedParams}` : `/api/rastreabilidade/backward`
+}
+
+/**
+ * @summary Backward traceability — PA lot back to production orders, MP lots, suppliers
+ */
+export const getTraceabilityBackward = async (params: GetTraceabilityBackwardParams, options?: RequestInit): Promise<BackwardTraceResult> => {
+
+  return customFetch<BackwardTraceResult>(getGetTraceabilityBackwardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTraceabilityBackwardQueryKey = (params?: GetTraceabilityBackwardParams,) => {
+    return [
+    `/api/rastreabilidade/backward`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTraceabilityBackwardQueryOptions = <TData = Awaited<ReturnType<typeof getTraceabilityBackward>>, TError = ErrorType<ErrorResponse>>(params: GetTraceabilityBackwardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityBackward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTraceabilityBackwardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTraceabilityBackward>>> = ({ signal }) => getTraceabilityBackward(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityBackward>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTraceabilityBackwardQueryResult = NonNullable<Awaited<ReturnType<typeof getTraceabilityBackward>>>
+export type GetTraceabilityBackwardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Backward traceability — PA lot back to production orders, MP lots, suppliers
+ */
+
+export function useGetTraceabilityBackward<TData = Awaited<ReturnType<typeof getTraceabilityBackward>>, TError = ErrorType<ErrorResponse>>(
+ params: GetTraceabilityBackwardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityBackward>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTraceabilityBackwardQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

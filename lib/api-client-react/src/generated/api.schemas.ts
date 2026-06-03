@@ -2536,6 +2536,68 @@ export interface LotSuggestion {
   cqStatus?: string | null;
 }
 
+export type ForwardTraceResultMpLotInfo = { [key: string]: unknown } | null;
+
+export type ForwardTraceResultConsumptionsItem = { [key: string]: unknown };
+
+export type ForwardTraceResultProductionOrdersItem = { [key: string]: unknown };
+
+export type ForwardTraceResultPaLotsItem = { [key: string]: unknown };
+
+export type ForwardTraceResultSalesOrdersItem = { [key: string]: unknown };
+
+export type ForwardTraceResultClientsItem = { [key: string]: unknown };
+
+export type ForwardTraceResultFiscalDocsItem = { [key: string]: unknown };
+
+export type ForwardTraceResultCqAnalysesItem = { [key: string]: unknown };
+
+export type ForwardTraceResultCqCertificatesItem = { [key: string]: unknown };
+
+export interface ForwardTraceResult {
+  lotNumber: string;
+  mpLotInfo?: ForwardTraceResultMpLotInfo;
+  consumptions?: ForwardTraceResultConsumptionsItem[];
+  productionOrders?: ForwardTraceResultProductionOrdersItem[];
+  paLots?: ForwardTraceResultPaLotsItem[];
+  salesOrders?: ForwardTraceResultSalesOrdersItem[];
+  clients?: ForwardTraceResultClientsItem[];
+  fiscalDocs?: ForwardTraceResultFiscalDocsItem[];
+  cqAnalyses?: ForwardTraceResultCqAnalysesItem[];
+  cqCertificates?: ForwardTraceResultCqCertificatesItem[];
+}
+
+export type BackwardTraceResultProductionOrdersItem = { [key: string]: unknown };
+
+export type BackwardTraceResultStagesItem = { [key: string]: unknown };
+
+export type BackwardTraceResultConsumedMpLotsItem = { [key: string]: unknown };
+
+export type BackwardTraceResultMpLotsItem = { [key: string]: unknown };
+
+export type BackwardTraceResultQualityAnalysesItem = { [key: string]: unknown };
+
+export type BackwardTraceResultQualityCertificatesItem = { [key: string]: unknown };
+
+export type BackwardTraceResultSuppliersItem = { [key: string]: unknown };
+
+export type BackwardTraceResultNcrsItem = { [key: string]: unknown };
+
+export type BackwardTraceResultSalesOrdersItem = { [key: string]: unknown };
+
+export interface BackwardTraceResult {
+  lotNumber: string;
+  productionOrders?: BackwardTraceResultProductionOrdersItem[];
+  stages?: BackwardTraceResultStagesItem[];
+  consumedMpLots?: BackwardTraceResultConsumedMpLotsItem[];
+  mpLots?: BackwardTraceResultMpLotsItem[];
+  qualityAnalyses?: BackwardTraceResultQualityAnalysesItem[];
+  qualityCertificates?: BackwardTraceResultQualityCertificatesItem[];
+  suppliers?: BackwardTraceResultSuppliersItem[];
+  ncrs?: BackwardTraceResultNcrsItem[];
+  salesOrders?: BackwardTraceResultSalesOrdersItem[];
+}
+
 export type TraceabilityResultDetectedAs = typeof TraceabilityResultDetectedAs[keyof typeof TraceabilityResultDetectedAs];
 
 
@@ -3112,6 +3174,14 @@ q: string;
 };
 
 export type GetTraceabilityTraceParams = {
+lot: string;
+};
+
+export type GetTraceabilityForwardParams = {
+lot: string;
+};
+
+export type GetTraceabilityBackwardParams = {
 lot: string;
 };
 

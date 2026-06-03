@@ -6223,7 +6223,7 @@ paths:
     get:
       operationId: getTraceabilityTrace
       tags: [rastreabilidade]
-      summary: Get full traceability trace for a lot number
+      summary: Get full traceability trace for a lot number (forward + backward combined)
       parameters:
         - name: lot
           in: query
@@ -6239,6 +6239,68 @@ paths:
                 $ref: "#/components/schemas/TraceabilityResult"
         "404":
           description: Lot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rastreabilidade/forward:
+    get:
+      operationId: getTraceabilityForward
+      tags: [rastreabilidade]
+      summary: Forward traceability — MP lot to production orders, PA lots, clients, fiscal docs
+      parameters:
+        - name: lot
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Forward traceability chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForwardTraceResult"
+        "404":
+          description: MP lot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rastreabilidade/backward:
+    get:
+      operationId: getTraceabilityBackward
+      tags: [rastreabilidade]
+      summary: Backward traceability — PA lot back to production orders, MP lots, suppliers
+      parameters:
+        - name: lot
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Backward traceability chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackwardTraceResult"
+        "404":
+          description: PA lot not found
           content:
             application/json:
               schema:
@@ -10855,6 +10917,91 @@ components:
         cqStatus:
           type: string
           nullable: true
+
+    ForwardTraceResult:
+      type: object
+      required: [lotNumber]
+      properties:
+        lotNumber:
+          type: string
+        mpLotInfo:
+          type: object
+          nullable: true
+        consumptions:
+          type: array
+          items:
+            type: object
+        productionOrders:
+          type: array
+          items:
+            type: object
+        paLots:
+          type: array
+          items:
+            type: object
+        salesOrders:
+          type: array
+          items:
+            type: object
+        clients:
+          type: array
+          items:
+            type: object
+        fiscalDocs:
+          type: array
+          items:
+            type: object
+        cqAnalyses:
+          type: array
+          items:
+            type: object
+        cqCertificates:
+          type: array
+          items:
+            type: object
+
+    BackwardTraceResult:
+      type: object
+      required: [lotNumber]
+      properties:
+        lotNumber:
+          type: string
+        productionOrders:
+          type: array
+          items:
+            type: object
+        stages:
+          type: array
+          items:
+            type: object
+        consumedMpLots:
+          type: array
+          items:
+            type: object
+        mpLots:
+          type: array
+          items:
+            type: object
+        qualityAnalyses:
+          type: array
+          items:
+            type: object
+        qualityCertificates:
+          type: array
+          items:
+            type: object
+        suppliers:
+          type: array
+          items:
+            type: object
+        ncrs:
+          type: array
+          items:
+            type: object
+        salesOrders:
+          type: array
+          items:
+            type: object
 
     TraceabilityResult:
       type: object

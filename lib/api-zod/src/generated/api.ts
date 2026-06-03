@@ -5208,7 +5208,7 @@ export const SearchTraceLotsResponse = zod.array(SearchTraceLotsResponseItem)
 
 
 /**
- * @summary Get full traceability trace for a lot number
+ * @summary Get full traceability trace for a lot number (forward + backward combined)
  */
 export const GetTraceabilityTraceQueryParams = zod.object({
   "lot": zod.coerce.string()
@@ -5229,6 +5229,84 @@ export const GetTraceabilityTraceResponse = zod.object({
   "backward": zod.object({
 
 }).passthrough().nullish()
+})
+
+
+/**
+ * @summary Forward traceability — MP lot to production orders, PA lots, clients, fiscal docs
+ */
+export const GetTraceabilityForwardQueryParams = zod.object({
+  "lot": zod.coerce.string()
+})
+
+export const GetTraceabilityForwardResponse = zod.object({
+  "lotNumber": zod.string(),
+  "mpLotInfo": zod.object({
+
+}).passthrough().nullish(),
+  "consumptions": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "productionOrders": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "paLots": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "salesOrders": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "clients": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "fiscalDocs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "cqAnalyses": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "cqCertificates": zod.array(zod.object({
+
+}).passthrough()).optional()
+})
+
+
+/**
+ * @summary Backward traceability — PA lot back to production orders, MP lots, suppliers
+ */
+export const GetTraceabilityBackwardQueryParams = zod.object({
+  "lot": zod.coerce.string()
+})
+
+export const GetTraceabilityBackwardResponse = zod.object({
+  "lotNumber": zod.string(),
+  "productionOrders": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "stages": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "consumedMpLots": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "mpLots": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "qualityAnalyses": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "qualityCertificates": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "suppliers": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "ncrs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "salesOrders": zod.array(zod.object({
+
+}).passthrough()).optional()
 })
 
 
