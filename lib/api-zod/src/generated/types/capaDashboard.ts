@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CapaAction } from './capaAction';
+import type { CapaDashboardByOrigin } from './capaDashboardByOrigin';
 import type { CapaDashboardByStatus } from './capaDashboardByStatus';
 import type { CapaDashboardByType } from './capaDashboardByType';
+import type { CapaDashboardRecurrentProductsItem } from './capaDashboardRecurrentProductsItem';
 import type { QualityNcr } from './qualityNcr';
 
 export interface CapaDashboard {
@@ -15,6 +17,9 @@ export interface CapaDashboard {
   totalClosed: number;
   byStatus: CapaDashboardByStatus;
   byType: CapaDashboardByType;
+  byOrigin: CapaDashboardByOrigin;
+  recurrenceCount: number;
+  recurrentProducts?: CapaDashboardRecurrentProductsItem[];
   overdueNcrsCount: number;
   overdueActionsCount: number;
   openActionsCount: number;

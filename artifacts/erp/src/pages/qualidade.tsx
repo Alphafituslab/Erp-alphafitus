@@ -636,6 +636,7 @@ const capaActionSchema = z.object({
   description: z.string().min(1, "Obrigatório"),
   responsible: z.string().optional(),
   dueDate: z.string().optional(),
+  evidence: z.string().optional(),
   notes: z.string().optional(),
 });
 type CapaActionForm = z.infer<typeof capaActionSchema>;
@@ -655,15 +656,16 @@ function CapaActionDialog({
       description: editing.description,
       responsible: editing.responsible ?? "",
       dueDate: editing.dueDate ?? "",
+      evidence: editing.evidence ?? "",
       notes: editing.notes ?? "",
-    } : { actionType: "corrective", description: "", responsible: "", dueDate: "", notes: "" },
+    } : { actionType: "corrective", description: "", responsible: "", dueDate: "", evidence: "", notes: "" },
   });
   const onSubmit = form.handleSubmit((data) => {
     const invalidate = () => {
       qc.invalidateQueries({ queryKey: getListCapaActionsQueryKey(ncrId) });
       qc.invalidateQueries({ queryKey: getGetQualityNcrQueryKey(ncrId) });
     };
-    const payload = { ...data, responsible: data.responsible || null, dueDate: data.dueDate || null, notes: data.notes || null };
+    const payload = { ...data, responsible: data.responsible || null, dueDate: data.dueDate || null, evidence: data.evidence || null, notes: data.notes || null };
     if (editing) {
       updateM.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
     } else {
@@ -696,6 +698,10 @@ function CapaActionDialog({
             <div className="space-y-1"><label className="text-sm font-medium">Responsável</label><Input {...form.register("responsible")} /></div>
             <div className="space-y-1"><label className="text-sm font-medium">Prazo</label><Input {...form.register("dueDate")} type="date" /></div>
           </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Evidência de conclusão</label>
+            <Textarea {...form.register("evidence")} rows={2} placeholder="Descreva a evidência da conclusão (relatório, medição, foto referência…)" />
+          </div>
           <div className="space-y-1"><label className="text-sm font-medium">Observações</label><Input {...form.register("notes")} /></div>
           <DialogFooter className="pt-1">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
@@ -716,6 +722,7 @@ function NcrCapaDialog({ ncrId, open, onClose }: { ncrId: number | null; open: b
   const [editingAction, setEditingAction] = useState<CapaAction | null>(null);
   const [deleteAction, setDeleteAction] = useState<CapaAction | null>(null);
   const [completeAction, setCompleteAction] = useState<CapaAction | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // Investigation fields
   const [whyAnalysis, setWhyAnalysis] = useState("");
@@ -755,7 +762,18 @@ function NcrCapaDialog({ ncrId, open, onClose }: { ncrId: number | null; open: b
   };
 
   const handleCompleteAction = (action: CapaAction) => {
-    updateCapaM.mutate({ id: action.id, data: { status: "done", completedAt: new Date().toISOString() } as any }, {
+    updateCapaM.mutate({
+      id: action.id,
+      data: {
+        actionType: action.actionType,
+        description: action.description,
+        responsible: action.responsible ?? undefined,
+        dueDate: action.dueDate ?? undefined,
+        evidence: action.evidence ?? undefined,
+        notes: action.notes ?? undefined,
+        status: "done",
+      },
+    }, {
       onSuccess: () => {
         if (ncrId) qc.invalidateQueries({ queryKey: getListCapaActionsQueryKey(ncrId) });
       },
@@ -981,6 +999,85 @@ function NcrCapaDialog({ ncrId, open, onClose }: { ncrId: number | null; open: b
                   )}
                 </TabsContent>
               </Tabs>
+
+              {/* PDF Export Button */}
+              <div className="flex justify-end border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={exportingPdf}
+                  onClick={() => {
+                    setExportingPdf(true);
+                    try {
+                      const doc = new jsPDF();
+                      const lm = 14;
+                      let y = 15;
+                      const addLine = (text: string, indent = 0, bold = false) => {
+                        if (y > 275) { doc.addPage(); y = 15; }
+                        if (bold) doc.setFont("helvetica", "bold");
+                        doc.text(text, lm + indent, y);
+                        doc.setFont("helvetica", "normal");
+                        y += 7;
+                      };
+                      const addSection = (title: string) => {
+                        y += 3;
+                        doc.setFontSize(11);
+                        addLine(title, 0, true);
+                        doc.setFontSize(10);
+                        y += 1;
+                      };
+                      doc.setFontSize(14);
+                      addLine(`Relatório CAPA — NCR #${ncr?.id}`, 0, true);
+                      doc.setFontSize(10);
+                      addLine(`Título: ${ncr?.title ?? ""}`, 0);
+                      addLine(`Status: ${ncrStatus}  |  Severidade: ${ncr?.severity ?? ""}  |  Tipo: ${ncTypeLabel(ncr?.ncType)}`);
+                      addLine(`Produto: ${ncr?.productName ?? "—"}  |  Responsável: ${ncr?.assignedTo ?? "—"}`);
+                      addLine(`Criada em: ${fmtDate(ncr?.createdAt)}  |  Prazo: ${ncr?.dueDate ? fmtDate(ncr.dueDate) : "—"}`);
+                      if (ncr?.origin) addLine(`Origem: ${ncr.origin}`);
+
+                      addSection("1. Descrição da Não Conformidade");
+                      if (ncr?.description) {
+                        doc.text(doc.splitTextToSize(ncr.description, 180), lm, y);
+                        y += Math.ceil(ncr.description.length / 90) * 6 + 3;
+                      } else { addLine("—"); }
+
+                      addSection("2. Análise de Causa Raiz (5 Porquês)");
+                      const whys = (ncr?.whyAnalysis ?? "—").split("\n");
+                      whys.forEach((w) => { if (y > 275) { doc.addPage(); y = 15; } doc.text(doc.splitTextToSize(w || "—", 176), lm + 4, y); y += 6; });
+
+                      addSection("3. Categorias Ishikawa");
+                      addLine(ncr?.ishikawaCategories ?? "—", 4);
+
+                      addSection("4. Plano de Ação CAPA");
+                      if (actions.length === 0) {
+                        addLine("Nenhuma ação cadastrada.", 4);
+                      } else {
+                        actions.forEach((a, i) => {
+                          addLine(`${i + 1}. [${a.actionType === "corrective" ? "Corretiva" : "Preventiva"}] ${a.description}`, 4, a.status === "done");
+                          addLine(`   Responsável: ${a.responsible ?? "—"}  |  Prazo: ${a.dueDate ? fmtDate(a.dueDate) : "—"}  |  Status: ${a.status}`, 4);
+                          if (a.evidence) { addLine(`   Evidência: ${a.evidence}`, 4); }
+                        });
+                      }
+
+                      addSection("5. Verificação de Eficácia");
+                      addLine(`Verificado por: ${ncr?.verifiedBy ?? "—"}`, 4);
+                      if (ncr?.verificationNotes) {
+                        doc.text(doc.splitTextToSize(ncr.verificationNotes, 176), lm + 4, y); y += Math.ceil(ncr.verificationNotes.length / 90) * 6 + 3;
+                      }
+
+                      addSection("6. Encerramento");
+                      addLine(`Encerrado por: ${ncr?.closedBy ?? "—"}  |  Data: ${ncr?.closedAt ? fmtDateTime(ncr.closedAt) : "—"}`, 4);
+
+                      doc.save(`CAPA-NCR${ncr?.id}-${new Date().toISOString().slice(0, 10)}.pdf`);
+                    } finally {
+                      setExportingPdf(false);
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  {exportingPdf ? "Gerando…" : "Exportar Relatório CAPA (PDF)"}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -2052,7 +2149,35 @@ export default function QualidadePage() {
                       <p className="text-xs text-muted-foreground mt-1">Com prazo vencido e ainda abertas</p>
                     </CardContent>
                   </Card>
+                  <Card className={(capaDashboard.recurrenceCount ?? 0) > 0 ? "border-orange-300" : ""}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Reincidências</CardTitle>
+                      <AlertTriangle className={`h-4 w-4 ${(capaDashboard.recurrenceCount ?? 0) > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+                    </CardHeader>
+                    <CardContent>
+                      <p className={`text-2xl font-semibold ${(capaDashboard.recurrenceCount ?? 0) > 0 ? "text-orange-600" : ""}`}>{capaDashboard.recurrenceCount ?? 0}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Produtos com múltiplas NCRs</p>
+                    </CardContent>
+                  </Card>
                 </div>
+                {/* Origin breakdown */}
+                {Object.keys(capaDashboard.byOrigin ?? {}).length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">NCRs por Origem</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(capaDashboard.byOrigin ?? {}).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([origin, count]) => (
+                          <div key={origin} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm">
+                            <span className="font-medium">{origin}</span>
+                            <Badge variant="secondary" className="h-4 text-xs">{count as number}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
                 {(capaDashboard.upcomingActions ?? []).length > 0 && (
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">

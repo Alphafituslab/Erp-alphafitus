@@ -1014,17 +1014,39 @@ router.get("/qualidade/capa/dashboard", async (req: Request, res: Response): Pro
     .orderBy(capaActionsTable.dueDate)
     .limit(10);
 
+  // NCR counts by origin
+  const originCounts = await db
+    .select({ origin: qualityNcrsTable.origin, count: sql<number>`COUNT(*)::int` })
+    .from(qualityNcrsTable)
+    .where(sql`${qualityNcrsTable.origin} IS NOT NULL AND ${qualityNcrsTable.origin} != ''`)
+    .groupBy(qualityNcrsTable.origin);
+
+  // Recurrence: products with more than 1 NCR (open or closed)
+  const recurrenceRows = await db
+    .select({ productId: qualityNcrsTable.productId, productName: qualityNcrsTable.productName, count: sql<number>`COUNT(*)::int` })
+    .from(qualityNcrsTable)
+    .where(sql`${qualityNcrsTable.productId} IS NOT NULL`)
+    .groupBy(qualityNcrsTable.productId, qualityNcrsTable.productName)
+    .having(sql`COUNT(*) > 1`)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(5);
+
   const byStatus = Object.fromEntries(statusCounts.map((r) => [r.status, Number(r.count)]));
   const byType = Object.fromEntries(typeCounts.map((r) => [r.ncType ?? "other", Number(r.count)]));
+  const byOrigin = Object.fromEntries(originCounts.map((r) => [r.origin ?? "other", Number(r.count)]));
   const totalOpen = statusCounts.filter((r) => !["closed", "resolved"].includes(r.status)).reduce((s, r) => s + Number(r.count), 0);
   const totalClosed = (byStatus["closed"] ?? 0) + (byStatus["resolved"] ?? 0);
   const avgDays = avgClosure?.avg ? parseFloat(avgClosure.avg) : null;
+  const recurrenceCount = recurrenceRows.length;
 
   res.json({
     totalOpen,
     totalClosed,
     byStatus,
     byType,
+    byOrigin,
+    recurrenceCount,
+    recurrentProducts: recurrenceRows,
     overdueNcrsCount: Number(overdueNcrs?.count ?? 0),
     overdueActionsCount: Number(overdueActions?.count ?? 0),
     openActionsCount: Number(openActions?.count ?? 0),

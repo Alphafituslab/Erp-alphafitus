@@ -2299,6 +2299,13 @@ export const GetCapaDashboardResponse = zod.object({
   "byType": zod.object({
 
 }).passthrough(),
+  "byOrigin": zod.object({
+
+}).passthrough(),
+  "recurrenceCount": zod.number(),
+  "recurrentProducts": zod.array(zod.object({
+
+}).passthrough()).optional(),
   "overdueNcrsCount": zod.number(),
   "overdueActionsCount": zod.number(),
   "openActionsCount": zod.number(),

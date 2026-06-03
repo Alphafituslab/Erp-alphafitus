@@ -878,11 +878,18 @@ export type CapaDashboardByStatus = { [key: string]: unknown };
 
 export type CapaDashboardByType = { [key: string]: unknown };
 
+export type CapaDashboardByOrigin = { [key: string]: unknown };
+
+export type CapaDashboardRecurrentProductsItem = { [key: string]: unknown };
+
 export interface CapaDashboard {
   totalOpen: number;
   totalClosed: number;
   byStatus: CapaDashboardByStatus;
   byType: CapaDashboardByType;
+  byOrigin: CapaDashboardByOrigin;
+  recurrenceCount: number;
+  recurrentProducts?: CapaDashboardRecurrentProductsItem[];
   overdueNcrsCount: number;
   overdueActionsCount: number;
   openActionsCount: number;

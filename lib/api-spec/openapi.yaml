@@ -7017,6 +7017,8 @@ components:
         - totalClosed
         - byStatus
         - byType
+        - byOrigin
+        - recurrenceCount
         - overdueNcrsCount
         - overdueActionsCount
         - openActionsCount
@@ -7031,6 +7033,14 @@ components:
           type: object
         byType:
           type: object
+        byOrigin:
+          type: object
+        recurrenceCount:
+          type: integer
+        recurrentProducts:
+          type: array
+          items:
+            type: object
         overdueNcrsCount:
           type: integer
         overdueActionsCount:
