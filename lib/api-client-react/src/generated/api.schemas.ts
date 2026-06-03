@@ -2074,10 +2074,39 @@ export interface StageStartInput {
   qtyIn?: string;
 }
 
+export interface ProductionLotConsumptionInput {
+  formulaItemId?: number;
+  lotId: number;
+  actualQty: number;
+  plannedQty?: number;
+  notes?: string;
+}
+
+export interface ProductionMaterialConsumption {
+  id?: number;
+  orderId?: number;
+  stageId?: number | null;
+  formulaItemId?: number | null;
+  productId?: number | null;
+  productName?: string;
+  lotId?: number | null;
+  internalLot?: string | null;
+  supplierLot?: string | null;
+  cqStatus?: string | null;
+  plannedQty?: string | null;
+  actualQty?: string;
+  unit?: string;
+  recordedBy?: string | null;
+  recordedAt?: string;
+  notes?: string | null;
+}
+
 export interface StageFinishInput {
   qtyOut?: string;
   losses?: string;
   notes?: string;
+  /** MP lot consumptions recorded during weighing stage */
+  consumptions?: ProductionLotConsumptionInput[];
 }
 
 export interface StageUpdateInput {
@@ -2097,6 +2126,7 @@ export interface ProductionTraceability {
   order: ProductionOrder;
   stages: ProductionStage[];
   formulaItems: ProductionTraceabilityFormulaItemsItem[];
+  consumptions: ProductionMaterialConsumption[];
 }
 
 export interface ProducaoDashboard {

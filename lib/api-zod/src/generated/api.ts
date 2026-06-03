@@ -4199,7 +4199,25 @@ export const GetProductionTraceabilityResponse = zod.object({
 })),
   "formulaItems": zod.array(zod.object({
 
-}).passthrough())
+}).passthrough()),
+  "consumptions": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "orderId": zod.number().optional(),
+  "stageId": zod.number().nullish(),
+  "formulaItemId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().optional(),
+  "lotId": zod.number().nullish(),
+  "internalLot": zod.string().nullish(),
+  "supplierLot": zod.string().nullish(),
+  "cqStatus": zod.string().nullish(),
+  "plannedQty": zod.string().nullish(),
+  "actualQty": zod.string().optional(),
+  "unit": zod.string().optional(),
+  "recordedBy": zod.string().nullish(),
+  "recordedAt": zod.string().optional(),
+  "notes": zod.string().nullish()
+}))
 })
 
 
@@ -4248,7 +4266,14 @@ export const FinishProductionStageParams = zod.object({
 export const FinishProductionStageBody = zod.object({
   "qtyOut": zod.string().optional(),
   "losses": zod.string().optional(),
+  "notes": zod.string().optional(),
+  "consumptions": zod.array(zod.object({
+  "formulaItemId": zod.number().optional(),
+  "lotId": zod.number(),
+  "actualQty": zod.number(),
+  "plannedQty": zod.number().optional(),
   "notes": zod.string().optional()
+})).optional().describe('MP lot consumptions recorded during weighing stage')
 })
 
 export const FinishProductionStageResponse = zod.object({

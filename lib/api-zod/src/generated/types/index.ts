@@ -138,6 +138,8 @@ export * from './priceHistoryPoint';
 export * from './producaoDashboard';
 export * from './product';
 export * from './productInput';
+export * from './productionLotConsumptionInput';
+export * from './productionMaterialConsumption';
 export * from './productionOrder';
 export * from './productionOrderDetail';
 export * from './productionOrderFinishInput';

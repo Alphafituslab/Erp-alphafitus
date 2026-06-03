@@ -25,6 +25,7 @@ import {
   useGetFormula,
   useGetProducaoDashboard,
   useListProducts,
+  useListProductLots,
   getListFormulasQueryKey,
   getListProductionOrdersQueryKey,
   getGetProductionOrderQueryKey,
@@ -36,6 +37,7 @@ import type {
   ProductionOrder,
   ProductionOrderDetail,
   ProductionStage,
+  ProductLot,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,6 +256,8 @@ export default function ProducaoPage() {
   const [stQtyOut, setStQtyOut] = useState("");
   const [stLosses, setStLosses] = useState("");
   const [stNotes, setStNotes] = useState("");
+  // Lot consumptions for pesagem (weighing) stage
+  const [stConsumptions, setStConsumptions] = useState<Array<{ formulaItemId: number; lotId: number; actualQty: string; productName: string; plannedQty: string; }>>([]);
 
   // ── Queries ───────────────────────────────────────────────────────────────
   const dashboardQ = useGetProducaoDashboard();
@@ -271,6 +275,13 @@ export default function ProducaoPage() {
   });
 
   const opDetail = opDetailQ.data as ProductionOrderDetail | undefined;
+
+  // Approved lots for pesagem lot selection (only fetch when a stage finish dialog is open for weighing)
+  const isWeighingFinish = stageDialog.open && stageDialog.mode === "finish" && stageDialog.stage?.stageType === "weighing";
+  const approvedLotsQ = useListProductLots({ cqStatus: "approved" } as any, {
+    query: { enabled: isWeighingFinish } as any,
+  });
+  const approvedLots = (approvedLotsQ.data ?? []) as ProductLot[];
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const createFormulaMut = useCreateFormula();
@@ -506,6 +517,19 @@ export default function ProducaoPage() {
     setStQtyOut(stage.qtyIn ?? "");
     setStLosses("");
     setStNotes("");
+    // Pre-fill consumptions from formula items for pesagem stage
+    if (stage.stageType === "weighing" && opDetail?.formulaItems?.length) {
+      const batchYield = opDetail.formulaItems.length > 0 ? parseFloat(opDetail.plannedQty ?? "0") : 0;
+      setStConsumptions(opDetail.formulaItems.map((fi: any) => ({
+        formulaItemId: fi.id,
+        lotId: 0,
+        actualQty: fi.quantity ?? "",
+        productName: fi.productName,
+        plannedQty: fi.quantity ?? "",
+      })));
+    } else {
+      setStConsumptions([]);
+    }
     setStageDialog({ open: true, stage, mode: "finish" });
   }
 
@@ -518,7 +542,21 @@ export default function ProducaoPage() {
         onError: (e: any) => toast({ title: e?.response?.data?.error ?? "Erro", variant: "destructive" }),
       });
     } else {
-      finishStageMut.mutate({ id: stage.id, data: { qtyOut: stQtyOut || undefined, losses: stLosses || undefined, notes: stNotes || undefined } }, {
+      const validConsumptions = stConsumptions.filter((c) => c.lotId > 0 && parseFloat(c.actualQty) > 0);
+      finishStageMut.mutate({
+        id: stage.id,
+        data: {
+          qtyOut: stQtyOut || undefined,
+          losses: stLosses || undefined,
+          notes: stNotes || undefined,
+          consumptions: validConsumptions.length > 0 ? validConsumptions.map((c) => ({
+            formulaItemId: c.formulaItemId || undefined,
+            lotId: c.lotId,
+            actualQty: parseFloat(c.actualQty),
+            plannedQty: c.plannedQty ? parseFloat(c.plannedQty) : undefined,
+          })) : undefined,
+        } as any,
+      }, {
         onSuccess: () => { invalidateAll(); setStageDialog({ open: false, mode: "start" }); toast({ title: `Etapa "${STAGE_TYPE_LABEL[stage.stageType]}" concluída` }); },
         onError: (e: any) => toast({ title: e?.response?.data?.error ?? "Erro", variant: "destructive" }),
       });
@@ -1136,6 +1174,35 @@ export default function ProducaoPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Rastreabilidade de lotes consumidos */}
+              {(() => {
+                const consumptions = (opDetail as any).consumptions as Array<{
+                  id: number; productName: string; internalLot: string | null;
+                  supplierLot: string | null; actualQty: string; plannedQty: string | null;
+                  unit: string; cqStatus: string | null; recordedBy: string | null;
+                }> | undefined;
+                if (!consumptions || consumptions.length === 0) return null;
+                return (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Rastreabilidade de Matéria-Prima</h4>
+                    <div className="border rounded-md divide-y text-xs">
+                      {consumptions.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between px-3 py-2 gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{c.productName}</p>
+                            <p className="text-muted-foreground font-mono">{c.internalLot ?? "—"}{c.supplierLot ? ` / Forn: ${c.supplierLot}` : ""}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-semibold">{fmtNum(c.actualQty)} {c.unit}</p>
+                            {c.plannedQty && <p className="text-muted-foreground">plan: {fmtNum(c.plannedQty)}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </DialogContent>
@@ -1219,6 +1286,56 @@ export default function ProducaoPage() {
                     <span className="font-semibold">
                       {(parseFloat(stQtyOut) / parseFloat(stQtyIn) * 100).toFixed(1)}%
                     </span>
+                  </div>
+                )}
+                {/* Lot consumption tracking — shown for weighing stage with formula items */}
+                {stageDialog.stage?.stageType === "weighing" && stConsumptions.length > 0 && (
+                  <div className="border rounded-md p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lotes de Matéria-Prima Pesados</p>
+                    {stConsumptions.map((c, idx) => {
+                      const lotsForProduct = approvedLots.filter((l) => {
+                        const anyFi = opDetail?.formulaItems?.find((fi: any) => fi.id === c.formulaItemId);
+                        return anyFi ? l.productId === anyFi.productId : false;
+                      });
+                      return (
+                        <div key={idx} className="space-y-1.5">
+                          <p className="text-xs font-medium">{c.productName} <span className="text-muted-foreground">(planejado: {fmtNum(c.plannedQty)} kg)</span></p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Lote (CQ Aprovado)</Label>
+                              <Select
+                                value={c.lotId > 0 ? String(c.lotId) : ""}
+                                onValueChange={(v) => setStConsumptions((prev) => prev.map((x, i) => i === idx ? { ...x, lotId: Number(v) } : x))}
+                              >
+                                <SelectTrigger className="h-8 text-xs mt-1">
+                                  <SelectValue placeholder={approvedLotsQ.isLoading ? "Carregando..." : "Selecionar lote"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {lotsForProduct.length === 0 && (
+                                    <SelectItem value="0" disabled>Nenhum lote disponível</SelectItem>
+                                  )}
+                                  {lotsForProduct.map((l) => (
+                                    <SelectItem key={l.id} value={String(l.id)}>
+                                      {l.internalLot} ({fmtNum(l.availableQty)} kg disp.)
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Qtde Real (kg)</Label>
+                              <Input
+                                className="h-8 text-xs mt-1"
+                                type="number"
+                                value={c.actualQty}
+                                onChange={(e) => setStConsumptions((prev) => prev.map((x, i) => i === idx ? { ...x, actualQty: e.target.value } : x))}
+                                placeholder="kg"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <div>

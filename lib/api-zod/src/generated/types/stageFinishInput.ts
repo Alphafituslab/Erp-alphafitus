@@ -5,9 +5,12 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductionLotConsumptionInput } from './productionLotConsumptionInput';
 
 export interface StageFinishInput {
   qtyOut?: string;
   losses?: string;
   notes?: string;
+  /** MP lot consumptions recorded during weighing stage */
+  consumptions?: ProductionLotConsumptionInput[];
 }

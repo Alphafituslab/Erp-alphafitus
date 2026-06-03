@@ -9110,6 +9110,69 @@ components:
         qtyIn:
           type: string
 
+    ProductionLotConsumptionInput:
+      type: object
+      required:
+        - lotId
+        - actualQty
+      properties:
+        formulaItemId:
+          type: integer
+        lotId:
+          type: integer
+        actualQty:
+          type: number
+        plannedQty:
+          type: number
+        notes:
+          type: string
+
+    ProductionMaterialConsumption:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        stageId:
+          type: integer
+          nullable: true
+        formulaItemId:
+          type: integer
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        productName:
+          type: string
+        lotId:
+          type: integer
+          nullable: true
+        internalLot:
+          type: string
+          nullable: true
+        supplierLot:
+          type: string
+          nullable: true
+        cqStatus:
+          type: string
+          nullable: true
+        plannedQty:
+          type: string
+          nullable: true
+        actualQty:
+          type: string
+        unit:
+          type: string
+        recordedBy:
+          type: string
+          nullable: true
+        recordedAt:
+          type: string
+        notes:
+          type: string
+          nullable: true
+
     StageFinishInput:
       type: object
       properties:
@@ -9119,6 +9182,11 @@ components:
           type: string
         notes:
           type: string
+        consumptions:
+          type: array
+          description: MP lot consumptions recorded during weighing stage
+          items:
+            $ref: "#/components/schemas/ProductionLotConsumptionInput"
 
     StageUpdateInput:
       type: object
@@ -9150,6 +9218,7 @@ components:
         - order
         - stages
         - formulaItems
+        - consumptions
       properties:
         order:
           $ref: "#/components/schemas/ProductionOrder"
@@ -9161,6 +9230,10 @@ components:
           type: array
           items:
             type: object
+        consumptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductionMaterialConsumption"
 
     ProducaoDashboard:
       type: object

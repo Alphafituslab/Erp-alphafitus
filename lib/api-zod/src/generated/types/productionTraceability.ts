@@ -5,6 +5,7 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductionMaterialConsumption } from './productionMaterialConsumption';
 import type { ProductionOrder } from './productionOrder';
 import type { ProductionStage } from './productionStage';
 import type { ProductionTraceabilityFormulaItemsItem } from './productionTraceabilityFormulaItemsItem';
@@ -13,4 +14,5 @@ export interface ProductionTraceability {
   order: ProductionOrder;
   stages: ProductionStage[];
   formulaItems: ProductionTraceabilityFormulaItemsItem[];
+  consumptions: ProductionMaterialConsumption[];
 }
