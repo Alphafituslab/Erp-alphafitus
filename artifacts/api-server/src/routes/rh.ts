@@ -9,6 +9,29 @@ import {
   employeeTrainingsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// ─── Evidence upload setup ────────────────────────────────────────────────────
+const uploadsDir = path.join(process.cwd(), "uploads", "evidence");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${unique}${path.extname(file.originalname)}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = /pdf|jpg|jpeg|png|docx?|xlsx?|pptx?/i;
+    cb(null, allowed.test(path.extname(file.originalname)));
+  },
+});
 
 const router: IRouter = Router();
 
@@ -381,6 +404,15 @@ router.delete("/rh/attendance/:id", async (req: Request, res: Response): Promise
   res.json({ ok: true });
 });
 
+// ─── Evidence Upload ──────────────────────────────────────────────────────────
+
+router.post("/rh/upload-evidence", upload.single("file"), (req: Request, res: Response): void => {
+  if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
+  if (!req.file) { res.status(400).json({ error: "Nenhum arquivo enviado" }); return; }
+  const url = `/api/uploads/evidence/${req.file.filename}`;
+  res.json({ url, filename: req.file.originalname, size: req.file.size });
+});
+
 // ─── Trainings CRUD ───────────────────────────────────────────────────────────
 
 router.get("/rh/trainings", async (req: Request, res: Response): Promise<void> => {
@@ -653,11 +685,15 @@ router.get("/rh/training-matrix", async (req: Request, res: Response): Promise<v
   const trainings = allMandatoryTrainings.filter((t) => applicableTrainingIds.has(t.id));
 
   // Build cells with read-time status computation and targetRole filtering
+  // Non-applicable trainings get status "not_applicable" so frontend can render consistently
   const cells: Array<{ employeeId: number; trainingId: number; status: string; completedAt: string | null; expiresAt: string | null }> = [];
   for (const emp of employees) {
     for (const tr of trainings) {
-      // If training targets a specific role and this employee doesn't have it, skip cell
-      if (tr.targetRole && tr.targetRole !== emp.role) continue;
+      if (tr.targetRole && tr.targetRole !== emp.role) {
+        // Training doesn't apply to this employee's role — explicit N/A cell
+        cells.push({ employeeId: emp.id, trainingId: tr.id, status: "not_applicable", completedAt: null, expiresAt: null });
+        continue;
+      }
       const rec = recordMap.get(`${emp.id}:${tr.id}`);
       const { status, expiresAt } = computeTrainingStatus(rec?.completedAt ?? null, tr.validityMonths ?? null);
       cells.push({

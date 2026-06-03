@@ -7185,7 +7185,7 @@ components:
           type: integer
         status:
           type: string
-          enum: [up_to_date, expiring_soon, expired, not_done]
+          enum: [up_to_date, expiring_soon, expired, not_done, not_applicable]
         completedAt:
           type: string
           format: date-time

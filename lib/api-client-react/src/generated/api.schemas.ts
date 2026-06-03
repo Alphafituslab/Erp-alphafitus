@@ -1571,6 +1571,7 @@ export const TrainingMatrixCellStatus = {
   expiring_soon: 'expiring_soon',
   expired: 'expired',
   not_done: 'not_done',
+  not_applicable: 'not_applicable',
 } as const;
 
 export interface TrainingMatrixCell {

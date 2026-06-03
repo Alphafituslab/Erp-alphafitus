@@ -2993,7 +2993,7 @@ export const GetTrainingMatrixResponse = zod.object({
   "cells": zod.array(zod.object({
   "employeeId": zod.number(),
   "trainingId": zod.number(),
-  "status": zod.enum(['up_to_date', 'expiring_soon', 'expired', 'not_done']),
+  "status": zod.enum(['up_to_date', 'expiring_soon', 'expired', 'not_done', 'not_applicable']),
   "completedAt": zod.coerce.date().nullish(),
   "expiresAt": zod.coerce.date().nullish()
 }))

@@ -106,6 +106,8 @@ import {
   BarChart3,
   ShieldCheck,
   Award,
+  Upload,
+  Filter,
 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -765,6 +767,7 @@ function trainingStatusLabel(s: string) {
   if (s === "up_to_date") return "Em dia";
   if (s === "expiring_soon") return "Vencendo";
   if (s === "expired") return "Vencido";
+  if (s === "not_applicable") return "N/A";
   return "Não realizado";
 }
 
@@ -772,6 +775,7 @@ function trainingStatusColor(s: string): string {
   if (s === "up_to_date") return "bg-green-100 text-green-800";
   if (s === "expiring_soon") return "bg-yellow-100 text-yellow-800";
   if (s === "expired") return "bg-red-100 text-red-800";
+  if (s === "not_applicable") return "bg-slate-100 text-slate-500";
   return "bg-gray-100 text-gray-600";
 }
 
@@ -779,6 +783,7 @@ function trainingMatrixCellClass(s: string): string {
   if (s === "up_to_date") return "bg-green-500";
   if (s === "expiring_soon") return "bg-yellow-400";
   if (s === "expired") return "bg-red-500";
+  if (s === "not_applicable") return "bg-slate-200 border border-dashed border-slate-400";
   return "bg-gray-200";
 }
 
@@ -789,6 +794,7 @@ const trainingSchema = z.object({
   description: z.string().optional(),
   type: z.enum(["mandatory", "optional"]).default("mandatory"),
   validityMonths: z.string().optional(),
+  durationHours: z.string().optional(),
   targetRole: z.string().optional(),
 });
 type TrainingForm = z.infer<typeof trainingSchema>;
@@ -809,7 +815,7 @@ function TrainingDialog({
 
   const form = useForm<TrainingForm>({
     resolver: zodResolver(trainingSchema),
-    defaultValues: { name: "", description: "", type: "mandatory", validityMonths: "", targetRole: "" },
+    defaultValues: { name: "", description: "", type: "mandatory", validityMonths: "", durationHours: "", targetRole: "" },
   });
 
   useEffect(() => {
@@ -820,10 +826,11 @@ function TrainingDialog({
           description: editing.description ?? "",
           type: (editing.type as "mandatory" | "optional") ?? "mandatory",
           validityMonths: editing.validityMonths ? String(editing.validityMonths) : "",
+          durationHours: editing.durationHours ? String(editing.durationHours) : "",
           targetRole: editing.targetRole ?? "",
         });
       } else {
-        form.reset({ name: "", description: "", type: "mandatory", validityMonths: "", targetRole: "" });
+        form.reset({ name: "", description: "", type: "mandatory", validityMonths: "", durationHours: "", targetRole: "" });
       }
     }
   }, [open, editing]);
@@ -840,6 +847,7 @@ function TrainingDialog({
       description: data.description || undefined,
       type: data.type,
       validityMonths: data.validityMonths ? Number(data.validityMonths) : undefined,
+      durationHours: data.durationHours ? Number(data.durationHours) : undefined,
       targetRole: data.targetRole || undefined,
     };
     if (editing) {
@@ -901,9 +909,15 @@ function TrainingDialog({
               <Input {...form.register("validityMonths")} type="number" min="1" placeholder="Ex: 12 (vazio = sem venc.)" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label>Cargo alvo</Label>
-            <Input {...form.register("targetRole")} placeholder="Ex: Operador (vazio = todos)" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label>Carga horária (h)</Label>
+              <Input {...form.register("durationHours")} type="number" min="1" placeholder="Ex: 8" />
+            </div>
+            <div className="space-y-1">
+              <Label>Cargo alvo</Label>
+              <Input {...form.register("targetRole")} placeholder="Ex: Operador (vazio = todos)" />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
@@ -922,7 +936,6 @@ function TrainingDialog({
 const recordTrainingSchema = z.object({
   trainingId: z.string().min(1, "Selecione um treinamento"),
   completedAt: z.string().min(1, "Data de realização obrigatória"),
-  evidenceUrl: z.string().optional(),
   notes: z.string().optional(),
 });
 type RecordTrainingForm = z.infer<typeof recordTrainingSchema>;
@@ -944,13 +957,21 @@ function RecordTrainingDialog({
   const { toast } = useToast();
   const addM = useAddEmployeeTraining();
 
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+
   const form = useForm<RecordTrainingForm>({
     resolver: zodResolver(recordTrainingSchema),
-    defaultValues: { trainingId: "", completedAt: "", evidenceUrl: "", notes: "" },
+    defaultValues: { trainingId: "", completedAt: "", notes: "" },
   });
 
   useEffect(() => {
-    if (open) form.reset({ trainingId: "", completedAt: new Date().toISOString().slice(0, 10), evidenceUrl: "", notes: "" });
+    if (open) {
+      form.reset({ trainingId: "", completedAt: new Date().toISOString().slice(0, 10), notes: "" });
+      setEvidenceFile(null);
+      setUploadedUrl(null);
+    }
   }, [open]);
 
   const invalidate = (empId: number) => {
@@ -958,6 +979,26 @@ function RecordTrainingDialog({
     qc.invalidateQueries({ queryKey: getGetTrainingMatrixQueryKey() });
     qc.invalidateQueries({ queryKey: getGetTrainingComplianceQueryKey() });
     qc.invalidateQueries({ queryKey: getGetRhDashboardQueryKey() });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEvidenceFile(file);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/rh/upload-evidence", { method: "POST", credentials: "include", body: fd });
+      if (!res.ok) throw new Error("Falha no upload");
+      const json = await res.json();
+      setUploadedUrl(json.url);
+    } catch {
+      toast({ title: "Erro no upload", description: "Não foi possível enviar o arquivo", variant: "destructive" });
+      setEvidenceFile(null);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const onSubmit = form.handleSubmit((data) => {
@@ -968,7 +1009,7 @@ function RecordTrainingDialog({
         data: {
           trainingId: Number(data.trainingId),
           completedAt: data.completedAt ? new Date(data.completedAt).toISOString() : undefined,
-          evidenceUrl: data.evidenceUrl || undefined,
+          evidenceUrl: uploadedUrl || undefined,
           notes: data.notes || undefined,
         },
       },
@@ -1021,8 +1062,32 @@ function RecordTrainingDialog({
             )}
           </div>
           <div className="space-y-1">
-            <Label>URL da evidência</Label>
-            <Input {...form.register("evidenceUrl")} placeholder="https://…" />
+            <Label>Evidência (arquivo)</Label>
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-input text-sm hover:bg-accent">
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploading ? "Enviando…" : "Selecionar arquivo"}
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                  onChange={handleFileChange}
+                  disabled={uploading}
+                />
+              </label>
+              {evidenceFile && !uploading && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                  {uploadedUrl
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                    : <AlertTriangle className="h-3.5 w-3.5 text-yellow-500 shrink-0" />}
+                  <span className="truncate max-w-[160px]">{evidenceFile.name}</span>
+                </div>
+              )}
+              {uploading && <span className="text-xs text-muted-foreground">Enviando…</span>}
+            </div>
+            <p className="text-xs text-muted-foreground">PDF, imagem, Word, Excel ou PowerPoint (máx. 20MB)</p>
           </div>
           <div className="space-y-1">
             <Label>Observações</Label>
@@ -1030,7 +1095,7 @@ function RecordTrainingDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={addM.isPending}>
+            <Button type="submit" disabled={addM.isPending || uploading}>
               {addM.isPending ? "Salvando…" : "Registrar"}
             </Button>
           </DialogFooter>
@@ -1056,6 +1121,8 @@ function EmployeeTrainingPanel({
   const { data: records = [] } = useListEmployeeTrainings(employeeId);
   const deleteM = useDeleteEmployeeTraining();
   const [recordDialog, setRecordDialog] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: getListEmployeeTrainingsQueryKey(employeeId) });
@@ -1074,16 +1141,49 @@ function EmployeeTrainingPanel({
     );
   };
 
+  const filteredRecords = records.filter((r) => {
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (typeFilter !== "all" && r.trainingType !== typeFilter) return false;
+    return true;
+  });
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <h4 className="text-sm font-semibold text-muted-foreground">Treinamentos de {employeeName}</h4>
-        <Button size="sm" variant="outline" onClick={() => setRecordDialog(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Registrar
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-7 text-xs w-[130px]">
+              <Filter className="h-3 w-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              <SelectItem value="mandatory">Obrigatório</SelectItem>
+              <SelectItem value="optional">Opcional</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-7 text-xs w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              <SelectItem value="up_to_date">Em dia</SelectItem>
+              <SelectItem value="expiring_soon">Vencendo</SelectItem>
+              <SelectItem value="expired">Vencido</SelectItem>
+              <SelectItem value="not_done">Não realizado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setRecordDialog(true)}>
+            <Plus className="h-3 w-3 mr-1" /> Registrar
+          </Button>
+        </div>
       </div>
       {records.length === 0 ? (
         <p className="text-sm text-muted-foreground py-2">Nenhum treinamento registrado.</p>
+      ) : filteredRecords.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-2">Nenhum resultado para os filtros selecionados.</p>
       ) : (
         <Table>
           <TableHeader>
@@ -1093,11 +1193,12 @@ function EmployeeTrainingPanel({
               <TableHead>Realizado</TableHead>
               <TableHead>Vence</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Evidência</TableHead>
               <TableHead className="text-right">Ação</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {records.map((r) => (
+            {filteredRecords.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium text-sm">{r.trainingName}</TableCell>
                 <TableCell>
@@ -1111,6 +1212,20 @@ function EmployeeTrainingPanel({
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${trainingStatusColor(r.status)}`}>
                     {trainingStatusLabel(r.status)}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {r.evidenceUrl ? (
+                    <a
+                      href={r.evidenceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <Eye className="h-3 w-3" /> Ver
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
@@ -2093,8 +2208,9 @@ export default function RhPage() {
                     <tbody>
                       {matrix.employees.map((emp) => {
                         const empCells = matrix.cells.filter((c) => c.employeeId === emp.id);
-                        const doneCount = empCells.filter((c) => c.status === "up_to_date").length;
-                        const total = matrix.trainings.length;
+                        const applicableCells = empCells.filter((c) => c.status !== "not_applicable");
+                        const doneCount = applicableCells.filter((c) => c.status === "up_to_date").length;
+                        const total = applicableCells.length;
                         const score = total > 0 ? Math.round((doneCount / total) * 100) : 100;
                         return (
                           <tr key={emp.id} className="border-b hover:bg-muted/40">
