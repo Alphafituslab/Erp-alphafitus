@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import {
   db,
   formulasTable,
@@ -109,7 +109,7 @@ router.put("/producao/formulas/:id", async (req: Request, res: Response): Promis
   if (id === null) return;
   const [existing] = await db.select().from(formulasTable).where(eq(formulasTable.id, id));
   if (!existing) { res.status(404).json({ error: "Fórmula não encontrada" }); return; }
-  if (existing.status === "approved") { res.status(400).json({ error: "Fórmula aprovada não pode ser editada. Crie uma nova versão." }); return; }
+  if (existing.status === "approved" || existing.status === "obsolete") { res.status(400).json({ error: "Fórmulas aprovadas ou obsoletas não podem ser editadas. Crie uma nova versão." }); return; }
   const { productId, productName, version, batchYield, unit, notes } = req.body;
   const [row] = await db
     .update(formulasTable)
@@ -132,7 +132,7 @@ router.delete("/producao/formulas/:id", async (req: Request, res: Response): Pro
   if (id === null) return;
   const [existing] = await db.select().from(formulasTable).where(eq(formulasTable.id, id));
   if (!existing) { res.status(404).json({ error: "Fórmula não encontrada" }); return; }
-  if (existing.status === "approved") { res.status(400).json({ error: "Fórmula aprovada não pode ser excluída. Torne-a obsoleta primeiro." }); return; }
+  if (existing.status === "approved" || existing.status === "obsolete") { res.status(400).json({ error: "Fórmulas aprovadas ou obsoletas não podem ser excluídas." }); return; }
   await db.delete(formulasTable).where(eq(formulasTable.id, id));
   res.json({ success: true });
 });
@@ -456,6 +456,14 @@ router.post("/producao/orders/:id/quality-check", async (req: Request, res: Resp
   const [order] = await db.select().from(productionOrdersTable).where(eq(productionOrdersTable.id, id));
   if (!order) { res.status(404).json({ error: "OP não encontrada" }); return; }
   if (order.status !== "in_production") { res.status(400).json({ error: "OP precisa estar em produção para ir a CQ" }); return; }
+  // Validate all stages are done before sending to QC
+  const allStages = await db.select({ status: productionStagesTable.status, stageType: productionStagesTable.stageType })
+    .from(productionStagesTable).where(eq(productionStagesTable.orderId, id));
+  const notDone = allStages.filter((s) => s.status !== "done" && s.status !== "skipped");
+  if (notDone.length > 0) {
+    res.status(400).json({ error: `Existem ${notDone.length} etapa(s) não concluída(s). Todas as etapas de produção devem ser finalizadas antes de enviar ao CQ.` });
+    return;
+  }
   const { actualQty } = req.body;
   const [row] = await db
     .update(productionOrdersTable)
@@ -510,6 +518,18 @@ router.put("/producao/stages/:id/start", async (req: Request, res: Response): Pr
   const [stage] = await db.select().from(productionStagesTable).where(eq(productionStagesTable.id, id));
   if (!stage) { res.status(404).json({ error: "Etapa não encontrada" }); return; }
   if (stage.status !== "pending") { res.status(400).json({ error: "Etapa já iniciada ou concluída" }); return; }
+  // Enforce sequence: all prior stages must be done
+  if (stage.sequence > 1) {
+    const priorStages = await db
+      .select({ status: productionStagesTable.status, sequence: productionStagesTable.sequence })
+      .from(productionStagesTable)
+      .where(and(eq(productionStagesTable.orderId, stage.orderId), lt(productionStagesTable.sequence, stage.sequence)));
+    const incomplete = priorStages.find((s) => s.status !== "done");
+    if (incomplete) {
+      res.status(400).json({ error: `Etapa anterior (sequência ${incomplete.sequence}) ainda não foi concluída. Siga a ordem: pesagem → mistura → produção → embalagem.` });
+      return;
+    }
+  }
   const { operatorId, operatorName, equipment, qtyIn } = req.body;
   const [row] = await db
     .update(productionStagesTable)
@@ -567,15 +587,39 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
     const recordedBy = req.session.userName ?? "Sistema";
     for (const c of consumptions) {
       if (!c.lotId || !c.actualQty) continue;
-      // Resolve lot details for snapshot
+
+      // Resolve lot details for snapshot + validation
       const [lot] = await db
-        .select({ internalLot: productLotsTable.internalLot, productId: productLotsTable.productId, productName: productsTable.name })
+        .select({
+          internalLot: productLotsTable.internalLot,
+          productId: productLotsTable.productId,
+          productName: productsTable.name,
+          cqStatus: productLotsTable.cqStatus,
+          availableQty: productLotsTable.availableQty,
+        })
         .from(productLotsTable)
         .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
         .where(eq(productLotsTable.id, c.lotId));
-      if (!lot) continue;
+      if (!lot) {
+        res.status(400).json({ error: `Lote ID ${c.lotId} não encontrado.` });
+        return;
+      }
 
-      // Resolve formulaItem details if provided
+      // Validate CQ approval
+      if (lot.cqStatus !== "approved") {
+        res.status(400).json({ error: `Lote ${lot.internalLot} não está aprovado pelo CQ (status atual: ${lot.cqStatus}). Só é permitido consumir lotes aprovados.` });
+        return;
+      }
+
+      // Validate available balance
+      const actualQtyNum = parseFloat(String(c.actualQty));
+      const availableQtyNum = parseFloat(lot.availableQty ?? "0");
+      if (actualQtyNum > availableQtyNum) {
+        res.status(400).json({ error: `Saldo insuficiente no lote ${lot.internalLot}: disponível ${availableQtyNum} kg, solicitado ${actualQtyNum} kg.` });
+        return;
+      }
+
+      // Resolve formulaItem and validate product compatibility
       let formulaItemProductId: number | null = lot.productId ?? null;
       let formulaItemProductName: string = lot.productName ?? "";
       if (c.formulaItemId) {
@@ -584,6 +628,10 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
           .from(formulaItemsTable)
           .where(eq(formulaItemsTable.id, c.formulaItemId));
         if (fi) {
+          if (fi.productId && lot.productId && fi.productId !== lot.productId) {
+            res.status(400).json({ error: `Lote ${lot.internalLot} pertence a um produto diferente do especificado na fórmula (item: ${fi.productName}).` });
+            return;
+          }
           formulaItemProductId = fi.productId ?? formulaItemProductId;
           formulaItemProductName = fi.productName || formulaItemProductName;
         }
@@ -674,6 +722,52 @@ router.get("/producao/orders/:id/traceability", async (req: Request, res: Respon
       .select()
       .from(formulaItemsTable)
       .where(eq(formulaItemsTable.formulaId, order.formulaId));
+  }
+
+  res.json({ order, stages, consumptions, formulaItems });
+});
+
+// ─── Traceability by PA lot ─────────────────────────────────────────────────
+
+router.get("/producao/traceability/by-lot/:batchLot", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const batchLot = String(req.params.batchLot);
+  if (!batchLot) { res.status(400).json({ error: "batchLot é obrigatório" }); return; }
+  const [order] = await db.select().from(productionOrdersTable).where(eq(productionOrdersTable.batchLot, batchLot));
+  if (!order) { res.status(404).json({ error: `Nenhuma OP encontrada para o lote PA: ${batchLot}` }); return; }
+
+  const stages = await db
+    .select()
+    .from(productionStagesTable)
+    .where(eq(productionStagesTable.orderId, order.id))
+    .orderBy(asc(productionStagesTable.sequence));
+
+  const consumptions = await db
+    .select({
+      id: productionMaterialConsumptionsTable.id,
+      stageId: productionMaterialConsumptionsTable.stageId,
+      formulaItemId: productionMaterialConsumptionsTable.formulaItemId,
+      productId: productionMaterialConsumptionsTable.productId,
+      productName: productionMaterialConsumptionsTable.productName,
+      lotId: productionMaterialConsumptionsTable.lotId,
+      internalLot: productionMaterialConsumptionsTable.internalLot,
+      plannedQty: productionMaterialConsumptionsTable.plannedQty,
+      actualQty: productionMaterialConsumptionsTable.actualQty,
+      unit: productionMaterialConsumptionsTable.unit,
+      recordedBy: productionMaterialConsumptionsTable.recordedBy,
+      recordedAt: productionMaterialConsumptionsTable.recordedAt,
+      notes: productionMaterialConsumptionsTable.notes,
+      supplierLot: productLotsTable.supplierLot,
+      cqStatus: productLotsTable.cqStatus,
+    })
+    .from(productionMaterialConsumptionsTable)
+    .leftJoin(productLotsTable, eq(productionMaterialConsumptionsTable.lotId, productLotsTable.id))
+    .where(eq(productionMaterialConsumptionsTable.orderId, order.id))
+    .orderBy(asc(productionMaterialConsumptionsTable.recordedAt));
+
+  let formulaItems: any[] = [];
+  if (order.formulaId) {
+    formulaItems = await db.select().from(formulaItemsTable).where(eq(formulaItemsTable.formulaId, order.formulaId));
   }
 
   res.json({ order, stages, consumptions, formulaItems });

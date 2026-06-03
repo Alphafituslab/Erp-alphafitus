@@ -24,6 +24,7 @@ import {
   useFinishProductionStage,
   useGetFormula,
   useGetProducaoDashboard,
+  useGetProductionTraceabilityByLot,
   useListProducts,
   useListProductLots,
   getListFormulasQueryKey,
@@ -199,6 +200,12 @@ export default function ProducaoPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [tab, setTab] = useState("dashboard");
+
+  // ── Traceability by PA lot ─────────────────────────────────────────────────
+  const [lotSearch, setLotSearch] = useState("");
+  const [lotSearchInput, setLotSearchInput] = useState("");
+  const lotTraceQ = useGetProductionTraceabilityByLot(lotSearch, { query: { enabled: !!lotSearch } as any });
+  const lotTrace = lotTraceQ.data;
 
   // ── Formula state ────────────────────────────────────────────────────────
   const [formulaSearch, setFormulaSearch] = useState("");
@@ -601,6 +608,7 @@ export default function ProducaoPage() {
           <TabsTrigger value="formulas">Fórmulas</TabsTrigger>
           <TabsTrigger value="ordens">Ordens de Produção</TabsTrigger>
           <TabsTrigger value="apontamento">Apontamento</TabsTrigger>
+          <TabsTrigger value="rastreabilidade">Rastreabilidade</TabsTrigger>
         </TabsList>
 
         {/* ── Dashboard ─────────────────────────────────────────────────── */}
@@ -891,6 +899,116 @@ export default function ProducaoPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* ── Rastreabilidade por Lote PA ─────────────────────────────── */}
+        <TabsContent value="rastreabilidade" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Busca por Lote de Produto Acabado</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  className="max-w-xs"
+                  placeholder="Ex: PA-OP-001-ABC123"
+                  value={lotSearchInput}
+                  onChange={(e) => setLotSearchInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setLotSearch(lotSearchInput.trim()); }}
+                />
+                <Button size="sm" onClick={() => setLotSearch(lotSearchInput.trim())}>
+                  <Search className="size-3.5 mr-1" />Buscar
+                </Button>
+                {lotSearch && (
+                  <Button size="sm" variant="ghost" onClick={() => { setLotSearch(""); setLotSearchInput(""); }}>
+                    Limpar
+                  </Button>
+                )}
+              </div>
+
+              {lotSearch && lotTraceQ.isLoading && (
+                <div className="text-sm text-muted-foreground">Buscando rastreabilidade do lote {lotSearch}…</div>
+              )}
+              {lotSearch && lotTraceQ.isError && (
+                <div className="text-sm text-destructive">Lote PA não encontrado: <span className="font-mono">{lotSearch}</span></div>
+              )}
+              {lotTrace && (
+                <div className="space-y-4">
+                  {/* OP summary */}
+                  <div className="border rounded-md p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-sm">{(lotTrace as any).order?.productName} — {(lotTrace as any).order?.number}</p>
+                      <OpBadge status={(lotTrace as any).order?.status} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                      <span>Lote PA: <span className="font-mono text-foreground">{(lotTrace as any).order?.batchLot}</span></span>
+                      <span>Qtde Real: <span className="font-medium text-foreground">{fmtNum((lotTrace as any).order?.actualQty)} {(lotTrace as any).order?.unit}</span></span>
+                      <span>Fórmula v.{(lotTrace as any).order?.formulaVersion ?? "—"}</span>
+                    </div>
+                  </div>
+
+                  {/* Consumed MP lots */}
+                  {(() => {
+                    const consumptions = (lotTrace as any).consumptions as Array<{
+                      id: number; productName: string; internalLot: string | null;
+                      supplierLot: string | null; actualQty: string; plannedQty: string | null;
+                      unit: string; cqStatus: string | null; recordedBy: string | null;
+                    }>;
+                    if (!consumptions || consumptions.length === 0) return (
+                      <p className="text-xs text-muted-foreground">Nenhum consumo de lote registrado para esta OP.</p>
+                    );
+                    return (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Matérias-Primas Consumidas</p>
+                        <div className="border rounded-md divide-y text-xs">
+                          {consumptions.map((c) => (
+                            <div key={c.id} className="flex items-center justify-between px-3 py-2 gap-3">
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{c.productName}</p>
+                                <p className="text-muted-foreground font-mono">{c.internalLot ?? "—"}{c.supplierLot ? ` / Forn: ${c.supplierLot}` : ""}</p>
+                                {c.cqStatus && (
+                                  <Badge variant={c.cqStatus === "approved" ? "default" : "secondary"} className="text-[10px] h-4 mt-0.5">
+                                    CQ: {c.cqStatus}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="font-semibold">{fmtNum(c.actualQty)} {c.unit}</p>
+                                {c.plannedQty && <p className="text-muted-foreground">plan: {fmtNum(c.plannedQty)}</p>}
+                                {c.recordedBy && <p className="text-muted-foreground">por: {c.recordedBy}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Stages */}
+                  {((lotTrace as any).stages as any[])?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Etapas de Produção</p>
+                      <div className="space-y-1.5">
+                        {((lotTrace as any).stages as any[]).map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between border rounded px-3 py-1.5 text-xs">
+                            <span className="font-medium">{STAGE_TYPE_LABEL[s.stageType as keyof typeof STAGE_TYPE_LABEL] ?? s.stageType}</span>
+                            <div className="flex items-center gap-3 text-muted-foreground">
+                              {s.operatorName && <span>Op: {s.operatorName}</span>}
+                              {s.qtyOut && <span>{fmtNum(s.qtyOut)} kg saída</span>}
+                              {s.yield && <span className="text-emerald-600">{parseFloat(s.yield).toFixed(1)}% rend.</span>}
+                              <Badge variant={s.status === "done" ? "default" : s.status === "in_progress" ? "secondary" : "outline"} className="text-[10px] h-4">
+                                {s.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

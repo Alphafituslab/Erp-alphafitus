@@ -4148,6 +4148,80 @@ export const ListProductionStagesResponse = zod.array(ListProductionStagesRespon
 
 
 /**
+ * @summary Get traceability info for a PA batch lot
+ */
+export const GetProductionTraceabilityByLotParams = zod.object({
+  "batchLot": zod.coerce.string()
+})
+
+export const GetProductionTraceabilityByLotResponse = zod.object({
+  "order": zod.object({
+  "id": zod.number(),
+  "number": zod.string(),
+  "formulaId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string(),
+  "formulaVersion": zod.string().nullish(),
+  "batchLot": zod.string().nullish(),
+  "plannedQty": zod.string(),
+  "actualQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "status": zod.enum(['planned', 'released', 'in_production', 'quality_check', 'finished', 'cancelled']),
+  "salesOrderId": zod.number().nullish(),
+  "scheduledStart": zod.string().nullish(),
+  "scheduledEnd": zod.string().nullish(),
+  "actualStart": zod.string().nullish(),
+  "actualEnd": zod.string().nullish(),
+  "releasedBy": zod.string().nullish(),
+  "releasedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "stages": zod.array(zod.object({
+  "id": zod.number(),
+  "orderId": zod.number(),
+  "stageType": zod.enum(['weighing', 'mixing', 'production', 'packaging']),
+  "sequence": zod.number(),
+  "status": zod.enum(['pending', 'in_progress', 'done']),
+  "operatorId": zod.number().nullish(),
+  "operatorName": zod.string().nullish(),
+  "equipment": zod.string().nullish(),
+  "qtyIn": zod.string().nullish(),
+  "qtyOut": zod.string().nullish(),
+  "yieldPct": zod.string().nullish(),
+  "losses": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})),
+  "formulaItems": zod.array(zod.object({
+
+}).passthrough()),
+  "consumptions": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "orderId": zod.number().optional(),
+  "stageId": zod.number().nullish(),
+  "formulaItemId": zod.number().nullish(),
+  "productId": zod.number().nullish(),
+  "productName": zod.string().optional(),
+  "lotId": zod.number().nullish(),
+  "internalLot": zod.string().nullish(),
+  "supplierLot": zod.string().nullish(),
+  "cqStatus": zod.string().nullish(),
+  "plannedQty": zod.string().nullish(),
+  "actualQty": zod.string().optional(),
+  "unit": zod.string().optional(),
+  "recordedBy": zod.string().nullish(),
+  "recordedAt": zod.string().optional(),
+  "notes": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Get traceability info for a production order
  */
 export const GetProductionTraceabilityParams = zod.object({

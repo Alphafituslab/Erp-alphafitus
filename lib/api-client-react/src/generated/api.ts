@@ -11907,6 +11907,83 @@ export function useListProductionStages<TData = Awaited<ReturnType<typeof listPr
 
 
 
+export const getGetProductionTraceabilityByLotUrl = (batchLot: string,) => {
+
+
+
+
+  return `/api/producao/traceability/by-lot/${batchLot}`
+}
+
+/**
+ * @summary Get traceability info for a PA batch lot
+ */
+export const getProductionTraceabilityByLot = async (batchLot: string, options?: RequestInit): Promise<ProductionTraceability> => {
+
+  return customFetch<ProductionTraceability>(getGetProductionTraceabilityByLotUrl(batchLot),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProductionTraceabilityByLotQueryKey = (batchLot: string,) => {
+    return [
+    `/api/producao/traceability/by-lot/${batchLot}`
+    ] as const;
+    }
+
+
+export const getGetProductionTraceabilityByLotQueryOptions = <TData = Awaited<ReturnType<typeof getProductionTraceabilityByLot>>, TError = ErrorType<ErrorResponse>>(batchLot: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductionTraceabilityByLot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProductionTraceabilityByLotQueryKey(batchLot);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProductionTraceabilityByLot>>> = ({ signal }) => getProductionTraceabilityByLot(batchLot, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(batchLot), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProductionTraceabilityByLot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProductionTraceabilityByLotQueryResult = NonNullable<Awaited<ReturnType<typeof getProductionTraceabilityByLot>>>
+export type GetProductionTraceabilityByLotQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get traceability info for a PA batch lot
+ */
+
+export function useGetProductionTraceabilityByLot<TData = Awaited<ReturnType<typeof getProductionTraceabilityByLot>>, TError = ErrorType<ErrorResponse>>(
+ batchLot: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductionTraceabilityByLot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProductionTraceabilityByLotQueryOptions(batchLot,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetProductionTraceabilityUrl = (id: number,) => {
 
 
