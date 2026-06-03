@@ -302,10 +302,12 @@ router.post("/producao/orders", async (req: Request, res: Response): Promise<voi
   if (!productName || !plannedQty) { res.status(400).json({ error: "productName e plannedQty são obrigatórios" }); return; }
   const number = await generateOpNumber();
 
-  // Snapshot formula version if provided
+  // Snapshot formula version if provided — formula must be approved
   let formulaVersion: string | null = null;
   if (formulaId) {
-    const [f] = await db.select({ version: formulasTable.version }).from(formulasTable).where(eq(formulasTable.id, Number(formulaId)));
+    const [f] = await db.select({ version: formulasTable.version, status: formulasTable.status }).from(formulasTable).where(eq(formulasTable.id, Number(formulaId)));
+    if (!f) { res.status(400).json({ error: "Fórmula não encontrada" }); return; }
+    if (f.status !== "approved") { res.status(400).json({ error: "Somente fórmulas aprovadas podem ser usadas para criar OPs." }); return; }
     formulaVersion = f?.version ?? null;
   }
 
@@ -346,7 +348,28 @@ router.get("/producao/orders/:id", async (req: Request, res: Response): Promise<
   if (order.formulaId) {
     formulaItems = await db.select().from(formulaItemsTable).where(eq(formulaItemsTable.formulaId, order.formulaId));
   }
-  res.json({ ...order, stages, formulaItems });
+  // Include actual consumption records so OP detail can show real-time traceability
+  const consumptions = await db
+    .select({
+      id: productionMaterialConsumptionsTable.id,
+      stageId: productionMaterialConsumptionsTable.stageId,
+      productId: productionMaterialConsumptionsTable.productId,
+      productName: productionMaterialConsumptionsTable.productName,
+      lotId: productionMaterialConsumptionsTable.lotId,
+      internalLot: productionMaterialConsumptionsTable.internalLot,
+      plannedQty: productionMaterialConsumptionsTable.plannedQty,
+      actualQty: productionMaterialConsumptionsTable.actualQty,
+      unit: productionMaterialConsumptionsTable.unit,
+      recordedBy: productionMaterialConsumptionsTable.recordedBy,
+      recordedAt: productionMaterialConsumptionsTable.recordedAt,
+      supplierLot: productLotsTable.supplierLot,
+      cqStatus: productLotsTable.cqStatus,
+    })
+    .from(productionMaterialConsumptionsTable)
+    .leftJoin(productLotsTable, eq(productionMaterialConsumptionsTable.lotId, productLotsTable.id))
+    .where(eq(productionMaterialConsumptionsTable.orderId, id))
+    .orderBy(asc(productionMaterialConsumptionsTable.recordedAt));
+  res.json({ ...order, stages, formulaItems, consumptions });
 });
 
 router.put("/producao/orders/:id", async (req: Request, res: Response): Promise<void> => {
@@ -396,12 +419,16 @@ router.post("/producao/orders/:id/release", async (req: Request, res: Response):
   if (!order) { res.status(404).json({ error: "OP não encontrada" }); return; }
   if (order.status !== "planned") { res.status(400).json({ error: "Somente OPs planejadas podem ser liberadas" }); return; }
 
-  // Validate: if has formula, check materials availability
+  // Validate: if has formula, it must be approved and materials must be available
   if (order.formulaId) {
+    const [formula] = await db.select({ batchYield: formulasTable.batchYield, status: formulasTable.status }).from(formulasTable).where(eq(formulasTable.id, order.formulaId));
+    if (!formula || formula.status !== "approved") {
+      res.status(400).json({ error: "A fórmula vinculada não está aprovada. Não é possível liberar esta OP." });
+      return;
+    }
     const items = await db.select().from(formulaItemsTable).where(eq(formulaItemsTable.formulaId, order.formulaId));
     const batchYield = order.plannedQty ? parseFloat(order.plannedQty) : 0;
-    const formulaYield = await db.select({ batchYield: formulasTable.batchYield }).from(formulasTable).where(eq(formulasTable.id, order.formulaId));
-    const fYield = parseFloat(formulaYield[0]?.batchYield ?? "1");
+    const fYield = parseFloat(formula.batchYield ?? "1");
     const factor = fYield > 0 ? batchYield / fYield : 1;
 
     const shortages: string[] = [];
@@ -686,6 +713,13 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
           notes: e.notes,
         }))
       );
+      // Atomically decrement availableQty for each consumed lot
+      for (const e of enriched) {
+        await tx
+          .update(productLotsTable)
+          .set({ availableQty: sql`${productLotsTable.availableQty} - ${e.actualQty}::numeric` })
+          .where(eq(productLotsTable.id, e.lotId));
+      }
     }
     return updated;
   });
