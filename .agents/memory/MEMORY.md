@@ -1,4 +1,5 @@
 - [Orval TS2308 collision](orval-ts2308.md) — endpoints with both path params AND query params always collide in Orval; fix by removing query params from the OpenAPI spec.
+- [Express 5 params typing](express5-params.md) — req.params.* is typed string | string[] in Express 5; helper functions that accept route params must use string | string[] not string.
 - [ERP numeric columns as strings](numeric-strings.md) — Drizzle numeric/decimal columns come back as strings in TS; always parseFloat/parseInt before arithmetic.
 - [ERP session fields](session-fields.md) — req.session.userId / req.session.role / req.session.userName; requireAuth helper pattern used throughout routes.
 - [CQ stock idempotency](cq-stock-idempotency.md) — on lot approval, delta = released - prevAvailable (not totalQty); blockedQty must be set to "0" explicitly; prevents double-counting on re-runs.

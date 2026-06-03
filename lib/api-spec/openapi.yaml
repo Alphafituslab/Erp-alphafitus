@@ -32,6 +32,8 @@ tags:
     description: Executive dashboard aggregating KPIs from all modules
   - name: producao
     description: Production module - formulas, production orders and factory floor
+  - name: aps
+    description: Advanced Planning and Scheduling — work centers, shifts, Gantt schedule
 paths:
   /healthz:
     get:
@@ -5677,6 +5679,515 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── APS: Work Centers ───────────────────────────────────────────────────────
+
+  /aps/work-centers:
+    get:
+      operationId: listWorkCenters
+      tags: [aps]
+      summary: List work centers
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: List of work centers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkCenter"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createWorkCenter
+      tags: [aps]
+      summary: Create a work center
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkCenterInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkCenter"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /aps/work-centers/{id}:
+    put:
+      operationId: updateWorkCenter
+      tags: [aps]
+      summary: Update a work center
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkCenterInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkCenter"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteWorkCenter
+      tags: [aps]
+      summary: Deactivate a work center
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── APS: Production Shifts ──────────────────────────────────────────────────
+
+  /aps/shifts:
+    get:
+      operationId: listProductionShifts
+      tags: [aps]
+      summary: List production shifts with optional filters
+      parameters:
+        - name: workCenterId
+          in: query
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of shifts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductionShift"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProductionShift
+      tags: [aps]
+      summary: Create a production shift
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionShiftInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionShift"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /aps/shifts/{id}:
+    put:
+      operationId: updateProductionShift
+      tags: [aps]
+      summary: Update a production shift
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductionShiftInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionShift"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProductionShift
+      tags: [aps]
+      summary: Delete a production shift
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── APS: Schedule ───────────────────────────────────────────────────────────
+
+  /aps/schedule:
+    get:
+      operationId: listApsSchedule
+      tags: [aps]
+      summary: List APS schedule entries (Gantt data)
+      parameters:
+        - name: workCenterId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planned, in_progress, done, delayed, cancelled]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of schedule entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApsScheduleEntry"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createApsScheduleEntry
+      tags: [aps]
+      summary: Create an APS schedule entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApsScheduleInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApsScheduleEntry"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Capacity conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /aps/schedule/auto:
+    post:
+      operationId: autoScheduleAps
+      tags: [aps]
+      summary: Auto-schedule open production orders on a work center
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApsAutoScheduleInput"
+      responses:
+        "201":
+          description: Scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApsAutoScheduleResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /aps/schedule/{id}:
+    put:
+      operationId: updateApsScheduleEntry
+      tags: [aps]
+      summary: Update (reschedule) an APS schedule entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApsScheduleInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApsScheduleEntry"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Capacity conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteApsScheduleEntry
+      tags: [aps]
+      summary: Delete an APS schedule entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── APS: Dashboard & Alerts ─────────────────────────────────────────────────
+
+  /aps/dashboard:
+    get:
+      operationId: getApsDashboard
+      tags: [aps]
+      summary: Get APS dashboard KPIs
+      responses:
+        "200":
+          description: APS dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApsDashboard"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /aps/alerts:
+    get:
+      operationId: getApsAlerts
+      tags: [aps]
+      summary: Get active APS alerts
+      responses:
+        "200":
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApsAlert"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /aps/simulate:
+    post:
+      operationId: simulateAps
+      tags: [aps]
+      summary: Run an APS simulation scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApsSimulateInput"
+      responses:
+        "200":
+          description: Simulation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApsSimulateResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -9878,3 +10389,389 @@ components:
       properties:
         actualQty:
           type: string
+
+    WorkCenter:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - capacityHoursPerShift
+        - setupTimeMinutes
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [machine, work_center, line]
+        capacityHoursPerShift:
+          type: string
+        setupTimeMinutes:
+          type: integer
+        isActive:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WorkCenterInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [machine, work_center, line]
+          default: machine
+        capacityHoursPerShift:
+          type: string
+          default: "8"
+        setupTimeMinutes:
+          type: integer
+          default: 30
+        isActive:
+          type: boolean
+          default: true
+        notes:
+          type: string
+          nullable: true
+
+    ProductionShift:
+      type: object
+      required:
+        - id
+        - workCenterId
+        - date
+        - shiftName
+        - startTime
+        - endTime
+        - availableHours
+        - isBlocked
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        workCenterId:
+          type: integer
+        date:
+          type: string
+          format: date
+        shiftName:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        availableHours:
+          type: string
+        isBlocked:
+          type: boolean
+        blockReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductionShiftInput:
+      type: object
+      required:
+        - workCenterId
+        - date
+      properties:
+        workCenterId:
+          type: integer
+        date:
+          type: string
+          format: date
+        shiftName:
+          type: string
+          default: Manhã
+        startTime:
+          type: string
+          default: "07:00"
+        endTime:
+          type: string
+          default: "15:00"
+        availableHours:
+          type: string
+          default: "8"
+        isBlocked:
+          type: boolean
+          default: false
+        blockReason:
+          type: string
+          nullable: true
+
+    ApsScheduleEntry:
+      type: object
+      required:
+        - id
+        - workCenterId
+        - scheduledStart
+        - scheduledEnd
+        - status
+        - priority
+        - unit
+      properties:
+        id:
+          type: integer
+        productionOrderId:
+          type: integer
+          nullable: true
+        workCenterId:
+          type: integer
+        workCenterName:
+          type: string
+          nullable: true
+        orderNumber:
+          type: string
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        plannedQty:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        scheduledStart:
+          type: string
+        scheduledEnd:
+          type: string
+        estimatedHours:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planned, in_progress, done, delayed, cancelled]
+        priority:
+          type: integer
+        sequenceNumber:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        rescheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        rescheduledBy:
+          type: string
+          nullable: true
+        rescheduledReason:
+          type: string
+          nullable: true
+
+    ApsScheduleInput:
+      type: object
+      required:
+        - workCenterId
+        - scheduledStart
+        - scheduledEnd
+      properties:
+        productionOrderId:
+          type: integer
+          nullable: true
+        workCenterId:
+          type: integer
+        orderNumber:
+          type: string
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        plannedQty:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          default: kg
+        scheduledStart:
+          type: string
+        scheduledEnd:
+          type: string
+        estimatedHours:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planned, in_progress, done, delayed, cancelled]
+          default: planned
+        priority:
+          type: integer
+          default: 5
+        sequenceNumber:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        rescheduledReason:
+          type: string
+          nullable: true
+
+    ApsAutoScheduleInput:
+      type: object
+      required:
+        - workCenterId
+      properties:
+        workCenterId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        hoursPerEntry:
+          type: number
+          default: 8
+
+    ApsAutoScheduleResult:
+      type: object
+      required:
+        - scheduled
+        - entries
+      properties:
+        scheduled:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApsScheduleEntry"
+
+    ApsDashboard:
+      type: object
+      required:
+        - totalScheduled
+        - totalDone
+        - totalActive
+        - totalPlanned
+        - overdueCount
+        - conflictCount
+        - blockedShiftsToday
+        - byStatus
+        - utilizationByWorkCenter
+        - upcoming
+      properties:
+        totalScheduled:
+          type: integer
+        totalDone:
+          type: integer
+        totalActive:
+          type: integer
+        totalPlanned:
+          type: integer
+        overdueCount:
+          type: integer
+        conflictCount:
+          type: integer
+        blockedShiftsToday:
+          type: integer
+        byStatus:
+          type: object
+        utilizationByWorkCenter:
+          type: array
+          items:
+            type: object
+        upcoming:
+          type: array
+          items:
+            type: object
+
+    ApsAlert:
+      type: object
+      required:
+        - type
+        - severity
+        - message
+      properties:
+        type:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        message:
+          type: string
+        entityId:
+          type: integer
+          nullable: true
+
+    ApsSimulateInput:
+      type: object
+      required:
+        - scenario
+      properties:
+        scenario:
+          type: string
+          enum: [block_period, extra_shift]
+        workCenterId:
+          type: integer
+        blockedFrom:
+          type: string
+        blockedTo:
+          type: string
+        extraShiftHours:
+          type: number
+
+    ApsSimulateResult:
+      type: object
+      required:
+        - scenario
+        - impact
+      properties:
+        scenario:
+          type: string
+        impact:
+          type: string
+        affectedCount:
+          type: integer
+          nullable: true
+        affected:
+          type: array
+          items:
+            type: object
+          nullable: true
+        workCenterName:
+          type: string
+          nullable: true
+        extraHours:
+          type: number
+          nullable: true
+        currentCapacityHours:
+          type: number
+          nullable: true
+        newCapacityHours:
+          type: number
+          nullable: true
+        scheduledHours:
+          type: number
+          nullable: true
+        currentUtilizationPct:
+          type: number
+          nullable: true
+        newUtilizationPct:
+          type: number
+          nullable: true

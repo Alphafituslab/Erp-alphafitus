@@ -22,6 +22,14 @@ import type {
 import type {
   AnalysisParameter,
   AnalysisParameterInput,
+  ApsAlert,
+  ApsAutoScheduleInput,
+  ApsAutoScheduleResult,
+  ApsDashboard,
+  ApsScheduleEntry,
+  ApsScheduleInput,
+  ApsSimulateInput,
+  ApsSimulateResult,
   AttendanceLog,
   AttendanceLogInput,
   AttendanceSummary,
@@ -67,6 +75,7 @@ import type {
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
   HealthStatus,
+  ListApsScheduleParams,
   ListAttendanceLogsParams,
   ListClientsParams,
   ListEmployeesParams,
@@ -75,6 +84,7 @@ import type {
   ListFormulasParams,
   ListProductLotsParams,
   ListProductionOrdersParams,
+  ListProductionShiftsParams,
   ListProductsParams,
   ListProjectTasksParams,
   ListProjectsParams,
@@ -89,6 +99,7 @@ import type {
   ListSuppliersParams,
   ListTrainingsParams,
   ListWarehousesParams,
+  ListWorkCentersParams,
   LoginInput,
   LotAdjustInput,
   LotMovement,
@@ -110,6 +121,8 @@ import type {
   ProductionOrderInput,
   ProductionOrderQualityCheckInput,
   ProductionOrderUpdateInput,
+  ProductionShift,
+  ProductionShiftInput,
   ProductionStage,
   ProductionTraceability,
   Project,
@@ -162,7 +175,9 @@ import type {
   UpdateSalesOrderStatusInput,
   VendasDashboard,
   Warehouse,
-  WarehouseInput
+  WarehouseInput,
+  WorkCenter,
+  WorkCenterInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -13100,4 +13115,1191 @@ export function useGetProducaoDashboard<TData = Awaited<ReturnType<typeof getPro
 
 
 
+
+export const getListWorkCentersUrl = (params?: ListWorkCentersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/aps/work-centers?${stringifiedParams}` : `/api/aps/work-centers`
+}
+
+/**
+ * @summary List work centers
+ */
+export const listWorkCenters = async (params?: ListWorkCentersParams, options?: RequestInit): Promise<WorkCenter[]> => {
+
+  return customFetch<WorkCenter[]>(getListWorkCentersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkCentersQueryKey = (params?: ListWorkCentersParams,) => {
+    return [
+    `/api/aps/work-centers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWorkCentersQueryOptions = <TData = Awaited<ReturnType<typeof listWorkCenters>>, TError = ErrorType<ErrorResponse>>(params?: ListWorkCentersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkCenters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkCentersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkCenters>>> = ({ signal }) => listWorkCenters(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkCenters>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkCentersQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkCenters>>>
+export type ListWorkCentersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List work centers
+ */
+
+export function useListWorkCenters<TData = Awaited<ReturnType<typeof listWorkCenters>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListWorkCentersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkCenters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkCentersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateWorkCenterUrl = () => {
+
+
+
+
+  return `/api/aps/work-centers`
+}
+
+/**
+ * @summary Create a work center
+ */
+export const createWorkCenter = async (workCenterInput: WorkCenterInput, options?: RequestInit): Promise<WorkCenter> => {
+
+  return customFetch<WorkCenter>(getCreateWorkCenterUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      workCenterInput,)
+  }
+);}
+
+
+
+
+export const getCreateWorkCenterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkCenter>>, TError,{data: BodyType<WorkCenterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkCenter>>, TError,{data: BodyType<WorkCenterInput>}, TContext> => {
+
+const mutationKey = ['createWorkCenter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkCenter>>, {data: BodyType<WorkCenterInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWorkCenter(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWorkCenterMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkCenter>>>
+    export type CreateWorkCenterMutationBody = BodyType<WorkCenterInput>
+    export type CreateWorkCenterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a work center
+ */
+export const useCreateWorkCenter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkCenter>>, TError,{data: BodyType<WorkCenterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWorkCenter>>,
+        TError,
+        {data: BodyType<WorkCenterInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWorkCenterMutationOptions(options));
+    }
+
+export const getUpdateWorkCenterUrl = (id: number,) => {
+
+
+
+
+  return `/api/aps/work-centers/${id}`
+}
+
+/**
+ * @summary Update a work center
+ */
+export const updateWorkCenter = async (id: number,
+    workCenterInput: WorkCenterInput, options?: RequestInit): Promise<WorkCenter> => {
+
+  return customFetch<WorkCenter>(getUpdateWorkCenterUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      workCenterInput,)
+  }
+);}
+
+
+
+
+export const getUpdateWorkCenterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkCenter>>, TError,{id: number;data: BodyType<WorkCenterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWorkCenter>>, TError,{id: number;data: BodyType<WorkCenterInput>}, TContext> => {
+
+const mutationKey = ['updateWorkCenter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWorkCenter>>, {id: number;data: BodyType<WorkCenterInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateWorkCenter(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWorkCenterMutationResult = NonNullable<Awaited<ReturnType<typeof updateWorkCenter>>>
+    export type UpdateWorkCenterMutationBody = BodyType<WorkCenterInput>
+    export type UpdateWorkCenterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a work center
+ */
+export const useUpdateWorkCenter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkCenter>>, TError,{id: number;data: BodyType<WorkCenterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWorkCenter>>,
+        TError,
+        {id: number;data: BodyType<WorkCenterInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWorkCenterMutationOptions(options));
+    }
+
+export const getDeleteWorkCenterUrl = (id: number,) => {
+
+
+
+
+  return `/api/aps/work-centers/${id}`
+}
+
+/**
+ * @summary Deactivate a work center
+ */
+export const deleteWorkCenter = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteWorkCenterUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWorkCenterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkCenter>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkCenter>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteWorkCenter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorkCenter>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWorkCenter(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWorkCenterMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkCenter>>>
+
+    export type DeleteWorkCenterMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Deactivate a work center
+ */
+export const useDeleteWorkCenter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkCenter>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWorkCenter>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteWorkCenterMutationOptions(options));
+    }
+
+export const getListProductionShiftsUrl = (params?: ListProductionShiftsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/aps/shifts?${stringifiedParams}` : `/api/aps/shifts`
+}
+
+/**
+ * @summary List production shifts with optional filters
+ */
+export const listProductionShifts = async (params?: ListProductionShiftsParams, options?: RequestInit): Promise<ProductionShift[]> => {
+
+  return customFetch<ProductionShift[]>(getListProductionShiftsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductionShiftsQueryKey = (params?: ListProductionShiftsParams,) => {
+    return [
+    `/api/aps/shifts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProductionShiftsQueryOptions = <TData = Awaited<ReturnType<typeof listProductionShifts>>, TError = ErrorType<ErrorResponse>>(params?: ListProductionShiftsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductionShifts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductionShiftsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductionShifts>>> = ({ signal }) => listProductionShifts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductionShifts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductionShiftsQueryResult = NonNullable<Awaited<ReturnType<typeof listProductionShifts>>>
+export type ListProductionShiftsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List production shifts with optional filters
+ */
+
+export function useListProductionShifts<TData = Awaited<ReturnType<typeof listProductionShifts>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListProductionShiftsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductionShifts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProductionShiftsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateProductionShiftUrl = () => {
+
+
+
+
+  return `/api/aps/shifts`
+}
+
+/**
+ * @summary Create a production shift
+ */
+export const createProductionShift = async (productionShiftInput: ProductionShiftInput, options?: RequestInit): Promise<ProductionShift> => {
+
+  return customFetch<ProductionShift>(getCreateProductionShiftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      productionShiftInput,)
+  }
+);}
+
+
+
+
+export const getCreateProductionShiftMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProductionShift>>, TError,{data: BodyType<ProductionShiftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProductionShift>>, TError,{data: BodyType<ProductionShiftInput>}, TContext> => {
+
+const mutationKey = ['createProductionShift'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProductionShift>>, {data: BodyType<ProductionShiftInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createProductionShift(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProductionShiftMutationResult = NonNullable<Awaited<ReturnType<typeof createProductionShift>>>
+    export type CreateProductionShiftMutationBody = BodyType<ProductionShiftInput>
+    export type CreateProductionShiftMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a production shift
+ */
+export const useCreateProductionShift = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProductionShift>>, TError,{data: BodyType<ProductionShiftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProductionShift>>,
+        TError,
+        {data: BodyType<ProductionShiftInput>},
+        TContext
+      > => {
+      return useMutation(getCreateProductionShiftMutationOptions(options));
+    }
+
+export const getUpdateProductionShiftUrl = (id: number,) => {
+
+
+
+
+  return `/api/aps/shifts/${id}`
+}
+
+/**
+ * @summary Update a production shift
+ */
+export const updateProductionShift = async (id: number,
+    productionShiftInput: ProductionShiftInput, options?: RequestInit): Promise<ProductionShift> => {
+
+  return customFetch<ProductionShift>(getUpdateProductionShiftUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      productionShiftInput,)
+  }
+);}
+
+
+
+
+export const getUpdateProductionShiftMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductionShift>>, TError,{id: number;data: BodyType<ProductionShiftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProductionShift>>, TError,{id: number;data: BodyType<ProductionShiftInput>}, TContext> => {
+
+const mutationKey = ['updateProductionShift'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProductionShift>>, {id: number;data: BodyType<ProductionShiftInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateProductionShift(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProductionShiftMutationResult = NonNullable<Awaited<ReturnType<typeof updateProductionShift>>>
+    export type UpdateProductionShiftMutationBody = BodyType<ProductionShiftInput>
+    export type UpdateProductionShiftMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a production shift
+ */
+export const useUpdateProductionShift = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProductionShift>>, TError,{id: number;data: BodyType<ProductionShiftInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProductionShift>>,
+        TError,
+        {id: number;data: BodyType<ProductionShiftInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateProductionShiftMutationOptions(options));
+    }
+
+export const getDeleteProductionShiftUrl = (id: number,) => {
+
+
+
+
+  return `/api/aps/shifts/${id}`
+}
+
+/**
+ * @summary Delete a production shift
+ */
+export const deleteProductionShift = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteProductionShiftUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteProductionShiftMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductionShift>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProductionShift>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteProductionShift'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProductionShift>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteProductionShift(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProductionShiftMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProductionShift>>>
+
+    export type DeleteProductionShiftMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a production shift
+ */
+export const useDeleteProductionShift = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProductionShift>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProductionShift>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteProductionShiftMutationOptions(options));
+    }
+
+export const getListApsScheduleUrl = (params?: ListApsScheduleParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/aps/schedule?${stringifiedParams}` : `/api/aps/schedule`
+}
+
+/**
+ * @summary List APS schedule entries (Gantt data)
+ */
+export const listApsSchedule = async (params?: ListApsScheduleParams, options?: RequestInit): Promise<ApsScheduleEntry[]> => {
+
+  return customFetch<ApsScheduleEntry[]>(getListApsScheduleUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApsScheduleQueryKey = (params?: ListApsScheduleParams,) => {
+    return [
+    `/api/aps/schedule`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListApsScheduleQueryOptions = <TData = Awaited<ReturnType<typeof listApsSchedule>>, TError = ErrorType<ErrorResponse>>(params?: ListApsScheduleParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApsSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApsScheduleQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApsSchedule>>> = ({ signal }) => listApsSchedule(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApsSchedule>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApsScheduleQueryResult = NonNullable<Awaited<ReturnType<typeof listApsSchedule>>>
+export type ListApsScheduleQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List APS schedule entries (Gantt data)
+ */
+
+export function useListApsSchedule<TData = Awaited<ReturnType<typeof listApsSchedule>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListApsScheduleParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApsSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApsScheduleQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateApsScheduleEntryUrl = () => {
+
+
+
+
+  return `/api/aps/schedule`
+}
+
+/**
+ * @summary Create an APS schedule entry
+ */
+export const createApsScheduleEntry = async (apsScheduleInput: ApsScheduleInput, options?: RequestInit): Promise<ApsScheduleEntry> => {
+
+  return customFetch<ApsScheduleEntry>(getCreateApsScheduleEntryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      apsScheduleInput,)
+  }
+);}
+
+
+
+
+export const getCreateApsScheduleEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApsScheduleEntry>>, TError,{data: BodyType<ApsScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApsScheduleEntry>>, TError,{data: BodyType<ApsScheduleInput>}, TContext> => {
+
+const mutationKey = ['createApsScheduleEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApsScheduleEntry>>, {data: BodyType<ApsScheduleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApsScheduleEntry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApsScheduleEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createApsScheduleEntry>>>
+    export type CreateApsScheduleEntryMutationBody = BodyType<ApsScheduleInput>
+    export type CreateApsScheduleEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create an APS schedule entry
+ */
+export const useCreateApsScheduleEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApsScheduleEntry>>, TError,{data: BodyType<ApsScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApsScheduleEntry>>,
+        TError,
+        {data: BodyType<ApsScheduleInput>},
+        TContext
+      > => {
+      return useMutation(getCreateApsScheduleEntryMutationOptions(options));
+    }
+
+export const getAutoScheduleApsUrl = () => {
+
+
+
+
+  return `/api/aps/schedule/auto`
+}
+
+/**
+ * @summary Auto-schedule open production orders on a work center
+ */
+export const autoScheduleAps = async (apsAutoScheduleInput: ApsAutoScheduleInput, options?: RequestInit): Promise<ApsAutoScheduleResult> => {
+
+  return customFetch<ApsAutoScheduleResult>(getAutoScheduleApsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      apsAutoScheduleInput,)
+  }
+);}
+
+
+
+
+export const getAutoScheduleApsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoScheduleAps>>, TError,{data: BodyType<ApsAutoScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof autoScheduleAps>>, TError,{data: BodyType<ApsAutoScheduleInput>}, TContext> => {
+
+const mutationKey = ['autoScheduleAps'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof autoScheduleAps>>, {data: BodyType<ApsAutoScheduleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  autoScheduleAps(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AutoScheduleApsMutationResult = NonNullable<Awaited<ReturnType<typeof autoScheduleAps>>>
+    export type AutoScheduleApsMutationBody = BodyType<ApsAutoScheduleInput>
+    export type AutoScheduleApsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Auto-schedule open production orders on a work center
+ */
+export const useAutoScheduleAps = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoScheduleAps>>, TError,{data: BodyType<ApsAutoScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof autoScheduleAps>>,
+        TError,
+        {data: BodyType<ApsAutoScheduleInput>},
+        TContext
+      > => {
+      return useMutation(getAutoScheduleApsMutationOptions(options));
+    }
+
+export const getUpdateApsScheduleEntryUrl = (id: number,) => {
+
+
+
+
+  return `/api/aps/schedule/${id}`
+}
+
+/**
+ * @summary Update (reschedule) an APS schedule entry
+ */
+export const updateApsScheduleEntry = async (id: number,
+    apsScheduleInput: ApsScheduleInput, options?: RequestInit): Promise<ApsScheduleEntry> => {
+
+  return customFetch<ApsScheduleEntry>(getUpdateApsScheduleEntryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      apsScheduleInput,)
+  }
+);}
+
+
+
+
+export const getUpdateApsScheduleEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApsScheduleEntry>>, TError,{id: number;data: BodyType<ApsScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateApsScheduleEntry>>, TError,{id: number;data: BodyType<ApsScheduleInput>}, TContext> => {
+
+const mutationKey = ['updateApsScheduleEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateApsScheduleEntry>>, {id: number;data: BodyType<ApsScheduleInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateApsScheduleEntry(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateApsScheduleEntryMutationResult = NonNullable<Awaited<ReturnType<typeof updateApsScheduleEntry>>>
+    export type UpdateApsScheduleEntryMutationBody = BodyType<ApsScheduleInput>
+    export type UpdateApsScheduleEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update (reschedule) an APS schedule entry
+ */
+export const useUpdateApsScheduleEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApsScheduleEntry>>, TError,{id: number;data: BodyType<ApsScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateApsScheduleEntry>>,
+        TError,
+        {id: number;data: BodyType<ApsScheduleInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateApsScheduleEntryMutationOptions(options));
+    }
+
+export const getDeleteApsScheduleEntryUrl = (id: number,) => {
+
+
+
+
+  return `/api/aps/schedule/${id}`
+}
+
+/**
+ * @summary Delete an APS schedule entry
+ */
+export const deleteApsScheduleEntry = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteApsScheduleEntryUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteApsScheduleEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApsScheduleEntry>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApsScheduleEntry>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteApsScheduleEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApsScheduleEntry>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteApsScheduleEntry(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApsScheduleEntryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApsScheduleEntry>>>
+
+    export type DeleteApsScheduleEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete an APS schedule entry
+ */
+export const useDeleteApsScheduleEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApsScheduleEntry>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApsScheduleEntry>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteApsScheduleEntryMutationOptions(options));
+    }
+
+export const getGetApsDashboardUrl = () => {
+
+
+
+
+  return `/api/aps/dashboard`
+}
+
+/**
+ * @summary Get APS dashboard KPIs
+ */
+export const getApsDashboard = async ( options?: RequestInit): Promise<ApsDashboard> => {
+
+  return customFetch<ApsDashboard>(getGetApsDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApsDashboardQueryKey = () => {
+    return [
+    `/api/aps/dashboard`
+    ] as const;
+    }
+
+
+export const getGetApsDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getApsDashboard>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApsDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApsDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApsDashboard>>> = ({ signal }) => getApsDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApsDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApsDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getApsDashboard>>>
+export type GetApsDashboardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get APS dashboard KPIs
+ */
+
+export function useGetApsDashboard<TData = Awaited<ReturnType<typeof getApsDashboard>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApsDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApsDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetApsAlertsUrl = () => {
+
+
+
+
+  return `/api/aps/alerts`
+}
+
+/**
+ * @summary Get active APS alerts
+ */
+export const getApsAlerts = async ( options?: RequestInit): Promise<ApsAlert[]> => {
+
+  return customFetch<ApsAlert[]>(getGetApsAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApsAlertsQueryKey = () => {
+    return [
+    `/api/aps/alerts`
+    ] as const;
+    }
+
+
+export const getGetApsAlertsQueryOptions = <TData = Awaited<ReturnType<typeof getApsAlerts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApsAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApsAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApsAlerts>>> = ({ signal }) => getApsAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApsAlerts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApsAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof getApsAlerts>>>
+export type GetApsAlertsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get active APS alerts
+ */
+
+export function useGetApsAlerts<TData = Awaited<ReturnType<typeof getApsAlerts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApsAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApsAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSimulateApsUrl = () => {
+
+
+
+
+  return `/api/aps/simulate`
+}
+
+/**
+ * @summary Run an APS simulation scenario
+ */
+export const simulateAps = async (apsSimulateInput: ApsSimulateInput, options?: RequestInit): Promise<ApsSimulateResult> => {
+
+  return customFetch<ApsSimulateResult>(getSimulateApsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      apsSimulateInput,)
+  }
+);}
+
+
+
+
+export const getSimulateApsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateAps>>, TError,{data: BodyType<ApsSimulateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof simulateAps>>, TError,{data: BodyType<ApsSimulateInput>}, TContext> => {
+
+const mutationKey = ['simulateAps'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof simulateAps>>, {data: BodyType<ApsSimulateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  simulateAps(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SimulateApsMutationResult = NonNullable<Awaited<ReturnType<typeof simulateAps>>>
+    export type SimulateApsMutationBody = BodyType<ApsSimulateInput>
+    export type SimulateApsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Run an APS simulation scenario
+ */
+export const useSimulateAps = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateAps>>, TError,{data: BodyType<ApsSimulateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof simulateAps>>,
+        TError,
+        {data: BodyType<ApsSimulateInput>},
+        TContext
+      > => {
+      return useMutation(getSimulateApsMutationOptions(options));
+    }
 

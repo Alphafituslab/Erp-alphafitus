@@ -4807,3 +4807,384 @@ export const GetProducaoDashboardResponse = zod.object({
 })
 
 
+/**
+ * @summary List work centers
+ */
+export const ListWorkCentersQueryParams = zod.object({
+  "active": zod.enum(['true', 'false']).optional()
+})
+
+export const ListWorkCentersResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['machine', 'work_center', 'line']),
+  "capacityHoursPerShift": zod.string(),
+  "setupTimeMinutes": zod.number(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListWorkCentersResponse = zod.array(ListWorkCentersResponseItem)
+
+
+/**
+ * @summary Create a work center
+ */
+export const createWorkCenterBodyTypeDefault = `machine`;
+export const createWorkCenterBodyCapacityHoursPerShiftDefault = `8`;
+export const createWorkCenterBodySetupTimeMinutesDefault = 30;
+export const createWorkCenterBodyIsActiveDefault = true;
+
+export const CreateWorkCenterBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['machine', 'work_center', 'line']).default(createWorkCenterBodyTypeDefault),
+  "capacityHoursPerShift": zod.string().default(createWorkCenterBodyCapacityHoursPerShiftDefault),
+  "setupTimeMinutes": zod.number().default(createWorkCenterBodySetupTimeMinutesDefault),
+  "isActive": zod.boolean().default(createWorkCenterBodyIsActiveDefault),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a work center
+ */
+export const UpdateWorkCenterParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateWorkCenterBodyTypeDefault = `machine`;
+export const updateWorkCenterBodyCapacityHoursPerShiftDefault = `8`;
+export const updateWorkCenterBodySetupTimeMinutesDefault = 30;
+export const updateWorkCenterBodyIsActiveDefault = true;
+
+export const UpdateWorkCenterBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['machine', 'work_center', 'line']).default(updateWorkCenterBodyTypeDefault),
+  "capacityHoursPerShift": zod.string().default(updateWorkCenterBodyCapacityHoursPerShiftDefault),
+  "setupTimeMinutes": zod.number().default(updateWorkCenterBodySetupTimeMinutesDefault),
+  "isActive": zod.boolean().default(updateWorkCenterBodyIsActiveDefault),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateWorkCenterResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['machine', 'work_center', 'line']),
+  "capacityHoursPerShift": zod.string(),
+  "setupTimeMinutes": zod.number(),
+  "isActive": zod.boolean(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Deactivate a work center
+ */
+export const DeleteWorkCenterParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteWorkCenterResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List production shifts with optional filters
+ */
+export const ListProductionShiftsQueryParams = zod.object({
+  "workCenterId": zod.coerce.number().optional(),
+  "startDate": zod.date().optional(),
+  "endDate": zod.date().optional()
+})
+
+export const ListProductionShiftsResponseItem = zod.object({
+  "id": zod.number(),
+  "workCenterId": zod.number(),
+  "date": zod.coerce.date(),
+  "shiftName": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "availableHours": zod.string(),
+  "isBlocked": zod.boolean(),
+  "blockReason": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProductionShiftsResponse = zod.array(ListProductionShiftsResponseItem)
+
+
+/**
+ * @summary Create a production shift
+ */
+export const createProductionShiftBodyShiftNameDefault = `Manhã`;
+export const createProductionShiftBodyStartTimeDefault = `07:00`;
+export const createProductionShiftBodyEndTimeDefault = `15:00`;
+export const createProductionShiftBodyAvailableHoursDefault = `8`;
+export const createProductionShiftBodyIsBlockedDefault = false;
+
+export const CreateProductionShiftBody = zod.object({
+  "workCenterId": zod.number(),
+  "date": zod.coerce.date(),
+  "shiftName": zod.string().default(createProductionShiftBodyShiftNameDefault),
+  "startTime": zod.string().default(createProductionShiftBodyStartTimeDefault),
+  "endTime": zod.string().default(createProductionShiftBodyEndTimeDefault),
+  "availableHours": zod.string().default(createProductionShiftBodyAvailableHoursDefault),
+  "isBlocked": zod.boolean().default(createProductionShiftBodyIsBlockedDefault),
+  "blockReason": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a production shift
+ */
+export const UpdateProductionShiftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateProductionShiftBodyShiftNameDefault = `Manhã`;
+export const updateProductionShiftBodyStartTimeDefault = `07:00`;
+export const updateProductionShiftBodyEndTimeDefault = `15:00`;
+export const updateProductionShiftBodyAvailableHoursDefault = `8`;
+export const updateProductionShiftBodyIsBlockedDefault = false;
+
+export const UpdateProductionShiftBody = zod.object({
+  "workCenterId": zod.number(),
+  "date": zod.coerce.date(),
+  "shiftName": zod.string().default(updateProductionShiftBodyShiftNameDefault),
+  "startTime": zod.string().default(updateProductionShiftBodyStartTimeDefault),
+  "endTime": zod.string().default(updateProductionShiftBodyEndTimeDefault),
+  "availableHours": zod.string().default(updateProductionShiftBodyAvailableHoursDefault),
+  "isBlocked": zod.boolean().default(updateProductionShiftBodyIsBlockedDefault),
+  "blockReason": zod.string().nullish()
+})
+
+export const UpdateProductionShiftResponse = zod.object({
+  "id": zod.number(),
+  "workCenterId": zod.number(),
+  "date": zod.coerce.date(),
+  "shiftName": zod.string(),
+  "startTime": zod.string(),
+  "endTime": zod.string(),
+  "availableHours": zod.string(),
+  "isBlocked": zod.boolean(),
+  "blockReason": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a production shift
+ */
+export const DeleteProductionShiftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProductionShiftResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List APS schedule entries (Gantt data)
+ */
+export const ListApsScheduleQueryParams = zod.object({
+  "workCenterId": zod.coerce.number().optional(),
+  "status": zod.enum(['planned', 'in_progress', 'done', 'delayed', 'cancelled']).optional(),
+  "startDate": zod.coerce.string().optional(),
+  "endDate": zod.coerce.string().optional()
+})
+
+export const ListApsScheduleResponseItem = zod.object({
+  "id": zod.number(),
+  "productionOrderId": zod.number().nullish(),
+  "workCenterId": zod.number(),
+  "workCenterName": zod.string().nullish(),
+  "orderNumber": zod.string().nullish(),
+  "productName": zod.string().nullish(),
+  "plannedQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "scheduledStart": zod.string(),
+  "scheduledEnd": zod.string(),
+  "estimatedHours": zod.string().nullish(),
+  "status": zod.enum(['planned', 'in_progress', 'done', 'delayed', 'cancelled']),
+  "priority": zod.number(),
+  "sequenceNumber": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "rescheduledAt": zod.coerce.date().nullish(),
+  "rescheduledBy": zod.string().nullish(),
+  "rescheduledReason": zod.string().nullish()
+})
+export const ListApsScheduleResponse = zod.array(ListApsScheduleResponseItem)
+
+
+/**
+ * @summary Create an APS schedule entry
+ */
+export const createApsScheduleEntryBodyUnitDefault = `kg`;
+export const createApsScheduleEntryBodyStatusDefault = `planned`;
+export const createApsScheduleEntryBodyPriorityDefault = 5;
+
+export const CreateApsScheduleEntryBody = zod.object({
+  "productionOrderId": zod.number().nullish(),
+  "workCenterId": zod.number(),
+  "orderNumber": zod.string().nullish(),
+  "productName": zod.string().nullish(),
+  "plannedQty": zod.string().nullish(),
+  "unit": zod.string().default(createApsScheduleEntryBodyUnitDefault),
+  "scheduledStart": zod.string(),
+  "scheduledEnd": zod.string(),
+  "estimatedHours": zod.string().nullish(),
+  "status": zod.enum(['planned', 'in_progress', 'done', 'delayed', 'cancelled']).default(createApsScheduleEntryBodyStatusDefault),
+  "priority": zod.number().default(createApsScheduleEntryBodyPriorityDefault),
+  "sequenceNumber": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "rescheduledReason": zod.string().nullish()
+})
+
+
+/**
+ * @summary Auto-schedule open production orders on a work center
+ */
+export const autoScheduleApsBodyHoursPerEntryDefault = 8;
+
+export const AutoScheduleApsBody = zod.object({
+  "workCenterId": zod.number(),
+  "startDate": zod.coerce.date().optional(),
+  "hoursPerEntry": zod.number().default(autoScheduleApsBodyHoursPerEntryDefault)
+})
+
+
+/**
+ * @summary Update (reschedule) an APS schedule entry
+ */
+export const UpdateApsScheduleEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateApsScheduleEntryBodyUnitDefault = `kg`;
+export const updateApsScheduleEntryBodyStatusDefault = `planned`;
+export const updateApsScheduleEntryBodyPriorityDefault = 5;
+
+export const UpdateApsScheduleEntryBody = zod.object({
+  "productionOrderId": zod.number().nullish(),
+  "workCenterId": zod.number(),
+  "orderNumber": zod.string().nullish(),
+  "productName": zod.string().nullish(),
+  "plannedQty": zod.string().nullish(),
+  "unit": zod.string().default(updateApsScheduleEntryBodyUnitDefault),
+  "scheduledStart": zod.string(),
+  "scheduledEnd": zod.string(),
+  "estimatedHours": zod.string().nullish(),
+  "status": zod.enum(['planned', 'in_progress', 'done', 'delayed', 'cancelled']).default(updateApsScheduleEntryBodyStatusDefault),
+  "priority": zod.number().default(updateApsScheduleEntryBodyPriorityDefault),
+  "sequenceNumber": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "rescheduledReason": zod.string().nullish()
+})
+
+export const UpdateApsScheduleEntryResponse = zod.object({
+  "id": zod.number(),
+  "productionOrderId": zod.number().nullish(),
+  "workCenterId": zod.number(),
+  "workCenterName": zod.string().nullish(),
+  "orderNumber": zod.string().nullish(),
+  "productName": zod.string().nullish(),
+  "plannedQty": zod.string().nullish(),
+  "unit": zod.string(),
+  "scheduledStart": zod.string(),
+  "scheduledEnd": zod.string(),
+  "estimatedHours": zod.string().nullish(),
+  "status": zod.enum(['planned', 'in_progress', 'done', 'delayed', 'cancelled']),
+  "priority": zod.number(),
+  "sequenceNumber": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "rescheduledAt": zod.coerce.date().nullish(),
+  "rescheduledBy": zod.string().nullish(),
+  "rescheduledReason": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete an APS schedule entry
+ */
+export const DeleteApsScheduleEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteApsScheduleEntryResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get APS dashboard KPIs
+ */
+export const GetApsDashboardResponse = zod.object({
+  "totalScheduled": zod.number(),
+  "totalDone": zod.number(),
+  "totalActive": zod.number(),
+  "totalPlanned": zod.number(),
+  "overdueCount": zod.number(),
+  "conflictCount": zod.number(),
+  "blockedShiftsToday": zod.number(),
+  "byStatus": zod.object({
+
+}).passthrough(),
+  "utilizationByWorkCenter": zod.array(zod.object({
+
+}).passthrough()),
+  "upcoming": zod.array(zod.object({
+
+}).passthrough())
+})
+
+
+/**
+ * @summary Get active APS alerts
+ */
+export const GetApsAlertsResponseItem = zod.object({
+  "type": zod.string(),
+  "severity": zod.enum(['critical', 'high', 'medium', 'low']),
+  "message": zod.string(),
+  "entityId": zod.number().nullish()
+})
+export const GetApsAlertsResponse = zod.array(GetApsAlertsResponseItem)
+
+
+/**
+ * @summary Run an APS simulation scenario
+ */
+export const SimulateApsBody = zod.object({
+  "scenario": zod.enum(['block_period', 'extra_shift']),
+  "workCenterId": zod.number().optional(),
+  "blockedFrom": zod.string().optional(),
+  "blockedTo": zod.string().optional(),
+  "extraShiftHours": zod.number().optional()
+})
+
+export const SimulateApsResponse = zod.object({
+  "scenario": zod.string(),
+  "impact": zod.string(),
+  "affectedCount": zod.number().nullish(),
+  "affected": zod.array(zod.object({
+
+}).passthrough()).nullish(),
+  "workCenterName": zod.string().nullish(),
+  "extraHours": zod.number().nullish(),
+  "currentCapacityHours": zod.number().nullish(),
+  "newCapacityHours": zod.number().nullish(),
+  "scheduledHours": zod.number().nullish(),
+  "currentUtilizationPct": zod.number().nullish(),
+  "newUtilizationPct": zod.number().nullish()
+})
+
+

@@ -17,6 +17,7 @@ import ProjetosPage from "@/pages/projetos";
 import FiscalPage from "@/pages/fiscal";
 import RelatoriosPage from "@/pages/relatorios";
 import ProducaoPage from "@/pages/producao";
+import ApsPage from "@/pages/aps";
 import ModulePlaceholderPage from "@/pages/module";
 
 const queryClient = new QueryClient();
@@ -99,6 +100,12 @@ function Router() {
       <Route path="/producao">
         <ProtectedRoute>
           <ProducaoPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/aps">
+        <ProtectedRoute>
+          <ApsPage />
         </ProtectedRoute>
       </Route>
 

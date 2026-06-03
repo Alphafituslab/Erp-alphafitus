@@ -2321,6 +2321,211 @@ export interface ProductionOrderQualityCheckInput {
   actualQty?: string;
 }
 
+export type WorkCenterType = typeof WorkCenterType[keyof typeof WorkCenterType];
+
+
+export const WorkCenterType = {
+  machine: 'machine',
+  work_center: 'work_center',
+  line: 'line',
+} as const;
+
+export interface WorkCenter {
+  id: number;
+  name: string;
+  description?: string | null;
+  type: WorkCenterType;
+  capacityHoursPerShift: string;
+  setupTimeMinutes: number;
+  isActive: boolean;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WorkCenterInputType = typeof WorkCenterInputType[keyof typeof WorkCenterInputType];
+
+
+export const WorkCenterInputType = {
+  machine: 'machine',
+  work_center: 'work_center',
+  line: 'line',
+} as const;
+
+export interface WorkCenterInput {
+  name: string;
+  description?: string | null;
+  type?: WorkCenterInputType;
+  capacityHoursPerShift?: string;
+  setupTimeMinutes?: number;
+  isActive?: boolean;
+  notes?: string | null;
+}
+
+export interface ProductionShift {
+  id: number;
+  workCenterId: number;
+  date: string;
+  shiftName: string;
+  startTime: string;
+  endTime: string;
+  availableHours: string;
+  isBlocked: boolean;
+  blockReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionShiftInput {
+  workCenterId: number;
+  date: string;
+  shiftName?: string;
+  startTime?: string;
+  endTime?: string;
+  availableHours?: string;
+  isBlocked?: boolean;
+  blockReason?: string | null;
+}
+
+export type ApsScheduleEntryStatus = typeof ApsScheduleEntryStatus[keyof typeof ApsScheduleEntryStatus];
+
+
+export const ApsScheduleEntryStatus = {
+  planned: 'planned',
+  in_progress: 'in_progress',
+  done: 'done',
+  delayed: 'delayed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ApsScheduleEntry {
+  id: number;
+  productionOrderId?: number | null;
+  workCenterId: number;
+  workCenterName?: string | null;
+  orderNumber?: string | null;
+  productName?: string | null;
+  plannedQty?: string | null;
+  unit: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  estimatedHours?: string | null;
+  status: ApsScheduleEntryStatus;
+  priority: number;
+  sequenceNumber?: number | null;
+  notes?: string | null;
+  rescheduledAt?: string | null;
+  rescheduledBy?: string | null;
+  rescheduledReason?: string | null;
+}
+
+export type ApsScheduleInputStatus = typeof ApsScheduleInputStatus[keyof typeof ApsScheduleInputStatus];
+
+
+export const ApsScheduleInputStatus = {
+  planned: 'planned',
+  in_progress: 'in_progress',
+  done: 'done',
+  delayed: 'delayed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ApsScheduleInput {
+  productionOrderId?: number | null;
+  workCenterId: number;
+  orderNumber?: string | null;
+  productName?: string | null;
+  plannedQty?: string | null;
+  unit?: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+  estimatedHours?: string | null;
+  status?: ApsScheduleInputStatus;
+  priority?: number;
+  sequenceNumber?: number | null;
+  notes?: string | null;
+  rescheduledReason?: string | null;
+}
+
+export interface ApsAutoScheduleInput {
+  workCenterId: number;
+  startDate?: string;
+  hoursPerEntry?: number;
+}
+
+export interface ApsAutoScheduleResult {
+  scheduled: number;
+  entries: ApsScheduleEntry[];
+}
+
+export type ApsDashboardByStatus = { [key: string]: unknown };
+
+export type ApsDashboardUtilizationByWorkCenterItem = { [key: string]: unknown };
+
+export type ApsDashboardUpcomingItem = { [key: string]: unknown };
+
+export interface ApsDashboard {
+  totalScheduled: number;
+  totalDone: number;
+  totalActive: number;
+  totalPlanned: number;
+  overdueCount: number;
+  conflictCount: number;
+  blockedShiftsToday: number;
+  byStatus: ApsDashboardByStatus;
+  utilizationByWorkCenter: ApsDashboardUtilizationByWorkCenterItem[];
+  upcoming: ApsDashboardUpcomingItem[];
+}
+
+export type ApsAlertSeverity = typeof ApsAlertSeverity[keyof typeof ApsAlertSeverity];
+
+
+export const ApsAlertSeverity = {
+  critical: 'critical',
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface ApsAlert {
+  type: string;
+  severity: ApsAlertSeverity;
+  message: string;
+  entityId?: number | null;
+}
+
+export type ApsSimulateInputScenario = typeof ApsSimulateInputScenario[keyof typeof ApsSimulateInputScenario];
+
+
+export const ApsSimulateInputScenario = {
+  block_period: 'block_period',
+  extra_shift: 'extra_shift',
+} as const;
+
+export interface ApsSimulateInput {
+  scenario: ApsSimulateInputScenario;
+  workCenterId?: number;
+  blockedFrom?: string;
+  blockedTo?: string;
+  extraShiftHours?: number;
+}
+
+export type ApsSimulateResultAffectedItem = { [key: string]: unknown };
+
+export interface ApsSimulateResult {
+  scenario: string;
+  impact: string;
+  affectedCount?: number | null;
+  affected?: ApsSimulateResultAffectedItem[] | null;
+  workCenterName?: string | null;
+  extraHours?: number | null;
+  currentCapacityHours?: number | null;
+  newCapacityHours?: number | null;
+  scheduledHours?: number | null;
+  currentUtilizationPct?: number | null;
+  newUtilizationPct?: number | null;
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -2826,6 +3031,42 @@ export const ListProductionOrdersStatus = {
   in_production: 'in_production',
   quality_check: 'quality_check',
   finished: 'finished',
+  cancelled: 'cancelled',
+} as const;
+
+export type ListWorkCentersParams = {
+active?: ListWorkCentersActive;
+};
+
+export type ListWorkCentersActive = typeof ListWorkCentersActive[keyof typeof ListWorkCentersActive];
+
+
+export const ListWorkCentersActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type ListProductionShiftsParams = {
+workCenterId?: number;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListApsScheduleParams = {
+workCenterId?: number;
+status?: ListApsScheduleStatus;
+startDate?: string;
+endDate?: string;
+};
+
+export type ListApsScheduleStatus = typeof ListApsScheduleStatus[keyof typeof ListApsScheduleStatus];
+
+
+export const ListApsScheduleStatus = {
+  planned: 'planned',
+  in_progress: 'in_progress',
+  done: 'done',
+  delayed: 'delayed',
   cancelled: 'cancelled',
 } as const;
 
