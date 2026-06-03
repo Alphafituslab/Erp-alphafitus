@@ -12,5 +12,6 @@ export interface TrainingInput {
   description?: string | null;
   type?: TrainingInputType;
   validityMonths?: number | null;
+  durationHours?: number | null;
   targetRole?: string | null;
 }

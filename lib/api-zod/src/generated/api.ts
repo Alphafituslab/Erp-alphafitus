@@ -2781,13 +2781,15 @@ export const GetRhDashboardResponse = zod.object({
 })),
   "totalMandatoryTrainings": zod.number(),
   "overallComplianceRate": zod.number(),
+  "totalTrainingHoursThisMonth": zod.number().nullish(),
   "trainingAlerts": zod.array(zod.object({
   "employeeTrainingId": zod.number(),
   "employeeId": zod.number(),
   "employeeName": zod.string(),
   "trainingName": zod.string(),
   "status": zod.enum(['expiring_soon', 'expired']),
-  "expiresAt": zod.coerce.date().nullish()
+  "expiresAt": zod.coerce.date().nullish(),
+  "daysUntilExpiry": zod.number().nullish()
 }))
 })
 
@@ -2806,6 +2808,7 @@ export const ListTrainingsResponseItem = zod.object({
   "description": zod.string().nullish(),
   "type": zod.enum(['mandatory', 'optional']),
   "validityMonths": zod.number().nullish(),
+  "durationHours": zod.number().nullish(),
   "targetRole": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2821,6 +2824,7 @@ export const CreateTrainingBody = zod.object({
   "description": zod.string().nullish(),
   "type": zod.enum(['mandatory', 'optional']).optional(),
   "validityMonths": zod.number().nullish(),
+  "durationHours": zod.number().nullish(),
   "targetRole": zod.string().nullish()
 })
 
@@ -2838,6 +2842,7 @@ export const GetTrainingResponse = zod.object({
   "description": zod.string().nullish(),
   "type": zod.enum(['mandatory', 'optional']),
   "validityMonths": zod.number().nullish(),
+  "durationHours": zod.number().nullish(),
   "targetRole": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2856,6 +2861,7 @@ export const UpdateTrainingBody = zod.object({
   "description": zod.string().nullish(),
   "type": zod.enum(['mandatory', 'optional']).optional(),
   "validityMonths": zod.number().nullish(),
+  "durationHours": zod.number().nullish(),
   "targetRole": zod.string().nullish()
 })
 
@@ -2865,6 +2871,7 @@ export const UpdateTrainingResponse = zod.object({
   "description": zod.string().nullish(),
   "type": zod.enum(['mandatory', 'optional']),
   "validityMonths": zod.number().nullish(),
+  "durationHours": zod.number().nullish(),
   "targetRole": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2980,7 +2987,8 @@ export const GetTrainingMatrixResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "type": zod.enum(['mandatory', 'optional']),
-  "validityMonths": zod.number().nullish()
+  "validityMonths": zod.number().nullish(),
+  "targetRole": zod.string().nullish()
 })),
   "cells": zod.array(zod.object({
   "employeeId": zod.number(),

@@ -41,6 +41,7 @@ export const trainingsTable = pgTable("trainings", {
   description: text("description"),
   type: text("type").notNull().default("mandatory"), // mandatory | optional
   validityMonths: integer("validity_months"), // null = no expiry
+  durationHours: integer("duration_hours"), // null = not specified
   targetRole: text("target_role"), // null = all roles
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

@@ -6944,6 +6944,9 @@ components:
           type: integer
         overallComplianceRate:
           type: integer
+        totalTrainingHoursThisMonth:
+          type: integer
+          nullable: true
         trainingAlerts:
           type: array
           items:
@@ -6973,6 +6976,9 @@ components:
         validityMonths:
           type: integer
           nullable: true
+        durationHours:
+          type: integer
+          nullable: true
         targetRole:
           type: string
           nullable: true
@@ -6997,6 +7003,9 @@ components:
           type: string
           enum: [mandatory, optional]
         validityMonths:
+          type: integer
+          nullable: true
+        durationHours:
           type: integer
           nullable: true
         targetRole:
@@ -7159,6 +7168,9 @@ components:
         validityMonths:
           type: integer
           nullable: true
+        targetRole:
+          type: string
+          nullable: true
 
     TrainingMatrixCell:
       type: object
@@ -7243,6 +7255,9 @@ components:
         expiresAt:
           type: string
           format: date-time
+          nullable: true
+        daysUntilExpiry:
+          type: integer
           nullable: true
 
   # ─── Projetos schemas ─────────────────────────────────────────────────────

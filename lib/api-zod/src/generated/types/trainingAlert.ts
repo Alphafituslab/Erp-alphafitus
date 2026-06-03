@@ -14,4 +14,5 @@ export interface TrainingAlert {
   trainingName: string;
   status: TrainingAlertStatus;
   expiresAt?: Date | null;
+  daysUntilExpiry?: number | null;
 }

@@ -1416,6 +1416,7 @@ export interface TrainingAlert {
   trainingName: string;
   status: TrainingAlertStatus;
   expiresAt?: string | null;
+  daysUntilExpiry?: number | null;
 }
 
 export interface RhDashboard {
@@ -1428,6 +1429,7 @@ export interface RhDashboard {
   recentEmployees: Employee[];
   totalMandatoryTrainings: number;
   overallComplianceRate: number;
+  totalTrainingHoursThisMonth?: number | null;
   trainingAlerts: TrainingAlert[];
 }
 
@@ -1445,6 +1447,7 @@ export interface Training {
   description?: string | null;
   type: TrainingType;
   validityMonths?: number | null;
+  durationHours?: number | null;
   targetRole?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -1463,6 +1466,7 @@ export interface TrainingInput {
   description?: string | null;
   type?: TrainingInputType;
   validityMonths?: number | null;
+  durationHours?: number | null;
   targetRole?: string | null;
 }
 
@@ -1556,6 +1560,7 @@ export interface TrainingMatrixTraining {
   name: string;
   type: TrainingMatrixTrainingType;
   validityMonths?: number | null;
+  targetRole?: string | null;
 }
 
 export type TrainingMatrixCellStatus = typeof TrainingMatrixCellStatus[keyof typeof TrainingMatrixCellStatus];

@@ -402,7 +402,7 @@ router.get("/rh/trainings", async (req: Request, res: Response): Promise<void> =
 
 router.post("/rh/trainings", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const { name, description, type, validityMonths, targetRole } = req.body;
+  const { name, description, type, validityMonths, durationHours, targetRole } = req.body;
   if (!name) { res.status(400).json({ error: "Nome é obrigatório" }); return; }
   const [row] = await db
     .insert(trainingsTable)
@@ -411,6 +411,7 @@ router.post("/rh/trainings", async (req: Request, res: Response): Promise<void> 
       description: description || null,
       type: type ?? "mandatory",
       validityMonths: validityMonths ? Number(validityMonths) : null,
+      durationHours: durationHours ? Number(durationHours) : null,
       targetRole: targetRole || null,
     })
     .returning();
@@ -432,7 +433,7 @@ router.put("/rh/trainings/:id", async (req: Request, res: Response): Promise<voi
   if (id === null) return;
   const [existing] = await db.select({ id: trainingsTable.id }).from(trainingsTable).where(eq(trainingsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Treinamento não encontrado" }); return; }
-  const { name, description, type, validityMonths, targetRole } = req.body;
+  const { name, description, type, validityMonths, durationHours, targetRole } = req.body;
   const [updated] = await db
     .update(trainingsTable)
     .set({
@@ -440,6 +441,7 @@ router.put("/rh/trainings/:id", async (req: Request, res: Response): Promise<voi
       description: description || null,
       type: type ?? "mandatory",
       validityMonths: validityMonths ? Number(validityMonths) : null,
+      durationHours: durationHours ? Number(durationHours) : null,
       targetRole: targetRole || null,
     })
     .where(eq(trainingsTable.id, id))
@@ -460,20 +462,27 @@ router.delete("/rh/trainings/:id", async (req: Request, res: Response): Promise<
 
 // ─── Employee Training Records ─────────────────────────────────────────────────
 
+/**
+ * Compute training status at read-time from completedAt + validityMonths.
+ * Uses 60-day window for expiring_soon to give HR advance notice.
+ */
 function computeTrainingStatus(completedAt: Date | null, validityMonths: number | null): {
   status: string;
   expiresAt: Date | null;
+  daysUntilExpiry: number | null;
 } {
-  if (!completedAt) return { status: "not_done", expiresAt: null };
-  if (!validityMonths) return { status: "up_to_date", expiresAt: null };
+  if (!completedAt) return { status: "not_done", expiresAt: null, daysUntilExpiry: null };
+  if (!validityMonths) return { status: "up_to_date", expiresAt: null, daysUntilExpiry: null };
   const expiresAt = new Date(completedAt);
   expiresAt.setMonth(expiresAt.getMonth() + validityMonths);
   const now = new Date();
-  const thirtyDays = new Date(now);
-  thirtyDays.setDate(thirtyDays.getDate() + 30);
-  if (expiresAt < now) return { status: "expired", expiresAt };
-  if (expiresAt < thirtyDays) return { status: "expiring_soon", expiresAt };
-  return { status: "up_to_date", expiresAt };
+  const diffMs = expiresAt.getTime() - now.getTime();
+  const daysUntilExpiry = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const sixtyDays = new Date(now);
+  sixtyDays.setDate(sixtyDays.getDate() + 60);
+  if (expiresAt < now) return { status: "expired", expiresAt, daysUntilExpiry };
+  if (expiresAt < sixtyDays) return { status: "expiring_soon", expiresAt, daysUntilExpiry };
+  return { status: "up_to_date", expiresAt, daysUntilExpiry };
 }
 
 router.get("/rh/employees/:id/trainings", async (req: Request, res: Response): Promise<void> => {
@@ -500,7 +509,20 @@ router.get("/rh/employees/:id/trainings", async (req: Request, res: Response): P
     .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId))
     .where(eq(employeeTrainingsTable.employeeId, empId))
     .orderBy(asc(trainingsTable.name));
-  res.json(rows);
+
+  // Recompute status at read-time so records never go stale
+  const result = rows.map((r) => {
+    const { status, expiresAt } = computeTrainingStatus(r.completedAt, r.validityMonths);
+    return {
+      ...r,
+      status,
+      expiresAt: expiresAt ? expiresAt.toISOString() : (r.expiresAt ? r.expiresAt.toISOString() : null),
+      completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+    };
+  });
+  res.json(result);
 });
 
 router.post("/rh/employees/:id/trainings", async (req: Request, res: Response): Promise<void> => {
@@ -596,7 +618,7 @@ router.get("/rh/training-matrix", async (req: Request, res: Response): Promise<v
   const empFilters: any[] = [eq(employeesTable.status, "active")];
   if (dept) empFilters.push(eq(employeesTable.department, dept));
 
-  const [employees, trainings, records] = await Promise.all([
+  const [employees, allMandatoryTrainings, records] = await Promise.all([
     db.select({ id: employeesTable.id, name: employeesTable.name, role: employeesTable.role, department: employeesTable.department })
       .from(employeesTable)
       .where(and(...empFilters))
@@ -605,29 +627,45 @@ router.get("/rh/training-matrix", async (req: Request, res: Response): Promise<v
     db.select({
       employeeId: employeeTrainingsTable.employeeId,
       trainingId: employeeTrainingsTable.trainingId,
-      status: employeeTrainingsTable.status,
       completedAt: employeeTrainingsTable.completedAt,
-      expiresAt: employeeTrainingsTable.expiresAt,
-    }).from(employeeTrainingsTable),
+      validityMonths: trainingsTable.validityMonths,
+    })
+      .from(employeeTrainingsTable)
+      .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId)),
   ]);
 
-  const cellMap: Record<string, { status: string; completedAt: string | null; expiresAt: string | null }> = {};
+  // Build record lookup keyed by employeeId:trainingId → completedAt + validityMonths
+  const recordMap = new Map<string, { completedAt: Date | null; validityMonths: number | null }>();
   for (const r of records) {
-    cellMap[`${r.employeeId}:${r.trainingId}`] = {
-      status: r.status,
-      completedAt: r.completedAt ? r.completedAt.toISOString() : null,
-      expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
-    };
+    recordMap.set(`${r.employeeId}:${r.trainingId}`, { completedAt: r.completedAt, validityMonths: r.validityMonths });
   }
 
+  // Determine which trainings apply to each employee (targetRole=null means all)
+  // Build a union of all trainings that appear for any employee so matrix columns are consistent
+  const applicableTrainingIds = new Set<number>();
+  for (const emp of employees) {
+    for (const tr of allMandatoryTrainings) {
+      if (!tr.targetRole || tr.targetRole === emp.role) {
+        applicableTrainingIds.add(tr.id);
+      }
+    }
+  }
+  const trainings = allMandatoryTrainings.filter((t) => applicableTrainingIds.has(t.id));
+
+  // Build cells with read-time status computation and targetRole filtering
   const cells: Array<{ employeeId: number; trainingId: number; status: string; completedAt: string | null; expiresAt: string | null }> = [];
   for (const emp of employees) {
     for (const tr of trainings) {
-      const key = `${emp.id}:${tr.id}`;
+      // If training targets a specific role and this employee doesn't have it, skip cell
+      if (tr.targetRole && tr.targetRole !== emp.role) continue;
+      const rec = recordMap.get(`${emp.id}:${tr.id}`);
+      const { status, expiresAt } = computeTrainingStatus(rec?.completedAt ?? null, tr.validityMonths ?? null);
       cells.push({
         employeeId: emp.id,
         trainingId: tr.id,
-        ...(cellMap[key] ?? { status: "not_done", completedAt: null, expiresAt: null }),
+        status,
+        completedAt: rec?.completedAt ? rec.completedAt.toISOString() : null,
+        expiresAt: expiresAt ? expiresAt.toISOString() : null,
       });
     }
   }
@@ -641,27 +679,43 @@ router.get("/rh/training-compliance", async (req: Request, res: Response): Promi
   if (!requireAuth(req, res)) return;
 
   const [allEmployees, mandatoryTrainings, allRecords] = await Promise.all([
-    db.select({ id: employeesTable.id, department: employeesTable.department })
+    db.select({ id: employeesTable.id, role: employeesTable.role, department: employeesTable.department })
       .from(employeesTable)
       .where(eq(employeesTable.status, "active")),
-    db.select({ id: trainingsTable.id }).from(trainingsTable).where(eq(trainingsTable.type, "mandatory")),
-    db.select({ employeeId: employeeTrainingsTable.employeeId, trainingId: employeeTrainingsTable.trainingId, status: employeeTrainingsTable.status })
-      .from(employeeTrainingsTable),
+    db.select().from(trainingsTable).where(eq(trainingsTable.type, "mandatory")),
+    db.select({
+      employeeId: employeeTrainingsTable.employeeId,
+      trainingId: employeeTrainingsTable.trainingId,
+      completedAt: employeeTrainingsTable.completedAt,
+      validityMonths: trainingsTable.validityMonths,
+    })
+      .from(employeeTrainingsTable)
+      .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId)),
   ]);
 
-  const mandatoryIds = new Set(mandatoryTrainings.map((t) => t.id));
-  const upToDateSet = new Set(
-    allRecords
-      .filter((r) => mandatoryIds.has(r.trainingId) && r.status === "up_to_date")
-      .map((r) => `${r.employeeId}:${r.trainingId}`)
-  );
+  // Build record lookup
+  const recordMap = new Map<string, { completedAt: Date | null; validityMonths: number | null }>();
+  for (const r of allRecords) {
+    recordMap.set(`${r.employeeId}:${r.trainingId}`, { completedAt: r.completedAt, validityMonths: r.validityMonths });
+  }
 
   const deptMap: Record<string, { total: number; compliant: number }> = {};
   for (const emp of allEmployees) {
     const dept = emp.department ?? "Sem departamento";
     if (!deptMap[dept]) deptMap[dept] = { total: 0, compliant: 0 };
     deptMap[dept].total++;
-    const isCompliant = mandatoryIds.size === 0 || [...mandatoryIds].every((tid) => upToDateSet.has(`${emp.id}:${tid}`));
+
+    // Employee is compliant if they have up_to_date status for ALL mandatory
+    // trainings that apply to their role (targetRole=null OR targetRole matches role)
+    const applicableTrainings = mandatoryTrainings.filter(
+      (t) => !t.targetRole || t.targetRole === emp.role
+    );
+    const isCompliant = applicableTrainings.length === 0 || applicableTrainings.every((t) => {
+      const rec = recordMap.get(`${emp.id}:${t.id}`);
+      if (!rec) return false;
+      const { status } = computeTrainingStatus(rec.completedAt, t.validityMonths ?? null);
+      return status === "up_to_date";
+    });
     if (isCompliant) deptMap[dept].compliant++;
   }
 
@@ -712,58 +766,98 @@ router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> =
     .orderBy(desc(employeesTable.createdAt))
     .limit(5);
 
-  // Training KPIs
-  const [mandatoryCount] = await db
-    .select({ count: sql<number>`COUNT(*)::int` })
-    .from(trainingsTable)
-    .where(eq(trainingsTable.type, "mandatory"));
-
-  const trainingAlertRows = await db
-    .select({
-      employeeTrainingId: employeeTrainingsTable.id,
+  // Training KPIs — fetch all data needed for read-time computation
+  const [mandatoryTrainings, allActiveEmployees, allTrainingRecords] = await Promise.all([
+    db.select().from(trainingsTable).where(eq(trainingsTable.type, "mandatory")),
+    db.select({ id: employeesTable.id, role: employeesTable.role })
+      .from(employeesTable)
+      .where(eq(employeesTable.status, "active")),
+    db.select({
+      id: employeeTrainingsTable.id,
       employeeId: employeeTrainingsTable.employeeId,
+      trainingId: employeeTrainingsTable.trainingId,
+      completedAt: employeeTrainingsTable.completedAt,
+      validityMonths: trainingsTable.validityMonths,
+      durationHours: trainingsTable.durationHours,
       employeeName: employeesTable.name,
       trainingName: trainingsTable.name,
-      status: employeeTrainingsTable.status,
-      expiresAt: employeeTrainingsTable.expiresAt,
+      targetRole: trainingsTable.targetRole,
     })
-    .from(employeeTrainingsTable)
-    .innerJoin(employeesTable, eq(employeesTable.id, employeeTrainingsTable.employeeId))
-    .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId))
-    .where(
-      and(
-        sql`${employeeTrainingsTable.status} IN ('expiring_soon', 'expired')`,
-        eq(employeesTable.status, "active")
-      )
-    )
-    .orderBy(asc(employeeTrainingsTable.expiresAt))
-    .limit(10);
+      .from(employeeTrainingsTable)
+      .innerJoin(trainingsTable, eq(trainingsTable.id, employeeTrainingsTable.trainingId))
+      .innerJoin(employeesTable, eq(employeesTable.id, employeeTrainingsTable.employeeId))
+      .where(eq(employeesTable.status, "active")),
+  ]);
 
-  const trainingAlerts = trainingAlertRows.map((r) => ({
-    employeeTrainingId: r.employeeTrainingId,
-    employeeId: r.employeeId,
-    employeeName: r.employeeName,
-    trainingName: r.trainingName,
-    status: r.status,
-    expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
-  }));
+  const totalMandatory = mandatoryTrainings.length;
 
-  // Overall compliance rate
-  const [allActiveCount] = await db
-    .select({ count: sql<number>`COUNT(*)::int` })
-    .from(employeesTable)
-    .where(eq(employeesTable.status, "active"));
+  // Build record lookup keyed by employeeId:trainingId
+  const recMap = new Map<string, { completedAt: Date | null; validityMonths: number | null }>();
+  for (const r of allTrainingRecords) {
+    recMap.set(`${r.employeeId}:${r.trainingId}`, { completedAt: r.completedAt, validityMonths: r.validityMonths });
+  }
 
-  const [compliantCount] = await db
-    .select({ count: sql<number>`COUNT(DISTINCT ${employeeTrainingsTable.employeeId})::int` })
-    .from(employeeTrainingsTable)
-    .where(eq(employeeTrainingsTable.status, "up_to_date"));
+  // Correct overall compliance: per employee, check ALL mandatory trainings applicable to their role
+  let compliantEmployees = 0;
+  for (const emp of allActiveEmployees) {
+    const applicable = mandatoryTrainings.filter((t) => !t.targetRole || t.targetRole === emp.role);
+    const isCompliant = applicable.length === 0 || applicable.every((t) => {
+      const rec = recMap.get(`${emp.id}:${t.id}`);
+      if (!rec) return false;
+      const { status } = computeTrainingStatus(rec.completedAt, t.validityMonths ?? null);
+      return status === "up_to_date";
+    });
+    if (isCompliant) compliantEmployees++;
+  }
 
-  const totalActive = Number(allActiveCount?.count ?? 0);
-  const totalMandatory = Number(mandatoryCount?.count ?? 0);
+  const totalActive = allActiveEmployees.length;
   const overallComplianceRate = totalActive > 0 && totalMandatory > 0
-    ? Math.round((Number(compliantCount?.count ?? 0) / totalActive) * 100)
+    ? Math.round((compliantEmployees / totalActive) * 100)
     : 100;
+
+  // Build alerts by computing status at read-time (catches stale DB status)
+  const alertsRaw: Array<{
+    employeeTrainingId: number;
+    employeeId: number;
+    employeeName: string;
+    trainingName: string;
+    status: string;
+    expiresAt: string | null;
+    daysUntilExpiry: number | null;
+  }> = [];
+  for (const r of allTrainingRecords) {
+    const { status, expiresAt, daysUntilExpiry } = computeTrainingStatus(r.completedAt, r.validityMonths);
+    if (status === "expiring_soon" || status === "expired") {
+      alertsRaw.push({
+        employeeTrainingId: r.id,
+        employeeId: r.employeeId,
+        employeeName: r.employeeName,
+        trainingName: r.trainingName,
+        status,
+        expiresAt: expiresAt ? expiresAt.toISOString() : null,
+        daysUntilExpiry,
+      });
+    }
+  }
+  // Sort: expired first, then expiring_soon by days ascending
+  const trainingAlerts = alertsRaw
+    .sort((a, b) => {
+      if (a.status === "expired" && b.status !== "expired") return -1;
+      if (b.status === "expired" && a.status !== "expired") return 1;
+      return (a.daysUntilExpiry ?? 0) - (b.daysUntilExpiry ?? 0);
+    })
+    .slice(0, 15);
+
+  // Training hours completed this month (sum durationHours of trainings completed this month)
+  const monthStart = new Date(month + "-01T00:00:00Z");
+  const monthEnd = new Date(monthStart);
+  monthEnd.setMonth(monthEnd.getMonth() + 1);
+  let totalTrainingHoursThisMonth = 0;
+  for (const r of allTrainingRecords) {
+    if (r.completedAt && r.completedAt >= monthStart && r.completedAt < monthEnd && r.durationHours) {
+      totalTrainingHoursThisMonth += r.durationHours;
+    }
+  }
 
   res.json({
     totalEmployees: headcount?.total ?? 0,
@@ -779,6 +873,7 @@ router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> =
     recentEmployees,
     totalMandatoryTrainings: totalMandatory,
     overallComplianceRate,
+    totalTrainingHoursThisMonth: totalTrainingHoursThisMonth || null,
     trainingAlerts,
   });
 });

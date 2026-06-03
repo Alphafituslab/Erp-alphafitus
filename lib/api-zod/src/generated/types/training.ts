@@ -13,6 +13,7 @@ export interface Training {
   description?: string | null;
   type: TrainingType;
   validityMonths?: number | null;
+  durationHours?: number | null;
   targetRole?: string | null;
   createdAt: Date;
   updatedAt: Date;

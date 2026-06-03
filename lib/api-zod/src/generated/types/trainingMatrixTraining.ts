@@ -12,4 +12,5 @@ export interface TrainingMatrixTraining {
   name: string;
   type: TrainingMatrixTrainingType;
   validityMonths?: number | null;
+  targetRole?: string | null;
 }

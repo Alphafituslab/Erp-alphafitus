@@ -19,5 +19,6 @@ export interface RhDashboard {
   recentEmployees: Employee[];
   totalMandatoryTrainings: number;
   overallComplianceRate: number;
+  totalTrainingHoursThisMonth?: number | null;
   trainingAlerts: TrainingAlert[];
 }
