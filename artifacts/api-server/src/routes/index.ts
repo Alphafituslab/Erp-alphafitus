@@ -12,6 +12,7 @@ import fiscalRouter from "./fiscal";
 import relatoriosRouter from "./relatorios";
 import producaoRouter from "./producao";
 import apsRouter from "./aps";
+import rastreabilidadeRouter from "./rastreabilidade";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(fiscalRouter);
 router.use(relatoriosRouter);
 router.use(producaoRouter);
 router.use(apsRouter);
+router.use(rastreabilidadeRouter);
 
 export default router;

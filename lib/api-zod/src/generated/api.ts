@@ -5191,3 +5191,44 @@ export const SimulateApsResponse = zod.object({
 })
 
 
+/**
+ * @summary Search lots for traceability autocomplete
+ */
+export const SearchTraceLotsQueryParams = zod.object({
+  "q": zod.coerce.string()
+})
+
+export const SearchTraceLotsResponseItem = zod.object({
+  "lot": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "cqStatus": zod.string().nullish()
+})
+export const SearchTraceLotsResponse = zod.array(SearchTraceLotsResponseItem)
+
+
+/**
+ * @summary Get full traceability trace for a lot number
+ */
+export const GetTraceabilityTraceQueryParams = zod.object({
+  "lot": zod.coerce.string()
+})
+
+export const GetTraceabilityTraceResponse = zod.object({
+  "lotNumber": zod.string(),
+  "detectedAs": zod.enum(['mp', 'pa', 'both', 'unknown']),
+  "mpLotInfo": zod.object({
+
+}).passthrough().nullish(),
+  "paOrderInfo": zod.array(zod.object({
+
+}).passthrough()).nullish(),
+  "forward": zod.object({
+
+}).passthrough().nullish(),
+  "backward": zod.object({
+
+}).passthrough().nullish()
+})
+
+

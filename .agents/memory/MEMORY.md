@@ -1,7 +1,1 @@
-- [Orval TS2308 collision](orval-ts2308.md) — endpoints with both path params AND query params always collide in Orval; fix by removing query params from the OpenAPI spec.
-- [Express 5 params typing](express5-params.md) — req.params.* is typed string | string[] in Express 5; helper functions that accept route params must use string | string[] not string.
-- [ERP numeric columns as strings](numeric-strings.md) — Drizzle numeric/decimal columns come back as strings in TS; always parseFloat/parseInt before arithmetic.
-- [ERP session fields](session-fields.md) — req.session.userId / req.session.role / req.session.userName; requireAuth helper pattern used throughout routes.
-- [CQ stock idempotency](cq-stock-idempotency.md) — on lot approval, delta = released - prevAvailable (not totalQty); blockedQty must be set to "0" explicitly; prevents double-counting on re-runs.
-- [Manufacturing industry context](manufacturing-context.md) — empresa é indústria manufatureira: recebe matéria-prima e transforma em produto acabado para venda; todos os módulos e textos devem refletir esse fluxo.
-- [React Query enabled cast](rq-enabled-option.md) — Orval hooks `query` option uses full UseQueryOptions (queryKey required in v5); pass `{ enabled } as any` to avoid TS2741 errors when using conditional enabled.
+- [OpenAPI append pitfall](openapi-append-pitfall.md) — appending paths/schemas with cat >> breaks YAML structure; always use edit tool instead

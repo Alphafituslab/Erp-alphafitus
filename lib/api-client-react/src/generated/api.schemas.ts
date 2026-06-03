@@ -2529,6 +2529,40 @@ export interface ApsSimulateResult {
   newUtilizationPct?: number | null;
 }
 
+export interface LotSuggestion {
+  lot: string;
+  label: string;
+  type: string;
+  cqStatus?: string | null;
+}
+
+export type TraceabilityResultDetectedAs = typeof TraceabilityResultDetectedAs[keyof typeof TraceabilityResultDetectedAs];
+
+
+export const TraceabilityResultDetectedAs = {
+  mp: 'mp',
+  pa: 'pa',
+  both: 'both',
+  unknown: 'unknown',
+} as const;
+
+export type TraceabilityResultMpLotInfo = { [key: string]: unknown } | null;
+
+export type TraceabilityResultPaOrderInfoItem = { [key: string]: unknown };
+
+export type TraceabilityResultForward = { [key: string]: unknown } | null;
+
+export type TraceabilityResultBackward = { [key: string]: unknown } | null;
+
+export interface TraceabilityResult {
+  lotNumber: string;
+  detectedAs: TraceabilityResultDetectedAs;
+  mpLotInfo?: TraceabilityResultMpLotInfo;
+  paOrderInfo?: TraceabilityResultPaOrderInfoItem[] | null;
+  forward?: TraceabilityResultForward;
+  backward?: TraceabilityResultBackward;
+}
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
@@ -3072,4 +3106,12 @@ export const ListApsScheduleStatus = {
   delayed: 'delayed',
   cancelled: 'cancelled',
 } as const;
+
+export type SearchTraceLotsParams = {
+q: string;
+};
+
+export type GetTraceabilityTraceParams = {
+lot: string;
+};
 

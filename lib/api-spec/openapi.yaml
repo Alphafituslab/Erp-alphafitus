@@ -34,6 +34,8 @@ tags:
     description: Production module - formulas, production orders and factory floor
   - name: aps
     description: Advanced Planning and Scheduling — work centers, shifts, Gantt schedule
+  - name: rastreabilidade
+    description: Full lot traceability — forward (MP → PA → clients) and backward (PA → MP → suppliers)
 paths:
   /healthz:
     get:
@@ -6188,6 +6190,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Rastreabilidade ────────────────────────────────────────────────────────
+
+  /rastreabilidade/search:
+    get:
+      operationId: searchTraceLots
+      tags: [rastreabilidade]
+      summary: Search lots for traceability autocomplete
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of matching lots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LotSuggestion"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rastreabilidade/trace:
+    get:
+      operationId: getTraceabilityTrace
+      tags: [rastreabilidade]
+      summary: Get full traceability trace for a lot number
+      parameters:
+        - name: lot
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full traceability tree
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraceabilityResult"
+        "404":
+          description: Lot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -10778,4 +10840,42 @@ components:
           nullable: true
         newUtilizationPct:
           type: number
+          nullable: true
+
+    LotSuggestion:
+      type: object
+      required: [lot, label, type]
+      properties:
+        lot:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+        cqStatus:
+          type: string
+          nullable: true
+
+    TraceabilityResult:
+      type: object
+      required: [lotNumber, detectedAs]
+      properties:
+        lotNumber:
+          type: string
+        detectedAs:
+          type: string
+          enum: [mp, pa, both, unknown]
+        mpLotInfo:
+          type: object
+          nullable: true
+        paOrderInfo:
+          type: array
+          nullable: true
+          items:
+            type: object
+        forward:
+          type: object
+          nullable: true
+        backward:
+          type: object
           nullable: true

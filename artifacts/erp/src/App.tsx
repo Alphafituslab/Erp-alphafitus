@@ -18,6 +18,7 @@ import FiscalPage from "@/pages/fiscal";
 import RelatoriosPage from "@/pages/relatorios";
 import ProducaoPage from "@/pages/producao";
 import ApsPage from "@/pages/aps";
+import RastreabilidadePage from "@/pages/rastreabilidade";
 import ModulePlaceholderPage from "@/pages/module";
 
 const queryClient = new QueryClient();
@@ -106,6 +107,12 @@ function Router() {
       <Route path="/aps">
         <ProtectedRoute>
           <ApsPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/rastreabilidade">
+        <ProtectedRoute>
+          <RastreabilidadePage />
         </ProtectedRoute>
       </Route>
 

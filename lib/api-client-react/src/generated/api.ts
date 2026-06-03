@@ -72,6 +72,7 @@ import type {
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
   GetPriceHistoryParams,
+  GetTraceabilityTraceParams,
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
   HealthStatus,
@@ -103,6 +104,7 @@ import type {
   LoginInput,
   LotAdjustInput,
   LotMovement,
+  LotSuggestion,
   LotTransferInput,
   MarkPaidInput,
   MaterialNeeds,
@@ -156,6 +158,7 @@ import type {
   SalesOrderInput,
   SalesOrderLog,
   SalesOrderWithItems,
+  SearchTraceLotsParams,
   SelectQuotationWinnerInput,
   StageFinishInput,
   StageStartInput,
@@ -167,6 +170,7 @@ import type {
   SupplierAnalysisResult,
   SupplierApprovalInput,
   SupplierInput,
+  TraceabilityResult,
   Training,
   TrainingComplianceDept,
   TrainingInput,
@@ -14302,4 +14306,172 @@ export const useSimulateAps = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getSimulateApsMutationOptions(options));
     }
+
+export const getSearchTraceLotsUrl = (params: SearchTraceLotsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/rastreabilidade/search?${stringifiedParams}` : `/api/rastreabilidade/search`
+}
+
+/**
+ * @summary Search lots for traceability autocomplete
+ */
+export const searchTraceLots = async (params: SearchTraceLotsParams, options?: RequestInit): Promise<LotSuggestion[]> => {
+
+  return customFetch<LotSuggestion[]>(getSearchTraceLotsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchTraceLotsQueryKey = (params?: SearchTraceLotsParams,) => {
+    return [
+    `/api/rastreabilidade/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchTraceLotsQueryOptions = <TData = Awaited<ReturnType<typeof searchTraceLots>>, TError = ErrorType<ErrorResponse>>(params: SearchTraceLotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchTraceLots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchTraceLotsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchTraceLots>>> = ({ signal }) => searchTraceLots(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchTraceLots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchTraceLotsQueryResult = NonNullable<Awaited<ReturnType<typeof searchTraceLots>>>
+export type SearchTraceLotsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Search lots for traceability autocomplete
+ */
+
+export function useSearchTraceLots<TData = Awaited<ReturnType<typeof searchTraceLots>>, TError = ErrorType<ErrorResponse>>(
+ params: SearchTraceLotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchTraceLots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchTraceLotsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTraceabilityTraceUrl = (params: GetTraceabilityTraceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/rastreabilidade/trace?${stringifiedParams}` : `/api/rastreabilidade/trace`
+}
+
+/**
+ * @summary Get full traceability trace for a lot number
+ */
+export const getTraceabilityTrace = async (params: GetTraceabilityTraceParams, options?: RequestInit): Promise<TraceabilityResult> => {
+
+  return customFetch<TraceabilityResult>(getGetTraceabilityTraceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTraceabilityTraceQueryKey = (params?: GetTraceabilityTraceParams,) => {
+    return [
+    `/api/rastreabilidade/trace`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTraceabilityTraceQueryOptions = <TData = Awaited<ReturnType<typeof getTraceabilityTrace>>, TError = ErrorType<ErrorResponse>>(params: GetTraceabilityTraceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityTrace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTraceabilityTraceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTraceabilityTrace>>> = ({ signal }) => getTraceabilityTrace(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityTrace>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTraceabilityTraceQueryResult = NonNullable<Awaited<ReturnType<typeof getTraceabilityTrace>>>
+export type GetTraceabilityTraceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get full traceability trace for a lot number
+ */
+
+export function useGetTraceabilityTrace<TData = Awaited<ReturnType<typeof getTraceabilityTrace>>, TError = ErrorType<ErrorResponse>>(
+ params: GetTraceabilityTraceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityTrace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTraceabilityTraceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

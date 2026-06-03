@@ -31,6 +31,7 @@ import {
   ChevronRight,
   Factory,
   CalendarClock,
+  GitBranch,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
@@ -93,6 +94,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/producao", label: "Produção", icon: Factory, iconColor: "text-rose-400" },
       { href: "/aps", label: "APS / Gantt", icon: CalendarClock, iconColor: "text-cyan-400" },
       { href: "/qualidade", label: "Qualidade", icon: ClipboardCheck, iconColor: "text-teal-400" },
+      { href: "/rastreabilidade", label: "Rastreabilidade", icon: GitBranch, iconColor: "text-violet-400" },
     ],
   },
   {
