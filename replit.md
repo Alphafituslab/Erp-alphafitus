@@ -56,14 +56,14 @@ Tables defined (all in `lib/db/src/schema/`):
 | /login | Login | Done |
 | /dashboard | Home dashboard | Done |
 | /financeiro | Financeiro | Done |
-| /vendas | Vendas/Comercial | Placeholder |
-| /estoque | Estoque | Placeholder |
-| /compras | Compras | Placeholder |
-| /rh | RH | Placeholder |
-| /projetos | Projetos | Placeholder |
-| /fiscal | Fiscal | Placeholder |
-| /relatorios | Relatórios | Placeholder |
-| /aps | APS (Planejamento Avançado) | Planned |
+| /vendas | Vendas/Comercial | Done |
+| /estoque | Estoque | Done |
+| /compras | Compras | Done |
+| /rh | RH | Done |
+| /projetos | Projetos | Done |
+| /fiscal | Fiscal | Done |
+| /relatorios | Relatórios | Done |
+| /aps | APS (Planejamento Avançado) | Done |
 | /qualidade | Controle de Qualidade | Done |
 
 ## Test Users (dev)
