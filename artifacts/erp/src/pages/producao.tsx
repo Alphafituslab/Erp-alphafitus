@@ -25,6 +25,7 @@ import {
   useGetFormula,
   useGetProducaoDashboard,
   useGetProductionTraceabilityByLot,
+  useListSalesOrders,
   useListProducts,
   useListProductLots,
   getListFormulasQueryKey,
@@ -39,6 +40,7 @@ import type {
   ProductionOrderDetail,
   ProductionStage,
   ProductLot,
+  SalesOrder,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,6 +100,7 @@ import {
   Ban,
   Search,
   RefreshCw,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -254,6 +257,12 @@ export default function ProducaoPage() {
   const [opScheduledStart, setOpScheduledStart] = useState("");
   const [opScheduledEnd, setOpScheduledEnd] = useState("");
   const [opNotes, setOpNotes] = useState("");
+  const [opSalesOrderId, setOpSalesOrderId] = useState("");
+
+  // Formula version comparison
+  const [compareDialog, setCompareDialog] = useState(false);
+  const [compareFormulaAId, setCompareFormulaAId] = useState("");
+  const [compareFormulaBId, setCompareFormulaBId] = useState("");
 
   // Stage apontamento state
   const [stageDialog, setStageDialog] = useState<{ open: boolean; stage?: ProductionStage; mode: "start" | "finish" }>({ open: false, mode: "start" });
@@ -282,6 +291,16 @@ export default function ProducaoPage() {
   });
 
   const opDetail = opDetailQ.data as ProductionOrderDetail | undefined;
+
+  // Sales orders for OP creation linkage
+  const salesOrdersQ = useListSalesOrders({ status: "production_planned" } as any);
+  const salesOrders = (salesOrdersQ.data ?? []) as SalesOrder[];
+
+  // Formula comparison
+  const compareAQ = useGetFormula(Number(compareFormulaAId) || 0, { query: { enabled: !!compareFormulaAId && compareDialog } as any });
+  const compareBQ = useGetFormula(Number(compareFormulaBId) || 0, { query: { enabled: !!compareFormulaBId && compareDialog } as any });
+  const compareADetail = compareAQ.data as FormulaDetail | undefined;
+  const compareBDetail = compareBQ.data as FormulaDetail | undefined;
 
   // Approved lots for pesagem lot selection (only fetch when a stage finish dialog is open for weighing)
   const isWeighingFinish = stageDialog.open && stageDialog.mode === "finish" && stageDialog.stage?.stageType === "weighing";
@@ -433,6 +452,7 @@ export default function ProducaoPage() {
     setOpScheduledStart("");
     setOpScheduledEnd("");
     setOpNotes("");
+    setOpSalesOrderId("");
     setOpDialog(true);
   }
 
@@ -447,6 +467,7 @@ export default function ProducaoPage() {
       scheduledStart: opScheduledStart || undefined,
       scheduledEnd: opScheduledEnd || undefined,
       notes: opNotes || undefined,
+      salesOrderId: opSalesOrderId ? Number(opSalesOrderId) : undefined,
     };
     createOpMut.mutate({ data: body }, {
       onSuccess: (data) => {
@@ -684,6 +705,9 @@ export default function ProducaoPage() {
                 <SelectItem value="obsolete">Obsoleta</SelectItem>
               </SelectContent>
             </Select>
+            <Button size="sm" variant="outline" onClick={() => { setCompareFormulaAId(""); setCompareFormulaBId(""); setCompareDialog(true); }}>
+              <ArrowLeftRight className="size-3.5 mr-1" />Comparar Versões
+            </Button>
             <Button size="sm" onClick={openNewFormula}>
               <Plus className="size-3.5 mr-1" />Nova Fórmula
             </Button>
@@ -1151,6 +1175,26 @@ export default function ProducaoPage() {
             <DialogTitle>Nova Ordem de Produção</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* Sales order linkage */}
+            <div>
+              <Label className="text-xs">Vincular a Pedido de Venda (opcional)</Label>
+              <Select value={opSalesOrderId || "none"} onValueChange={(v) => setOpSalesOrderId(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-8 text-sm mt-1">
+                  <SelectValue placeholder="Selecionar pedido..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem pedido vinculado</SelectItem>
+                  {salesOrders.map((so) => (
+                    <SelectItem key={so.id} value={String(so.id)}>
+                      #{so.id} {so.clientName ? `— ${so.clientName}` : ""} ({so.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {salesOrders.length === 0 && (
+                <p className="text-[11px] text-muted-foreground mt-1">Nenhum PV com status "production_planned" disponível</p>
+              )}
+            </div>
             <div>
               <Label className="text-xs">Produto Acabado *</Label>
               <Select value={opProductId || "__manual"} onValueChange={(v) => {
@@ -1222,6 +1266,97 @@ export default function ProducaoPage() {
             <Button variant="outline" size="sm" onClick={() => setOpDialog(false)}>Cancelar</Button>
             <Button size="sm" onClick={saveOp} disabled={createOpMut.isPending}>Criar OP</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Formula version comparison dialog */}
+      <Dialog open={compareDialog} onOpenChange={setCompareDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Comparar Versões de Fórmula</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Fórmula A</Label>
+                <Select value={compareFormulaAId || "none"} onValueChange={(v) => setCompareFormulaAId(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecionar fórmula A</SelectItem>
+                    {(formulasQ.data ?? []).map((f: Formula) => (
+                      <SelectItem key={f.id} value={String(f.id)}>{f.productName} v{f.version} ({f.status})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Fórmula B</Label>
+                <Select value={compareFormulaBId || "none"} onValueChange={(v) => setCompareFormulaBId(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecionar fórmula B</SelectItem>
+                    {(formulasQ.data ?? []).map((f: Formula) => (
+                      <SelectItem key={f.id} value={String(f.id)}>{f.productName} v{f.version} ({f.status})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {compareADetail && compareBDetail && (() => {
+              const itemsA = compareADetail.items ?? [];
+              const itemsB = compareBDetail.items ?? [];
+              const allProducts = Array.from(new Set([...itemsA.map((i: any) => i.productName), ...itemsB.map((i: any) => i.productName)]));
+              return (
+                <div>
+                  <div className="grid grid-cols-2 gap-3 mb-2">
+                    <div className="text-xs font-semibold text-center bg-muted/40 rounded p-1">
+                      {compareADetail.productName} v{compareADetail.version} <Badge variant="outline" className="text-[10px] ml-1">{compareADetail.status}</Badge>
+                    </div>
+                    <div className="text-xs font-semibold text-center bg-muted/40 rounded p-1">
+                      {compareBDetail.productName} v{compareBDetail.version} <Badge variant="outline" className="text-[10px] ml-1">{compareBDetail.status}</Badge>
+                    </div>
+                  </div>
+                  <div className="border rounded-md divide-y text-xs">
+                    <div className="grid grid-cols-[2fr_1fr_1fr] px-3 py-1.5 font-semibold bg-muted/30 text-muted-foreground">
+                      <span>Matéria-Prima</span><span className="text-center">v{compareADetail.version}</span><span className="text-center">v{compareBDetail.version}</span>
+                    </div>
+                    {allProducts.map((productName) => {
+                      const ia = itemsA.find((i: any) => i.productName === productName);
+                      const ib = itemsB.find((i: any) => i.productName === productName);
+                      const changed = ia?.quantity !== ib?.quantity;
+                      const added = !ia && !!ib;
+                      const removed = !!ia && !ib;
+                      return (
+                        <div key={productName} className={`grid grid-cols-[2fr_1fr_1fr] px-3 py-2 ${added ? "bg-emerald-50 dark:bg-emerald-950/20" : removed ? "bg-red-50 dark:bg-red-950/20" : changed ? "bg-amber-50 dark:bg-amber-950/20" : ""}`}>
+                          <span className="font-medium truncate">
+                            {added && <span className="text-emerald-600 mr-1">+</span>}
+                            {removed && <span className="text-red-600 mr-1">−</span>}
+                            {productName}
+                          </span>
+                          <span className="text-center text-muted-foreground">{ia ? `${fmtNum(ia.quantity)} ${ia.unit}` : "—"}</span>
+                          <span className={`text-center ${changed && !added && !removed ? "font-semibold text-amber-600" : ""}`}>
+                            {ib ? `${fmtNum(ib.quantity)} ${ib.unit}` : "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-3 mt-2 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-emerald-100 dark:bg-emerald-950/20 border rounded inline-block" />Adicionado</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 dark:bg-red-950/20 border rounded inline-block" />Removido</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-100 dark:bg-amber-950/20 border rounded inline-block" />Qtde alterada</span>
+                  </div>
+                </div>
+              );
+            })()}
+            {compareFormulaAId && compareBDetail === undefined && compareADetail === undefined && (
+              <div className="text-sm text-muted-foreground text-center py-4">Selecione duas fórmulas para comparar</div>
+            )}
+            {(!compareFormulaAId || !compareFormulaBId) && (
+              <div className="text-sm text-muted-foreground text-center py-4">Selecione as fórmulas A e B para ver as diferenças de composição</div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

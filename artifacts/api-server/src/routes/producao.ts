@@ -545,6 +545,12 @@ router.put("/producao/stages/:id/start", async (req: Request, res: Response): Pr
   const [stage] = await db.select().from(productionStagesTable).where(eq(productionStagesTable.id, id));
   if (!stage) { res.status(404).json({ error: "Etapa não encontrada" }); return; }
   if (stage.status !== "pending") { res.status(400).json({ error: "Etapa já iniciada ou concluída" }); return; }
+  // Enforce parent OP is in_production
+  const [parentOpStart] = await db.select({ status: productionOrdersTable.status }).from(productionOrdersTable).where(eq(productionOrdersTable.id, stage.orderId));
+  if (!parentOpStart || parentOpStart.status !== "in_production") {
+    res.status(400).json({ error: "A OP não está em produção. Inicie a produção antes de executar etapas." });
+    return;
+  }
   // Enforce sequence: all prior stages must be done
   if (stage.sequence > 1) {
     const priorStages = await db
@@ -580,6 +586,12 @@ router.put("/producao/stages/:id/finish", async (req: Request, res: Response): P
   const [stage] = await db.select().from(productionStagesTable).where(eq(productionStagesTable.id, id));
   if (!stage) { res.status(404).json({ error: "Etapa não encontrada" }); return; }
   if (stage.status !== "in_progress") { res.status(400).json({ error: "Etapa não está em andamento" }); return; }
+  // Enforce parent OP is in_production
+  const [parentOpFinish] = await db.select({ status: productionOrdersTable.status }).from(productionOrdersTable).where(eq(productionOrdersTable.id, stage.orderId));
+  if (!parentOpFinish || parentOpFinish.status !== "in_production") {
+    res.status(400).json({ error: "A OP não está em produção. Não é possível concluir etapas." });
+    return;
+  }
 
   const { qtyOut, losses, notes, consumptions } = req.body as {
     qtyOut?: string | number;
