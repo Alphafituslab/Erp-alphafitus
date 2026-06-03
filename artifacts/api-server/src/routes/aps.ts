@@ -176,7 +176,7 @@ router.get("/aps/schedule", async (req: Request, res: Response): Promise<void> =
 
 router.post("/aps/schedule", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
-  const { productionOrderId, workCenterId, orderNumber, productName, plannedQty, unit, scheduledStart, scheduledEnd, estimatedHours, priority, sequenceNumber, notes } = req.body;
+  const { productionOrderId, workCenterId, productName, plannedQty, unit, scheduledStart, scheduledEnd, estimatedHours, priority, sequenceNumber, notes } = req.body;
   if (!workCenterId || !scheduledStart || !scheduledEnd) {
     res.status(400).json({ error: "workCenterId, scheduledStart e scheduledEnd são obrigatórios" }); return;
   }
@@ -190,10 +190,37 @@ router.post("/aps/schedule", async (req: Request, res: Response): Promise<void> 
   if (conflict.length > 0) {
     res.status(409).json({ error: `Conflito de capacidade: o centro de trabalho já tem uma OP programada neste período (ID ${conflict[0].id}).` }); return;
   }
+
+  // Auto-generate sequential OP number: find highest existing OP-NNNN
+  const allNumbers = await db
+    .select({ orderNumber: apsScheduleTable.orderNumber })
+    .from(apsScheduleTable)
+    .where(sql`${apsScheduleTable.orderNumber} ~ '^OP-[0-9]+$'`);
+  const maxSeq = allNumbers.reduce((max, row) => {
+    const n = parseInt(row.orderNumber?.replace("OP-", "") ?? "0", 10);
+    return n > max ? n : max;
+  }, 0);
+  const generatedOrderNumber = `OP-${String(maxSeq + 1).padStart(4, "0")}`;
+
+  // Warn if this productName already has an active schedule (duplicate OP product)
+  let duplicateWarning: string | null = null;
+  if (productName) {
+    const existing = await db.select({ id: apsScheduleTable.id, orderNumber: apsScheduleTable.orderNumber })
+      .from(apsScheduleTable)
+      .where(and(
+        sql`LOWER(${apsScheduleTable.productName}) = LOWER(${productName})`,
+        sql`${apsScheduleTable.status} NOT IN ('done','cancelled')`,
+      ))
+      .limit(1);
+    if (existing.length > 0) {
+      duplicateWarning = `Produto "${productName}" já possui uma programação ativa (${existing[0].orderNumber ?? `ID ${existing[0].id}`}).`;
+    }
+  }
+
   const [row] = await db.insert(apsScheduleTable).values({
     productionOrderId: productionOrderId ? parseInt(productionOrderId, 10) : null,
     workCenterId: parseInt(workCenterId, 10),
-    orderNumber: orderNumber || null,
+    orderNumber: generatedOrderNumber,
     productName: productName || null,
     plannedQty: plannedQty || null,
     unit: unit || "kg",
@@ -204,7 +231,7 @@ router.post("/aps/schedule", async (req: Request, res: Response): Promise<void> 
     sequenceNumber: sequenceNumber || null,
     notes: notes || null,
   }).returning();
-  res.status(201).json(row);
+  res.status(201).json({ ...row, duplicateWarning });
 });
 
 router.put("/aps/schedule/:id", async (req: Request, res: Response): Promise<void> => {

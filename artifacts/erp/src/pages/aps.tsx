@@ -465,7 +465,6 @@ function ScheduleDialog({
     workCenterId: entry?.workCenterId?.toString() ?? "",
     scheduledStart: toLocalDT(entry?.scheduledStart ?? ""),
     scheduledEnd: toLocalDT(entry?.scheduledEnd ?? ""),
-    orderNumber: entry?.orderNumber ?? "",
     productName: entry?.productName ?? "",
     plannedQty: entry?.plannedQty ?? "",
     unit: entry?.unit ?? "kg",
@@ -482,7 +481,6 @@ function ScheduleDialog({
         workCenterId: entry.workCenterId.toString(),
         scheduledStart: toLocalDT(entry.scheduledStart),
         scheduledEnd: toLocalDT(entry.scheduledEnd),
-        orderNumber: entry.orderNumber ?? "",
         productName: entry.productName ?? "",
         plannedQty: entry.plannedQty ?? "",
         unit: entry.unit,
@@ -496,7 +494,7 @@ function ScheduleDialog({
       const now = new Date();
       const start = `${now.toISOString().slice(0, 10)}T07:00`;
       const end = `${now.toISOString().slice(0, 10)}T15:00`;
-      setForm({ workCenterId: "", scheduledStart: start, scheduledEnd: end, orderNumber: "", productName: "", plannedQty: "", unit: "kg", status: "planned", priority: "5", estimatedHours: "", notes: "", rescheduledReason: "" });
+      setForm({ workCenterId: "", scheduledStart: start, scheduledEnd: end, productName: "", plannedQty: "", unit: "kg", status: "planned", priority: "5", estimatedHours: "", notes: "", rescheduledReason: "" });
     }
   }, [entry, open]);
 
@@ -514,7 +512,6 @@ function ScheduleDialog({
       workCenterId: parseInt(form.workCenterId, 10),
       scheduledStart: form.scheduledStart,
       scheduledEnd: form.scheduledEnd,
-      orderNumber: form.orderNumber || null,
       productName: form.productName || null,
       plannedQty: form.plannedQty || null,
       unit: form.unit,
@@ -527,9 +524,17 @@ function ScheduleDialog({
     const mut = entry
       ? updateMut.mutateAsync({ id: entry.id, data: payload as any })
       : createMut.mutateAsync({ data: payload as any });
-    mut.then(() => {
+    mut.then((result: any) => {
       invalidate();
-      toast({ title: entry ? "Entrada atualizada" : "Entrada criada" });
+      const created = Array.isArray(result) ? result[0] : result;
+      if (!entry && created?.orderNumber) {
+        toast({ title: `Programação criada — ${created.orderNumber}` });
+        if (created?.duplicateWarning) {
+          setTimeout(() => toast({ title: "⚠️ Atenção: Produto duplicado", description: created.duplicateWarning, variant: "destructive" }), 400);
+        }
+      } else {
+        toast({ title: entry ? "Entrada atualizada" : "Entrada criada" });
+      }
       onClose();
     }).catch((e: any) => toast({ title: e?.response?.data?.error ?? e?.message ?? "Erro ao salvar", variant: "destructive" }));
   };
@@ -559,11 +564,15 @@ function ScheduleDialog({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Nº da OP</Label>
-              <Input value={form.orderNumber} onChange={e => setForm(f => ({ ...f, orderNumber: e.target.value }))} placeholder="OP-0001" />
-            </div>
-            <div>
+            {entry && (
+              <div>
+                <Label>Nº da OP</Label>
+                <div className="flex items-center h-9 px-3 rounded-md border bg-muted text-sm font-mono text-muted-foreground select-all">
+                  {entry.orderNumber ?? "—"}
+                </div>
+              </div>
+            )}
+            <div className={entry ? "" : "col-span-2"}>
               <Label>Produto</Label>
               <Input value={form.productName} onChange={e => setForm(f => ({ ...f, productName: e.target.value }))} />
             </div>
