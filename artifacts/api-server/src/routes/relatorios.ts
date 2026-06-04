@@ -645,10 +645,10 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
   });
 });
 
-// ─── Goals: PUT (admin only) ──────────────────────────────────────────────
+// ─── Goals: PUT (admin and manager) ──────────────────────────────────────────
 
 router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response): Promise<void> => {
-  if (!await requireAdminAsync(req, res)) return;
+  if (!await requireManagerAsync(req, res)) return;
 
   const year = parseInt(req.params.year as string, 10);
   const month = parseInt(req.params.month as string, 10);

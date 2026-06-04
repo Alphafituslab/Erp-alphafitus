@@ -1592,7 +1592,7 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
   this_year: "Este ano",
 };
 
-function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
+function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManager: boolean }) {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -1797,7 +1797,7 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
           <span className="text-sm text-muted-foreground">({data.periodLabel})</span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {isAdmin && (
+          {(isAdmin || isManager) && (
             <GoalsDialog currentYear={currentYear} currentMonth={currentMonth} />
           )}
           <SendEmailDialog
@@ -2064,6 +2064,7 @@ export default function RelatoriosPage() {
   const { user } = useAuth();
   const isEmployee = user?.role === "employee";
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
 
   return (
     <AppLayout>
@@ -2077,7 +2078,7 @@ export default function RelatoriosPage() {
           }
         />
 
-        {isEmployee ? <EmployeeDashboard /> : <ExecutiveDashboard isAdmin={isAdmin} />}
+        {isEmployee ? <EmployeeDashboard /> : <ExecutiveDashboard isAdmin={isAdmin} isManager={isManager} />}
       </div>
     </AppLayout>
   );
