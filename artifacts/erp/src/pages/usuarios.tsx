@@ -62,6 +62,7 @@ import {
   useUpdateUsuario,
   useDeleteUsuario,
   getListUsuariosQueryKey,
+  useGenerateBackup,
   useListBackupLogs,
   getListBackupLogsQueryKey,
 } from "@workspace/api-client-react";
@@ -284,37 +285,44 @@ function formatBytes(bytes: number): string {
 function BackupPanel() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [downloading, setDownloading] = useState(false);
   const [lastFilename, setLastFilename] = useState<string | null>(null);
 
   const { data: logs, isLoading: logsLoading } = useListBackupLogs();
 
-  function handleDownload() {
-    if (downloading) return;
-    setDownloading(true);
+  const { mutate: generateBackup, isPending } = useGenerateBackup({
+    mutation: {
+      onSuccess: (blob) => {
+        // Derive filename client-side — mirrors server timestamp logic (minute precision)
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
+        setLastFilename(filename);
 
-    // Direct browser navigation — Content-Disposition: attachment keeps the
-    // current page open and lets the browser stream directly to disk (no
-    // fetch + Blob buffering in memory).
-    const a = document.createElement("a");
-    a.href = "/api/admin/backup";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+        // Trigger browser download from the received blob
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-    // Derive expected filename (mirrors server logic) for display only
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
-
-    // Refresh log history after enough time for the server to finish and insert
-    setTimeout(() => {
-      setDownloading(false);
-      setLastFilename(filename);
-      void qc.invalidateQueries({ queryKey: getListBackupLogsQueryKey() });
-      toast({ title: "Backup gerado!", description: `Download iniciado: ${filename}` });
-    }, 4_000);
-  }
+        // Invalidate logs only after confirmed server success (not a timer)
+        void qc.invalidateQueries({ queryKey: getListBackupLogsQueryKey() });
+        toast({ title: "Backup gerado com sucesso!", description: `Download iniciado: ${filename}` });
+      },
+      onError: (err: unknown) => {
+        // customFetch throws ApiError — data field contains parsed JSON body
+        const apiErr = err as { data?: { error?: string }; message?: string };
+        const msg =
+          apiErr?.data?.error ??
+          apiErr?.message ??
+          "Erro ao gerar backup. Verifique se pg_dump está disponível.";
+        toast({ title: "Erro ao gerar backup", description: msg, variant: "destructive" });
+      },
+    },
+  });
 
   return (
     <Card className="shadow-sm mt-6">
@@ -327,10 +335,10 @@ function BackupPanel() {
           <Button
             size="sm"
             variant="outline"
-            onClick={handleDownload}
-            disabled={downloading}
+            onClick={() => generateBackup()}
+            disabled={isPending}
           >
-            {downloading ? (
+            {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Gerando backup…
@@ -345,13 +353,13 @@ function BackupPanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {downloading && (
+        {isPending && (
           <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
             <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-            <span>Executando <code className="font-mono text-xs">pg_dump</code> e comprimindo… o download deve iniciar em instantes.</span>
+            <span>Executando <code className="font-mono text-xs">pg_dump</code> e comprimindo… aguarde o download iniciar automaticamente.</span>
           </div>
         )}
-        {lastFilename && !downloading && (
+        {lastFilename && !isPending && (
           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2 text-sm text-emerald-700">
             <CheckCircle className="h-4 w-4 shrink-0" />
             <span>Último backup baixado: <span className="font-mono text-xs">{lastFilename}</span></span>

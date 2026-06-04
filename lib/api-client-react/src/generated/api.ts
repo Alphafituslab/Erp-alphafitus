@@ -15944,7 +15944,7 @@ export const getGenerateBackupUrl = () => {
 }
 
 /**
- * Runs pg_dump, compresses with gzip and streams the file for download. Registers a record in backup_logs. Use as a direct browser link for native streaming download.
+ * Runs pg_dump, compresses with gzip and streams the file for download. Registers a record in backup_logs.
  * @summary Generate a database backup (admin only)
  */
 export const generateBackup = async ( options?: RequestInit): Promise<Blob> => {
@@ -15952,7 +15952,7 @@ export const generateBackup = async ( options?: RequestInit): Promise<Blob> => {
   return customFetch<Blob>(getGenerateBackupUrl(),
   {
     ...options,
-    method: 'GET'
+    method: 'POST'
 
 
   }
@@ -15961,57 +15961,50 @@ export const generateBackup = async ( options?: RequestInit): Promise<Blob> => {
 
 
 
+export const getGenerateBackupMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateBackup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateBackup>>, TError,void, TContext> => {
 
-export const getGenerateBackupQueryKey = () => {
-    return [
-    `/api/admin/backup`
-    ] as const;
-    }
-
-
-export const getGenerateBackupQueryOptions = <TData = Awaited<ReturnType<typeof generateBackup>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof generateBackup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGenerateBackupQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof generateBackup>>> = ({ signal }) => generateBackup({ signal, ...requestOptions });
+const mutationKey = ['generateBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
 
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof generateBackup>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GenerateBackupQueryResult = NonNullable<Awaited<ReturnType<typeof generateBackup>>>
-export type GenerateBackupQueryError = ErrorType<ErrorResponse>
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateBackup>>, void> = () => {
 
 
-/**
+          return  generateBackup(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateBackupMutationResult = NonNullable<Awaited<ReturnType<typeof generateBackup>>>
+
+    export type GenerateBackupMutationError = ErrorType<ErrorResponse>
+
+    /**
  * @summary Generate a database backup (admin only)
  */
-
-export function useGenerateBackup<TData = Awaited<ReturnType<typeof generateBackup>>, TError = ErrorType<ErrorResponse>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof generateBackup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGenerateBackupQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
+export const useGenerateBackup = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateBackup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateBackup>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getGenerateBackupMutationOptions(options));
+    }
 
 export const getListBackupLogsUrl = () => {
 
