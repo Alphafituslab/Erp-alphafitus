@@ -2462,6 +2462,11 @@ export interface FiscalDashboard {
   byType: FiscalDashboardByTypeItem[];
 }
 
+export interface NFeXmlInput {
+  /** NF-e XML file (.xml) */
+  file: Blob;
+}
+
 /**
  * existing = link to existing product; create = create new product; skip = ignore item
  */
@@ -2493,6 +2498,8 @@ export interface NFeImportItem {
   existingProductName?: string | null;
   /** existing = link to existing product; create = create new product; skip = ignore item */
   importAs?: NFeImportItemImportAs;
+  /** Product category to assign on create */
+  category?: string | null;
 }
 
 export interface NFeParseResult {

@@ -26,4 +26,6 @@ export interface NFeImportItem {
   existingProductName?: string | null;
   /** existing = link to existing product; create = create new product; skip = ignore item */
   importAs?: NFeImportItemImportAs;
+  /** Product category to assign on create */
+  category?: string | null;
 }

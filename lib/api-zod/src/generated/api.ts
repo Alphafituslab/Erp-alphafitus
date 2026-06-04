@@ -4418,6 +4418,60 @@ export const ExportFiscalDocumentsCsvQueryParams = zod.object({
 
 
 /**
+ * @summary Parse NF-e XML file and return review data (no DB write)
+ */
+export const NfeXmlUploadBody = zod.object({
+  "file": zod.instanceof(File).describe('NF-e XML file (.xml)')
+})
+
+export const NfeXmlUploadResponse = zod.object({
+  "accessKey": zod.string(),
+  "issueDate": zod.string(),
+  "number": zod.string(),
+  "serie": zod.string(),
+  "naturalOperation": zod.string(),
+  "tpNF": zod.number().optional().describe('0 = entrada, 1 = saída'),
+  "emitterName": zod.string(),
+  "emitterTradeName": zod.string().nullish(),
+  "emitterDocument": zod.string(),
+  "emitterStreet": zod.string().nullish(),
+  "emitterNumber": zod.string().nullish(),
+  "emitterCity": zod.string().nullish(),
+  "emitterState": zod.string().nullish(),
+  "emitterZip": zod.string().nullish(),
+  "recipientName": zod.string(),
+  "recipientDocument": zod.string(),
+  "items": zod.array(zod.object({
+  "itemNumber": zod.number(),
+  "supplierCode": zod.string(),
+  "ean": zod.string().nullish(),
+  "description": zod.string(),
+  "ncm": zod.string(),
+  "cfop": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string(),
+  "totalPrice": zod.string(),
+  "icmsValue": zod.string().nullish(),
+  "icmsRate": zod.string().nullish(),
+  "pisValue": zod.string().nullish(),
+  "cofinsValue": zod.string().nullish(),
+  "existingProductId": zod.number().nullish(),
+  "existingProductName": zod.string().nullish(),
+  "importAs": zod.enum(['existing', 'create', 'skip']).optional().describe('existing = link to existing product; create = create new product; skip = ignore item'),
+  "category": zod.string().nullish().describe('Product category to assign on create')
+})),
+  "totalNF": zod.string(),
+  "totalICMS": zod.string(),
+  "totalPIS": zod.string(),
+  "totalCOFINS": zod.string(),
+  "xmlContent": zod.string(),
+  "existingSupplierId": zod.number().nullable(),
+  "duplicateAccessKey": zod.boolean().nullish()
+})
+
+
+/**
  * @summary Confirm NF-e import — persist fiscal document, supplier upsert, products upsert, stock entry
  */
 export const ConfirmNFeImportBody = zod.object({
@@ -4463,7 +4517,8 @@ export const ConfirmNFeImportBody = zod.object({
   "cofinsValue": zod.string().nullish(),
   "existingProductId": zod.number().nullish(),
   "existingProductName": zod.string().nullish(),
-  "importAs": zod.enum(['existing', 'create', 'skip']).optional().describe('existing = link to existing product; create = create new product; skip = ignore item')
+  "importAs": zod.enum(['existing', 'create', 'skip']).optional().describe('existing = link to existing product; create = create new product; skip = ignore item'),
+  "category": zod.string().nullish().describe('Product category to assign on create')
 }))
 })
 

@@ -238,11 +238,20 @@ router.post(
         let existingProductId: number | null = null;
         let existingProductName: string | null = null;
 
+        // Match priority: EAN → supplier code (cProd) → none
         if (item.ean) {
           const [prod] = await db
             .select({ id: productsTable.id, name: productsTable.name })
             .from(productsTable)
             .where(eq(productsTable.sku, item.ean));
+          if (prod) { existingProductId = prod.id; existingProductName = prod.name; }
+        }
+
+        if (!existingProductId && item.supplierCode) {
+          const [prod] = await db
+            .select({ id: productsTable.id, name: productsTable.name })
+            .from(productsTable)
+            .where(eq(productsTable.sku, item.supplierCode));
           if (prod) { existingProductId = prod.id; existingProductName = prod.name; }
         }
 
@@ -334,7 +343,7 @@ router.post("/fiscal/import-xml/confirm", async (req: Request, res: Response): P
     const itemArray: Array<{
       importAs: string; existingProductId: number | null;
       description: string; ncm: string; unit: string; supplierCode: string;
-      quantity: string; totalPrice: string;
+      quantity: string; totalPrice: string; category?: string | null;
     }> = Array.isArray(items) ? items : [];
 
     for (const item of itemArray) {
@@ -350,6 +359,7 @@ router.post("/fiscal/import-xml/confirm", async (req: Request, res: Response): P
             sku: item.supplierCode || null,
             unit: item.unit || "un",
             ncm: item.ncm || null,
+            category: item.category || null,
             defaultSupplierId: supplierId,
             currentStock: "0",
             minStock: 0,

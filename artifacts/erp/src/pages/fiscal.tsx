@@ -80,6 +80,7 @@ import {
   useGetFiscalTaxSummary,
   useGetFiscalDashboard,
   useConfirmNFeImport,
+  useNfeXmlUpload,
   getListFiscalDocumentsQueryKey,
   getGetFiscalTaxSummaryQueryKey,
   getGetFiscalDashboardQueryKey,
@@ -119,7 +120,12 @@ const fmtCnpj = (v: string) => {
   return v;
 };
 
-type ItemDraft = NFeImportItem & { descriptionEdited: string };
+type ItemDraft = NFeImportItem & { descriptionEdited: string; categoryEdited: string };
+
+const PRODUCT_CATEGORIES = [
+  "Matéria-Prima", "Embalagem", "Produto Acabado", "Produto Semi-acabado",
+  "Insumo", "Reagente", "Consumível", "Equipamento", "Outro",
+];
 
 const IMPORT_AS_LABELS: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   create: { label: "Criar produto", icon: <PackagePlus className="h-3 w-3" />, className: "text-blue-700" },
@@ -133,21 +139,22 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<"upload" | "review">("upload");
-  const [parsing, setParsing] = useState(false);
   const [parsed, setParsed] = useState<NFeParseResult | null>(null);
   const [items, setItems] = useState<ItemDraft[]>([]);
   const [createSupplier, setCreateSupplier] = useState(true);
+  const [overrideSupplierId, setOverrideSupplierId] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const [notes, setNotes] = useState("");
 
+  const parseMut = useNfeXmlUpload();
   const confirmMut = useConfirmNFeImport();
 
   const reset = useCallback(() => {
     setStep("upload");
     setParsed(null);
     setItems([]);
-    setParsing(false);
     setCreateSupplier(true);
+    setOverrideSupplierId(null);
     setNotes("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
@@ -158,29 +165,19 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
     if (!file.name.toLowerCase().endsWith(".xml")) {
       toast({ title: "Selecione um arquivo .xml", variant: "destructive" }); return;
     }
-    setParsing(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const resp = await fetch("/api/fiscal/import-xml", {
-        method: "POST",
-        body: fd,
-        credentials: "include",
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
-        toast({ title: err.error ?? "Erro ao processar XML", variant: "destructive" });
-        return;
-      }
-      const data: NFeParseResult = await resp.json();
+      const data = await parseMut.mutateAsync({ data: { file } });
       setParsed(data);
-      setItems(data.items.map((it) => ({ ...it, descriptionEdited: it.description })));
+      setItems(data.items.map((it) => ({
+        ...it,
+        descriptionEdited: it.description,
+        categoryEdited: it.category ?? "",
+      })));
       setCreateSupplier(!data.existingSupplierId);
       setStep("review");
-    } catch {
-      toast({ title: "Erro ao enviar arquivo", variant: "destructive" });
-    } finally {
-      setParsing(false);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao processar XML";
+      toast({ title: msg, variant: "destructive" });
     }
   };
 
@@ -226,10 +223,14 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
       totalPIS: parsed.totalPIS,
       totalCOFINS: parsed.totalCOFINS,
       xmlContent: parsed.xmlContent,
-      existingSupplierId: parsed.existingSupplierId ?? null,
+      existingSupplierId: overrideSupplierId ?? parsed.existingSupplierId ?? null,
       createSupplier,
       notes: notes || null,
-      items: items.map((it) => ({ ...it, description: it.descriptionEdited })),
+      items: items.map((it) => ({
+        ...it,
+        description: it.descriptionEdited,
+        category: it.categoryEdited || null,
+      })),
     };
 
     try {
@@ -265,18 +266,18 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
               className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
                 dragging ? "border-blue-400 bg-blue-50" : "border-muted-foreground/30 hover:border-blue-300 hover:bg-muted/30"
               }`}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !parseMut.isPending && fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}
             >
-              {parsing ? (
+              {parseMut.isPending ? (
                 <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-3" />
               ) : (
                 <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
               )}
               <p className="text-sm font-medium">
-                {parsing ? "Processando XML…" : "Arraste o arquivo XML aqui ou clique para selecionar"}
+                {parseMut.isPending ? "Processando XML…" : "Arraste o arquivo XML aqui ou clique para selecionar"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Suporte para NF-e v4.00 (.xml)</p>
             </div>
@@ -343,20 +344,50 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
             <div className="border rounded-lg p-3 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fornecedor</p>
               {parsed.existingSupplierId ? (
-                <div className="flex items-center gap-2 text-sm text-green-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Fornecedor já cadastrado (ID #{parsed.existingSupplierId})
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Fornecedor já cadastrado (ID #{parsed.existingSupplierId})
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Para vincular a um fornecedor diferente, informe o ID abaixo:
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="ID do fornecedor alternativo (opcional)"
+                      className="h-7 text-xs w-56"
+                      value={overrideSupplierId ?? ""}
+                      onChange={(e) => setOverrideSupplierId(e.target.value ? Number(e.target.value) : null)}
+                    />
+                    {overrideSupplierId && (
+                      <span className="text-xs text-blue-700">Usando fornecedor #{overrideSupplierId}</span>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={createSupplier}
-                    onChange={(e) => setCreateSupplier(e.target.checked)}
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  Criar novo fornecedor <span className="font-medium text-blue-700">{parsed.emitterName}</span> ({fmtCnpj(parsed.emitterDocument)}) automaticamente
-                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={createSupplier}
+                      onChange={(e) => setCreateSupplier(e.target.checked)}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                    />
+                    Criar novo fornecedor <span className="font-medium text-blue-700">{parsed.emitterName}</span> ({fmtCnpj(parsed.emitterDocument)}) automaticamente
+                  </label>
+                  {!createSupplier && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="ID do fornecedor existente para vincular"
+                        className="h-7 text-xs w-64"
+                        value={overrideSupplierId ?? ""}
+                        onChange={(e) => setOverrideSupplierId(e.target.value ? Number(e.target.value) : null)}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -371,7 +402,8 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
                     <TableRow className="bg-muted/30">
                       <TableHead className="text-xs w-8">#</TableHead>
                       <TableHead className="text-xs">Código</TableHead>
-                      <TableHead className="text-xs min-w-[180px]">Descrição (editável)</TableHead>
+                      <TableHead className="text-xs min-w-[160px]">Descrição (editável)</TableHead>
+                      <TableHead className="text-xs min-w-[120px]">Categoria</TableHead>
                       <TableHead className="text-xs">NCM</TableHead>
                       <TableHead className="text-xs">CFOP</TableHead>
                       <TableHead className="text-xs text-right">Qtd</TableHead>
@@ -392,6 +424,23 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
                             className="h-7 text-xs"
                             disabled={item.importAs === "skip"}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.categoryEdited || "__none__"}
+                            onValueChange={(v) => setItemField(idx, "categoryEdited", v === "__none__" ? "" : v)}
+                            disabled={item.importAs !== "create"}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-36">
+                              <SelectValue placeholder="Categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Sem categoria</SelectItem>
+                              {PRODUCT_CATEGORIES.map((cat) => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-xs font-mono">{item.ncm}</TableCell>
                         <TableCell className="text-xs">{item.cfop}</TableCell>

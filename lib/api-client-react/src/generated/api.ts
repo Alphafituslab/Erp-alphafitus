@@ -122,6 +122,8 @@ import type {
   MarkPaidInput,
   MaterialNeeds,
   NFeImportConfirmInput,
+  NFeParseResult,
+  NFeXmlInput,
   NcrDetail,
   OkResponse,
   PriceHistoryPoint,
@@ -11840,6 +11842,79 @@ export function useExportFiscalDocumentsCsv<TData = Awaited<ReturnType<typeof ex
 
 
 
+
+export const getNfeXmlUploadUrl = () => {
+
+
+
+
+  return `/api/fiscal/import-xml`
+}
+
+/**
+ * @summary Parse NF-e XML file and return review data (no DB write)
+ */
+export const nfeXmlUpload = async (nFeXmlInput: NFeXmlInput, options?: RequestInit): Promise<NFeParseResult> => {
+    const formData = new FormData();
+formData.append(`file`, nFeXmlInput.file);
+
+  return customFetch<NFeParseResult>(getNfeXmlUploadUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body:
+      formData,
+  }
+);}
+
+
+
+
+export const getNfeXmlUploadMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof nfeXmlUpload>>, TError,{data: BodyType<NFeXmlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof nfeXmlUpload>>, TError,{data: BodyType<NFeXmlInput>}, TContext> => {
+
+const mutationKey = ['nfeXmlUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof nfeXmlUpload>>, {data: BodyType<NFeXmlInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  nfeXmlUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NfeXmlUploadMutationResult = NonNullable<Awaited<ReturnType<typeof nfeXmlUpload>>>
+    export type NfeXmlUploadMutationBody = BodyType<NFeXmlInput>
+    export type NfeXmlUploadMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Parse NF-e XML file and return review data (no DB write)
+ */
+export const useNfeXmlUpload = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof nfeXmlUpload>>, TError,{data: BodyType<NFeXmlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof nfeXmlUpload>>,
+        TError,
+        {data: BodyType<NFeXmlInput>},
+        TContext
+      > => {
+      return useMutation(getNfeXmlUploadMutationOptions(options));
+    }
 
 export const getConfirmNFeImportUrl = () => {
 

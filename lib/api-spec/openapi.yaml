@@ -5074,6 +5074,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /fiscal/import-xml:
+    post:
+      operationId: nfeXmlUpload
+      tags: [fiscal]
+      summary: Parse NF-e XML file and return review data (no DB write)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/NFeXmlInput"
+      responses:
+        "200":
+          description: Parsed NF-e review data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NFeParseResult"
+        "400":
+          description: Invalid XML or not an NF-e
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /fiscal/import-xml/confirm:
     post:
       operationId: confirmNFeImport
@@ -11250,6 +11281,16 @@ components:
               totalAmount:
                 type: string
 
+    NFeXmlInput:
+      type: object
+      required:
+        - file
+      properties:
+        file:
+          type: string
+          format: binary
+          description: NF-e XML file (.xml)
+
     NFeImportItem:
       type: object
       required:
@@ -11306,6 +11347,10 @@ components:
           type: string
           enum: [existing, create, skip]
           description: "existing = link to existing product; create = create new product; skip = ignore item"
+        category:
+          type: string
+          nullable: true
+          description: "Product category to assign on create"
 
     NFeParseResult:
       type: object
