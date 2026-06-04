@@ -6929,11 +6929,11 @@ paths:
   # ─── Admin: Backup ──────────────────────────────────────────────────────────
 
   /admin/backup:
-    post:
+    get:
       operationId: generateBackup
       tags: [admin]
       summary: Generate a database backup (admin only)
-      description: Runs pg_dump, compresses with gzip and streams the file for download. Registers a record in backup_logs.
+      description: Runs pg_dump, compresses with gzip and streams the file for download. Registers a record in backup_logs. Use as a direct browser link for native streaming download.
       responses:
         "200":
           description: Backup file streamed as application/gzip attachment

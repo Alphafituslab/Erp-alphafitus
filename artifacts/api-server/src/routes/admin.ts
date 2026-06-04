@@ -29,9 +29,9 @@ async function requireAdmin(req: Request, res: Response): Promise<boolean> {
   return true;
 }
 
-// ─── POST /admin/backup ───────────────────────────────────────────────────────
+// ─── GET /admin/backup ────────────────────────────────────────────────────────
 
-router.post("/admin/backup", async (req: Request, res: Response): Promise<void> => {
+router.get("/admin/backup", async (req: Request, res: Response): Promise<void> => {
   if (!await requireAdmin(req, res)) return;
 
   const dbUrl = process.env.DATABASE_URL;
