@@ -49,7 +49,10 @@ import {
   Settings,
   Mail,
   X,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ComposedChart,
@@ -77,6 +80,30 @@ import {
 import type { ReportSchedule } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+
+// ── PDF settings (persisted in localStorage) ──────────────────────────────────
+
+const PDF_SETTINGS_KEY = "erp_pdf_settings";
+
+interface PdfSettings {
+  companyName: string;
+  logoBase64: string | null;
+  includeHeader: boolean;
+}
+
+function loadPdfSettings(): PdfSettings {
+  try {
+    const raw = localStorage.getItem(PDF_SETTINGS_KEY);
+    if (raw) return JSON.parse(raw) as PdfSettings;
+  } catch {}
+  return { companyName: "NEXUS ERP", logoBase64: null, includeHeader: true };
+}
+
+function savePdfSettings(s: PdfSettings) {
+  try {
+    localStorage.setItem(PDF_SETTINGS_KEY, JSON.stringify(s));
+  } catch {}
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -582,6 +609,167 @@ function SendEmailDialog({
             </Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── PDF Export Dialog ─────────────────────────────────────────────────────────
+
+function PdfExportDialog({
+  onExport,
+  disabled,
+}: {
+  onExport: (settings: PdfSettings) => Promise<void>;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState<PdfSettings>(loadPdfSettings);
+  const [exporting, setExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setSettings((prev) => ({
+        ...prev,
+        logoBase64: (ev.target?.result as string) ?? null,
+      }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleExport() {
+    savePdfSettings(settings);
+    setExporting(true);
+    try {
+      await onExport(settings);
+      setOpen(false);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" disabled={disabled}>
+          <Download className="h-4 w-4 mr-2" />
+          Exportar PDF
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Exportar Relatório em PDF
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-2">
+          <div className="flex items-center gap-3 rounded-md border p-3">
+            <Checkbox
+              id="include-header"
+              checked={settings.includeHeader}
+              onCheckedChange={(v) =>
+                setSettings((prev) => ({ ...prev, includeHeader: !!v }))
+              }
+            />
+            <Label htmlFor="include-header" className="cursor-pointer leading-snug">
+              Incluir cabeçalho com logo e rodapé com numeração de páginas
+            </Label>
+          </div>
+
+          {settings.includeHeader && (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="pdf-company-name">Nome da empresa</Label>
+                <Input
+                  id="pdf-company-name"
+                  value={settings.companyName}
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, companyName: e.target.value }))
+                  }
+                  placeholder="Ex: Empresa Ltda."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Logo da empresa</Label>
+                <div className="flex items-center gap-3">
+                  {settings.logoBase64 ? (
+                    <img
+                      src={settings.logoBase64}
+                      alt="Logo"
+                      className="h-10 w-auto max-w-[80px] object-contain border rounded p-0.5"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 border rounded flex items-center justify-center bg-muted">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {settings.logoBase64 ? "Trocar logo" : "Carregar logo"}
+                  </Button>
+                  {settings.logoBase64 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setSettings((prev) => ({ ...prev, logoBase64: null }))
+                      }
+                    >
+                      Remover
+                    </Button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  PNG ou JPG recomendado. A logo é salva no navegador.
+                </p>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={exporting}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleExport} disabled={exporting}>
+              {exporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Gerando PDF…
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1139,7 +1327,6 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 
 function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
-  const [exporting, setExporting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -1182,9 +1369,8 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  async function handleExportPdf() {
+  async function handleExportPdf(pdfSettings: PdfSettings) {
     if (!printRef.current || isLoading) return;
-    setExporting(true);
     try {
       const [{ toPng }, { jsPDF }] = await Promise.all([
         import("html-to-image"),
@@ -1198,36 +1384,130 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
         pixelRatio: 2,
         backgroundColor: "#ffffff",
       });
+
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
       const margin = 10;
       const contentW = pageW - margin * 2;
+
+      const HEADER_H = pdfSettings.includeHeader ? 20 : 0;
+      const FOOTER_H = pdfSettings.includeHeader ? 10 : 0;
+      const availableH = pageH - margin * 2 - HEADER_H - FOOTER_H;
+
       const imgH = (elH * contentW) / elW;
+      const totalPages = Math.max(1, Math.ceil(imgH / availableH));
+
+      const generatedAt = new Date().toLocaleString("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
+      const periodLabelText = data?.periodLabel ?? PERIOD_LABELS[period];
+
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+
+        // ── Content image (place first, then cover non-content zones) ──────────
+        const imgY = margin + HEADER_H - page * availableH;
+        pdf.addImage(imgData, "PNG", margin, imgY, contentW, imgH);
+
+        if (pdfSettings.includeHeader) {
+          // ── Header overlay (white background + content) ────────────────────
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(0, 0, pageW, HEADER_H, "F");
+
+          // Bottom border of header
+          pdf.setDrawColor(226, 232, 240);
+          pdf.setLineWidth(0.3);
+          pdf.line(0, HEADER_H, pageW, HEADER_H);
+
+          let xCursor = margin;
+
+          // Logo (if provided)
+          if (pdfSettings.logoBase64) {
+            try {
+              const isJpeg =
+                pdfSettings.logoBase64.startsWith("data:image/jpeg") ||
+                pdfSettings.logoBase64.startsWith("data:image/jpg");
+              const fmt = isJpeg ? "JPEG" : "PNG";
+              const logoSize = 13;
+              const logoY = (HEADER_H - logoSize) / 2;
+              pdf.addImage(pdfSettings.logoBase64, fmt, xCursor, logoY, logoSize, logoSize);
+              xCursor += logoSize + 3;
+            } catch {
+              // Skip logo if it can't be added
+            }
+          }
+
+          // Company name (bold)
+          pdf.setFontSize(13);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(30, 41, 59);
+          pdf.text(pdfSettings.companyName || "NEXUS ERP", xCursor, HEADER_H / 2 - 1);
+
+          // Subtitle: report label + period
+          pdf.setFontSize(8);
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(
+            `Relatório Executivo — ${periodLabelText}`,
+            xCursor,
+            HEADER_H / 2 + 4.5,
+          );
+
+          // Generated date (top-right)
+          pdf.setFontSize(7);
+          pdf.setTextColor(148, 163, 184);
+          const dateText = `Gerado em ${generatedAt}`;
+          const dateW = pdf.getTextWidth(dateText);
+          pdf.text(dateText, pageW - margin - dateW, HEADER_H / 2 - 1);
+
+          // ── Footer overlay ─────────────────────────────────────────────────
+          const footerY = pageH - FOOTER_H;
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(0, footerY, pageW, FOOTER_H, "F");
+
+          // Top border of footer
+          pdf.setDrawColor(226, 232, 240);
+          pdf.setLineWidth(0.3);
+          pdf.line(0, footerY, pageW, footerY);
+
+          const footerTextY = footerY + FOOTER_H / 2 + 1.5;
+
+          pdf.setFontSize(7);
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(148, 163, 184);
+          pdf.text("Documento confidencial — uso interno", margin, footerTextY);
+
+          const pageText = `Página ${page + 1} de ${totalPages}`;
+          const pageTextW = pdf.getTextWidth(pageText);
+          pdf.text(pageText, pageW - margin - pageTextW, footerTextY);
+
+          // ── White strips to clip content bleeding into header/footer margins ──
+          // Left/right margins
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(0, HEADER_H, margin, pageH - HEADER_H - FOOTER_H, "F");
+          pdf.rect(pageW - margin, HEADER_H, margin, pageH - HEADER_H - FOOTER_H, "F");
+        } else {
+          // No header: still clip left/right margins
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(0, 0, margin, pageH, "F");
+          pdf.rect(pageW - margin, 0, margin, pageH, "F");
+        }
+      }
 
       const periodSlug = (data?.periodLabel ?? period)
         .toLowerCase()
         .replace(/\//g, "-")
         .replace(/\s+/g, "-");
-      const filename = `relatorio-executivo-${periodSlug}.pdf`;
-
-      let yOffset = 0;
-      while (yOffset < imgH) {
-        if (yOffset > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", margin, margin - yOffset, contentW, imgH);
-        yOffset += pageH - margin * 2;
-      }
-
-      pdf.save(filename);
+      pdf.save(`relatorio-executivo-${periodSlug}.pdf`);
     } catch {
       toast({
         title: "Erro ao exportar PDF",
         description: "Não foi possível gerar o relatório. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
-      setExporting(false);
     }
   }
 
@@ -1258,19 +1538,10 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
             periodLabel={data?.periodLabel}
             disabled={isLoading}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPdf}
-            disabled={isLoading || exporting}
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {exporting ? "Gerando PDF…" : "Exportar PDF"}
-          </Button>
+          <PdfExportDialog
+            onExport={handleExportPdf}
+            disabled={isLoading}
+          />
         </div>
       </div>
 
