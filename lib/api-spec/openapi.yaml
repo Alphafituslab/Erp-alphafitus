@@ -7124,13 +7124,76 @@ components:
           type: integer
         name:
           type: string
+        tradeName:
+          type: string
+          nullable: true
         document:
+          type: string
+          nullable: true
+        stateRegistration:
           type: string
           nullable: true
         email:
           type: string
           nullable: true
         phone:
+          type: string
+          nullable: true
+        billingZipCode:
+          type: string
+          nullable: true
+        billingStreet:
+          type: string
+          nullable: true
+        billingNumber:
+          type: string
+          nullable: true
+        billingComplement:
+          type: string
+          nullable: true
+        billingNeighborhood:
+          type: string
+          nullable: true
+        billingCity:
+          type: string
+          nullable: true
+        billingState:
+          type: string
+          nullable: true
+        shippingZipCode:
+          type: string
+          nullable: true
+        shippingStreet:
+          type: string
+          nullable: true
+        shippingNumber:
+          type: string
+          nullable: true
+        shippingComplement:
+          type: string
+          nullable: true
+        shippingNeighborhood:
+          type: string
+          nullable: true
+        shippingCity:
+          type: string
+          nullable: true
+        shippingState:
+          type: string
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        contactPhone:
+          type: string
+          nullable: true
+        creditLimit:
+          type: string
+          nullable: true
+        defaultDiscountPct:
+          type: string
+          nullable: true
+        taxRegime:
           type: string
           nullable: true
         address:
@@ -7161,13 +7224,76 @@ components:
       properties:
         name:
           type: string
+        tradeName:
+          type: string
+          nullable: true
         document:
+          type: string
+          nullable: true
+        stateRegistration:
           type: string
           nullable: true
         email:
           type: string
           nullable: true
         phone:
+          type: string
+          nullable: true
+        billingZipCode:
+          type: string
+          nullable: true
+        billingStreet:
+          type: string
+          nullable: true
+        billingNumber:
+          type: string
+          nullable: true
+        billingComplement:
+          type: string
+          nullable: true
+        billingNeighborhood:
+          type: string
+          nullable: true
+        billingCity:
+          type: string
+          nullable: true
+        billingState:
+          type: string
+          nullable: true
+        shippingZipCode:
+          type: string
+          nullable: true
+        shippingStreet:
+          type: string
+          nullable: true
+        shippingNumber:
+          type: string
+          nullable: true
+        shippingComplement:
+          type: string
+          nullable: true
+        shippingNeighborhood:
+          type: string
+          nullable: true
+        shippingCity:
+          type: string
+          nullable: true
+        shippingState:
+          type: string
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        contactPhone:
+          type: string
+          nullable: true
+        creditLimit:
+          type: string
+          nullable: true
+        defaultDiscountPct:
+          type: string
+          nullable: true
+        taxRegime:
           type: string
           nullable: true
         address:
@@ -7594,6 +7720,9 @@ components:
           nullable: true
         unit:
           type: string
+        secondaryUnit:
+          type: string
+          nullable: true
         costPrice:
           type: string
           nullable: true
@@ -7606,6 +7735,30 @@ components:
           type: integer
         isCritical:
           type: string
+        ncm:
+          type: string
+          nullable: true
+        cest:
+          type: string
+          nullable: true
+        shelfLifeDays:
+          type: integer
+          nullable: true
+        storageTemp:
+          type: string
+          nullable: true
+        storageHumidity:
+          type: string
+          nullable: true
+        regulatoryInfo:
+          type: string
+          nullable: true
+        defaultSupplierId:
+          type: integer
+          nullable: true
+        leadTimeDays:
+          type: integer
+          nullable: true
         active:
           type: string
         createdAt:
@@ -7634,6 +7787,9 @@ components:
         unit:
           type: string
           nullable: true
+        secondaryUnit:
+          type: string
+          nullable: true
         costPrice:
           type: string
           nullable: true
@@ -7648,6 +7804,30 @@ components:
           nullable: true
         isCritical:
           type: string
+          nullable: true
+        ncm:
+          type: string
+          nullable: true
+        cest:
+          type: string
+          nullable: true
+        shelfLifeDays:
+          type: integer
+          nullable: true
+        storageTemp:
+          type: string
+          nullable: true
+        storageHumidity:
+          type: string
+          nullable: true
+        regulatoryInfo:
+          type: string
+          nullable: true
+        defaultSupplierId:
+          type: integer
+          nullable: true
+        leadTimeDays:
+          type: integer
           nullable: true
 
     SupplierAnalysisResult:
@@ -8870,7 +9050,16 @@ components:
           type: integer
         name:
           type: string
+        tradeName:
+          type: string
+          nullable: true
         document:
+          type: string
+          nullable: true
+        stateRegistration:
+          type: string
+          nullable: true
+        municipalRegistration:
           type: string
           nullable: true
         email:
@@ -8879,13 +9068,46 @@ components:
         phone:
           type: string
           nullable: true
-        address:
+        zipCode:
+          type: string
+          nullable: true
+        street:
+          type: string
+          nullable: true
+        addressNumber:
+          type: string
+          nullable: true
+        complement:
+          type: string
+          nullable: true
+        neighborhood:
           type: string
           nullable: true
         city:
           type: string
           nullable: true
         state:
+          type: string
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        contactRole:
+          type: string
+          nullable: true
+        contactPhone:
+          type: string
+          nullable: true
+        bankName:
+          type: string
+          nullable: true
+        bankAgency:
+          type: string
+          nullable: true
+        bankAccount:
+          type: string
+          nullable: true
+        bankAccountType:
           type: string
           nullable: true
         category:
@@ -8902,6 +9124,9 @@ components:
         approvalStatus:
           type: string
           enum: [approved, pending, blocked]
+        qualificationStatus:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -8916,7 +9141,16 @@ components:
       properties:
         name:
           type: string
+        tradeName:
+          type: string
+          nullable: true
         document:
+          type: string
+          nullable: true
+        stateRegistration:
+          type: string
+          nullable: true
+        municipalRegistration:
           type: string
           nullable: true
         email:
@@ -8925,13 +9159,46 @@ components:
         phone:
           type: string
           nullable: true
-        address:
+        zipCode:
+          type: string
+          nullable: true
+        street:
+          type: string
+          nullable: true
+        addressNumber:
+          type: string
+          nullable: true
+        complement:
+          type: string
+          nullable: true
+        neighborhood:
           type: string
           nullable: true
         city:
           type: string
           nullable: true
         state:
+          type: string
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        contactRole:
+          type: string
+          nullable: true
+        contactPhone:
+          type: string
+          nullable: true
+        bankName:
+          type: string
+          nullable: true
+        bankAgency:
+          type: string
+          nullable: true
+        bankAccount:
+          type: string
+          nullable: true
+        bankAccountType:
           type: string
           nullable: true
         category:
@@ -8941,6 +9208,9 @@ components:
           type: string
           nullable: true
         notes:
+          type: string
+          nullable: true
+        qualificationStatus:
           type: string
           nullable: true
 

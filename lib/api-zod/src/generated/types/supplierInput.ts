@@ -8,13 +8,28 @@
 
 export interface SupplierInput {
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
+  municipalRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
-  address?: string | null;
+  zipCode?: string | null;
+  street?: string | null;
+  addressNumber?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
+  contactName?: string | null;
+  contactRole?: string | null;
+  contactPhone?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  bankAccount?: string | null;
+  bankAccountType?: string | null;
   category?: string | null;
   paymentTerms?: string | null;
   notes?: string | null;
+  qualificationStatus?: string | null;
 }

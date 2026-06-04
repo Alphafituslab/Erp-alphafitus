@@ -12,9 +12,18 @@ export interface ProductInput {
   description?: string | null;
   category?: string | null;
   unit?: string | null;
+  secondaryUnit?: string | null;
   costPrice?: string | null;
   salePrice?: string | null;
   minStock?: number | null;
   currentStock?: string | null;
   isCritical?: string | null;
+  ncm?: string | null;
+  cest?: string | null;
+  shelfLifeDays?: number | null;
+  storageTemp?: string | null;
+  storageHumidity?: string | null;
+  regulatoryInfo?: string | null;
+  defaultSupplierId?: number | null;
+  leadTimeDays?: number | null;
 }

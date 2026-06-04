@@ -66,7 +66,12 @@ router.get("/estoque/products", async (req: Request, res: Response): Promise<voi
 router.post("/estoque/products", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { name, sku, description, category, unit, costPrice, salePrice, minStock, currentStock } = req.body;
+  const {
+    name, sku, description, category, unit, secondaryUnit,
+    costPrice, salePrice, minStock, currentStock, isCritical,
+    ncm, cest, shelfLifeDays, storageTemp, storageHumidity,
+    regulatoryInfo, defaultSupplierId, leadTimeDays,
+  } = req.body;
 
   if (!name || typeof name !== "string" || name.trim() === "") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -81,10 +86,20 @@ router.post("/estoque/products", async (req: Request, res: Response): Promise<vo
       description: description || null,
       category: category || null,
       unit: unit || "un",
+      secondaryUnit: secondaryUnit || null,
       costPrice: costPrice ? String(costPrice) : null,
       salePrice: salePrice ? String(salePrice) : null,
       minStock: minStock ? parseInt(minStock) : 0,
       currentStock: currentStock ? String(parseFloat(currentStock)) : "0",
+      isCritical: isCritical === "true" || isCritical === true ? "true" : "false",
+      ncm: ncm || null,
+      cest: cest || null,
+      shelfLifeDays: shelfLifeDays ? parseInt(shelfLifeDays) : null,
+      storageTemp: storageTemp || null,
+      storageHumidity: storageHumidity || null,
+      regulatoryInfo: regulatoryInfo || null,
+      defaultSupplierId: defaultSupplierId ? parseInt(defaultSupplierId) : null,
+      leadTimeDays: leadTimeDays ? parseInt(leadTimeDays) : null,
       active: "true",
     })
     .returning();
@@ -98,7 +113,12 @@ router.put("/estoque/products/:id", async (req: Request, res: Response): Promise
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
-  const { name, sku, description, category, unit, costPrice, salePrice, minStock } = req.body;
+  const {
+    name, sku, description, category, unit, secondaryUnit,
+    costPrice, salePrice, minStock, isCritical,
+    ncm, cest, shelfLifeDays, storageTemp, storageHumidity,
+    regulatoryInfo, defaultSupplierId, leadTimeDays,
+  } = req.body;
 
   if (!name || typeof name !== "string" || name.trim() === "") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -113,9 +133,19 @@ router.put("/estoque/products/:id", async (req: Request, res: Response): Promise
       description: description || null,
       category: category || null,
       unit: unit || "un",
+      secondaryUnit: secondaryUnit || null,
       costPrice: costPrice ? String(costPrice) : null,
       salePrice: salePrice ? String(salePrice) : null,
       minStock: minStock !== undefined ? parseInt(minStock) : 0,
+      isCritical: isCritical === "true" || isCritical === true ? "true" : "false",
+      ncm: ncm || null,
+      cest: cest || null,
+      shelfLifeDays: shelfLifeDays ? parseInt(shelfLifeDays) : null,
+      storageTemp: storageTemp || null,
+      storageHumidity: storageHumidity || null,
+      regulatoryInfo: regulatoryInfo || null,
+      defaultSupplierId: defaultSupplierId ? parseInt(defaultSupplierId) : null,
+      leadTimeDays: leadTimeDays ? parseInt(leadTimeDays) : null,
     })
     .where(eq(productsTable.id, id))
     .returning();

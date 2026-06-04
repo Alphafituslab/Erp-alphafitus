@@ -109,7 +109,13 @@ router.get("/vendas/clients", async (req: Request, res: Response): Promise<void>
 router.post("/vendas/clients", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { name, document, email, phone, address, city, state, notes } = req.body;
+  const {
+    name, tradeName, document, stateRegistration, email, phone,
+    billingZipCode, billingStreet, billingNumber, billingComplement, billingNeighborhood, billingCity, billingState,
+    shippingZipCode, shippingStreet, shippingNumber, shippingComplement, shippingNeighborhood, shippingCity, shippingState,
+    contactName, contactPhone, creditLimit, defaultDiscountPct, taxRegime,
+    address, city, state, notes,
+  } = req.body;
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "Nome é obrigatório" });
     return;
@@ -117,7 +123,25 @@ router.post("/vendas/clients", async (req: Request, res: Response): Promise<void
 
   const [client] = await db
     .insert(clientsTable)
-    .values({ name, document, email, phone, address, city, state, notes, active: "true" })
+    .values({
+      name, tradeName: tradeName || null, document: document || null,
+      stateRegistration: stateRegistration || null,
+      email: email || null, phone: phone || null,
+      billingZipCode: billingZipCode || null, billingStreet: billingStreet || null,
+      billingNumber: billingNumber || null, billingComplement: billingComplement || null,
+      billingNeighborhood: billingNeighborhood || null, billingCity: billingCity || null,
+      billingState: billingState || null,
+      shippingZipCode: shippingZipCode || null, shippingStreet: shippingStreet || null,
+      shippingNumber: shippingNumber || null, shippingComplement: shippingComplement || null,
+      shippingNeighborhood: shippingNeighborhood || null, shippingCity: shippingCity || null,
+      shippingState: shippingState || null,
+      contactName: contactName || null, contactPhone: contactPhone || null,
+      creditLimit: creditLimit ? String(creditLimit) : null,
+      defaultDiscountPct: defaultDiscountPct ? String(defaultDiscountPct) : null,
+      taxRegime: taxRegime || null,
+      address: address || null, city: city || null, state: state || null,
+      notes: notes || null, active: "true",
+    })
     .returning();
 
   res.status(201).json(client);
@@ -129,7 +153,13 @@ router.put("/vendas/clients/:id", async (req: Request, res: Response): Promise<v
   const id = parseId(req.params.id, res);
   if (!id) return;
 
-  const { name, document, email, phone, address, city, state, notes, active } = req.body;
+  const {
+    name, tradeName, document, stateRegistration, email, phone,
+    billingZipCode, billingStreet, billingNumber, billingComplement, billingNeighborhood, billingCity, billingState,
+    shippingZipCode, shippingStreet, shippingNumber, shippingComplement, shippingNeighborhood, shippingCity, shippingState,
+    contactName, contactPhone, creditLimit, defaultDiscountPct, taxRegime,
+    address, city, state, notes, active,
+  } = req.body;
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "Nome é obrigatório" });
     return;
@@ -137,7 +167,26 @@ router.put("/vendas/clients/:id", async (req: Request, res: Response): Promise<v
 
   const [client] = await db
     .update(clientsTable)
-    .set({ name, document, email, phone, address, city, state, notes, ...(active !== undefined ? { active } : {}) })
+    .set({
+      name, tradeName: tradeName || null, document: document || null,
+      stateRegistration: stateRegistration || null,
+      email: email || null, phone: phone || null,
+      billingZipCode: billingZipCode || null, billingStreet: billingStreet || null,
+      billingNumber: billingNumber || null, billingComplement: billingComplement || null,
+      billingNeighborhood: billingNeighborhood || null, billingCity: billingCity || null,
+      billingState: billingState || null,
+      shippingZipCode: shippingZipCode || null, shippingStreet: shippingStreet || null,
+      shippingNumber: shippingNumber || null, shippingComplement: shippingComplement || null,
+      shippingNeighborhood: shippingNeighborhood || null, shippingCity: shippingCity || null,
+      shippingState: shippingState || null,
+      contactName: contactName || null, contactPhone: contactPhone || null,
+      creditLimit: creditLimit ? String(creditLimit) : null,
+      defaultDiscountPct: defaultDiscountPct ? String(defaultDiscountPct) : null,
+      taxRegime: taxRegime || null,
+      address: address || null, city: city || null, state: state || null,
+      notes: notes || null,
+      ...(active !== undefined ? { active } : {}),
+    })
     .where(eq(clientsTable.id, id))
     .returning();
 

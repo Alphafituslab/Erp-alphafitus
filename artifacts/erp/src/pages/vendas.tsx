@@ -237,15 +237,65 @@ function validateDocument(doc: string | undefined): boolean {
 
 const clientSchema = z.object({
   name: z.string().min(1, "Obrigatório"),
+  tradeName: z.string().optional(),
   document: z.string().optional().refine(validateDocument, "CPF (11) ou CNPJ (14) dígitos"),
+  stateRegistration: z.string().optional(),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional().refine((v) => !v || v.length <= 2, "Sigla UF (ex: SP)"),
+  // Billing address
+  billingZipCode: z.string().optional(),
+  billingStreet: z.string().optional(),
+  billingNumber: z.string().optional(),
+  billingComplement: z.string().optional(),
+  billingNeighborhood: z.string().optional(),
+  billingCity: z.string().optional(),
+  billingState: z.string().optional().refine((v) => !v || v.length <= 2, "Sigla UF"),
+  // Shipping address
+  shippingZipCode: z.string().optional(),
+  shippingStreet: z.string().optional(),
+  shippingNumber: z.string().optional(),
+  shippingComplement: z.string().optional(),
+  shippingNeighborhood: z.string().optional(),
+  shippingCity: z.string().optional(),
+  shippingState: z.string().optional().refine((v) => !v || v.length <= 2, "Sigla UF"),
+  // Contact
+  contactName: z.string().optional(),
+  contactPhone: z.string().optional(),
+  // Commercial
+  creditLimit: z.string().optional().refine((v) => !v || !isNaN(Number(v)), "Valor inválido"),
+  defaultDiscountPct: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0 && Number(v) <= 100), "0–100%"),
+  taxRegime: z.string().optional(),
   notes: z.string().optional(),
 });
 type ClientForm = z.infer<typeof clientSchema>;
+
+const CLIENT_EMPTY: ClientForm = {
+  name: "", tradeName: "", document: "", stateRegistration: "", email: "", phone: "",
+  billingZipCode: "", billingStreet: "", billingNumber: "", billingComplement: "",
+  billingNeighborhood: "", billingCity: "", billingState: "",
+  shippingZipCode: "", shippingStreet: "", shippingNumber: "", shippingComplement: "",
+  shippingNeighborhood: "", shippingCity: "", shippingState: "",
+  contactName: "", contactPhone: "",
+  creditLimit: "", defaultDiscountPct: "", taxRegime: "", notes: "",
+};
+
+function clientValues(c: Client): ClientForm {
+  return {
+    name: c.name, tradeName: c.tradeName ?? "", document: c.document ?? "",
+    stateRegistration: c.stateRegistration ?? "", email: c.email ?? "", phone: c.phone ?? "",
+    billingZipCode: c.billingZipCode ?? "", billingStreet: c.billingStreet ?? "",
+    billingNumber: c.billingNumber ?? "", billingComplement: c.billingComplement ?? "",
+    billingNeighborhood: c.billingNeighborhood ?? "", billingCity: c.billingCity ?? "",
+    billingState: c.billingState ?? "",
+    shippingZipCode: c.shippingZipCode ?? "", shippingStreet: c.shippingStreet ?? "",
+    shippingNumber: c.shippingNumber ?? "", shippingComplement: c.shippingComplement ?? "",
+    shippingNeighborhood: c.shippingNeighborhood ?? "", shippingCity: c.shippingCity ?? "",
+    shippingState: c.shippingState ?? "",
+    contactName: c.contactName ?? "", contactPhone: c.contactPhone ?? "",
+    creditLimit: c.creditLimit ?? "", defaultDiscountPct: c.defaultDiscountPct ?? "",
+    taxRegime: c.taxRegime ?? "", notes: c.notes ?? "",
+  };
+}
 
 function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () => void; editing?: Client | null }) {
   const qc = useQueryClient();
@@ -255,13 +305,26 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
 
   const form = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
-    values: editing
-      ? { name: editing.name, document: editing.document ?? "", email: editing.email ?? "", phone: editing.phone ?? "", address: editing.address ?? "", city: editing.city ?? "", state: editing.state ?? "", notes: editing.notes ?? "" }
-      : { name: "", document: "", email: "", phone: "", address: "", city: "", state: "", notes: "" },
+    values: editing ? clientValues(editing) : CLIENT_EMPTY,
   });
 
   const onSubmit = form.handleSubmit((data) => {
-    const payload = { ...data, document: data.document || null, email: data.email || null, phone: data.phone || null, address: data.address || null, city: data.city || null, state: data.state || null, notes: data.notes || null };
+    const n = (v?: string) => v || null;
+    const payload = {
+      name: data.name, tradeName: n(data.tradeName), document: n(data.document),
+      stateRegistration: n(data.stateRegistration), email: n(data.email), phone: n(data.phone),
+      billingZipCode: n(data.billingZipCode), billingStreet: n(data.billingStreet),
+      billingNumber: n(data.billingNumber), billingComplement: n(data.billingComplement),
+      billingNeighborhood: n(data.billingNeighborhood), billingCity: n(data.billingCity),
+      billingState: n(data.billingState),
+      shippingZipCode: n(data.shippingZipCode), shippingStreet: n(data.shippingStreet),
+      shippingNumber: n(data.shippingNumber), shippingComplement: n(data.shippingComplement),
+      shippingNeighborhood: n(data.shippingNeighborhood), shippingCity: n(data.shippingCity),
+      shippingState: n(data.shippingState),
+      contactName: n(data.contactName), contactPhone: n(data.contactPhone),
+      creditLimit: n(data.creditLimit), defaultDiscountPct: n(data.defaultDiscountPct),
+      taxRegime: n(data.taxRegime), notes: n(data.notes),
+    };
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
     } else {
@@ -269,49 +332,181 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
     }
   });
 
+  const F = form.formState.errors;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle></DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-3 pt-1">
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Nome *</label>
-            <Input {...form.register("name")} placeholder="Razão social ou nome" />
-            {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">CNPJ/CPF</label>
-              <Input {...form.register("document")} placeholder="00.000.000/0001-00" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Telefone</label>
-              <Input {...form.register("phone")} placeholder="(11) 99999-9999" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">E-mail</label>
-            <Input {...form.register("email")} type="email" placeholder="contato@empresa.com" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Endereço</label>
-            <Input {...form.register("address")} placeholder="Rua, número, bairro" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Cidade</label>
-              <Input {...form.register("city")} placeholder="São Paulo" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Estado</label>
-              <Input {...form.register("state")} placeholder="SP" maxLength={2} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Observações</label>
-            <Input {...form.register("notes")} placeholder="Opcional" />
-          </div>
-          <DialogFooter className="pt-2">
+        <form onSubmit={onSubmit} className="pt-1">
+          <Tabs defaultValue="geral">
+            <TabsList className="mb-4 w-full">
+              <TabsTrigger value="geral" className="flex-1">Geral</TabsTrigger>
+              <TabsTrigger value="cobranca" className="flex-1">End. Cobrança</TabsTrigger>
+              <TabsTrigger value="entrega" className="flex-1">End. Entrega</TabsTrigger>
+              <TabsTrigger value="comercial" className="flex-1">Comercial</TabsTrigger>
+            </TabsList>
+
+            {/* ── Geral ── */}
+            <TabsContent value="geral" className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Razão Social / Nome *</label>
+                <Input {...form.register("name")} placeholder="Razão social ou nome completo" />
+                {F.name && <p className="text-xs text-destructive">{F.name.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Nome Fantasia</label>
+                <Input {...form.register("tradeName")} placeholder="Nome fantasia (opcional)" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">CNPJ / CPF</label>
+                  <Input {...form.register("document")} placeholder="00.000.000/0001-00" />
+                  {F.document && <p className="text-xs text-destructive">{F.document.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Insc. Estadual</label>
+                  <Input {...form.register("stateRegistration")} placeholder="IE (opcional)" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">E-mail</label>
+                  <Input {...form.register("email")} type="email" placeholder="contato@empresa.com" />
+                  {F.email && <p className="text-xs text-destructive">{F.email.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Telefone</label>
+                  <Input {...form.register("phone")} placeholder="(11) 99999-9999" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Nome do contato</label>
+                  <Input {...form.register("contactName")} placeholder="João da Silva" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Tel. do contato</label>
+                  <Input {...form.register("contactPhone")} placeholder="(11) 99999-0000" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Observações</label>
+                <Textarea {...form.register("notes")} rows={2} placeholder="Opcional" />
+              </div>
+            </TabsContent>
+
+            {/* ── Endereço de cobrança ── */}
+            <TabsContent value="cobranca" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Endereço para faturamento / NF-e.</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">CEP</label>
+                  <Input {...form.register("billingZipCode")} placeholder="00000-000" maxLength={9} />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Logradouro</label>
+                  <Input {...form.register("billingStreet")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Número</label>
+                  <Input {...form.register("billingNumber")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Complemento</label>
+                  <Input {...form.register("billingComplement")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Bairro</label>
+                  <Input {...form.register("billingNeighborhood")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Cidade</label>
+                  <Input {...form.register("billingCity")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">UF</label>
+                  <Input {...form.register("billingState")} placeholder="SP" maxLength={2} />
+                  {F.billingState && <p className="text-xs text-destructive">{F.billingState.message}</p>}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Endereço de entrega ── */}
+            <TabsContent value="entrega" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Endereço para entrega / expedição. Deixe em branco se igual ao de cobrança.</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">CEP</label>
+                  <Input {...form.register("shippingZipCode")} placeholder="00000-000" maxLength={9} />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Logradouro</label>
+                  <Input {...form.register("shippingStreet")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Número</label>
+                  <Input {...form.register("shippingNumber")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Complemento</label>
+                  <Input {...form.register("shippingComplement")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Bairro</label>
+                  <Input {...form.register("shippingNeighborhood")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Cidade</label>
+                  <Input {...form.register("shippingCity")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">UF</label>
+                  <Input {...form.register("shippingState")} placeholder="SP" maxLength={2} />
+                  {F.shippingState && <p className="text-xs text-destructive">{F.shippingState.message}</p>}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Comercial ── */}
+            <TabsContent value="comercial" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Parâmetros comerciais e tributários do cliente.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Limite de crédito (R$)</label>
+                  <Input {...form.register("creditLimit")} type="number" min="0" step="0.01" placeholder="0,00" />
+                  {F.creditLimit && <p className="text-xs text-destructive">{F.creditLimit.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Desconto padrão (%)</label>
+                  <Input {...form.register("defaultDiscountPct")} type="number" min="0" max="100" step="0.1" placeholder="0" />
+                  {F.defaultDiscountPct && <p className="text-xs text-destructive">{F.defaultDiscountPct.message}</p>}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Regime Tributário</label>
+                <Controller control={form.control} name="taxRegime" render={({ field }) => (
+                  <select {...field} className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background">
+                    <option value="">— Selecionar —</option>
+                    <option value="mei">MEI</option>
+                    <option value="simples">Simples Nacional</option>
+                    <option value="presumido">Lucro Presumido</option>
+                    <option value="real">Lucro Real</option>
+                  </select>
+                )} />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
               {createMutation.isPending || updateMutation.isPending ? "Salvando…" : "Salvar"}

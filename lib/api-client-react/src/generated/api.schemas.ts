@@ -183,9 +183,30 @@ export interface CashflowMonth {
 export interface Client {
   id: number;
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
+  billingZipCode?: string | null;
+  billingStreet?: string | null;
+  billingNumber?: string | null;
+  billingComplement?: string | null;
+  billingNeighborhood?: string | null;
+  billingCity?: string | null;
+  billingState?: string | null;
+  shippingZipCode?: string | null;
+  shippingStreet?: string | null;
+  shippingNumber?: string | null;
+  shippingComplement?: string | null;
+  shippingNeighborhood?: string | null;
+  shippingCity?: string | null;
+  shippingState?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  creditLimit?: string | null;
+  defaultDiscountPct?: string | null;
+  taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -197,9 +218,30 @@ export interface Client {
 
 export interface ClientInput {
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
+  billingZipCode?: string | null;
+  billingStreet?: string | null;
+  billingNumber?: string | null;
+  billingComplement?: string | null;
+  billingNeighborhood?: string | null;
+  billingCity?: string | null;
+  billingState?: string | null;
+  shippingZipCode?: string | null;
+  shippingStreet?: string | null;
+  shippingNumber?: string | null;
+  shippingComplement?: string | null;
+  shippingNeighborhood?: string | null;
+  shippingCity?: string | null;
+  shippingState?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  creditLimit?: string | null;
+  defaultDiscountPct?: string | null;
+  taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -494,11 +536,20 @@ export interface Product {
   description?: string | null;
   category?: string | null;
   unit: string;
+  secondaryUnit?: string | null;
   costPrice?: string | null;
   salePrice?: string | null;
   currentStock: string;
   minStock: number;
   isCritical?: string;
+  ncm?: string | null;
+  cest?: string | null;
+  shelfLifeDays?: number | null;
+  storageTemp?: string | null;
+  storageHumidity?: string | null;
+  regulatoryInfo?: string | null;
+  defaultSupplierId?: number | null;
+  leadTimeDays?: number | null;
   active: string;
   createdAt: string;
   updatedAt: string;
@@ -510,11 +561,20 @@ export interface ProductInput {
   description?: string | null;
   category?: string | null;
   unit?: string | null;
+  secondaryUnit?: string | null;
   costPrice?: string | null;
   salePrice?: string | null;
   minStock?: number | null;
   currentStock?: string | null;
   isCritical?: string | null;
+  ncm?: string | null;
+  cest?: string | null;
+  shelfLifeDays?: number | null;
+  storageTemp?: string | null;
+  storageHumidity?: string | null;
+  regulatoryInfo?: string | null;
+  defaultSupplierId?: number | null;
+  leadTimeDays?: number | null;
 }
 
 export interface PriceHistoryPoint {
@@ -1205,32 +1265,62 @@ export const SupplierApprovalStatus = {
 export interface Supplier {
   id: number;
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
+  municipalRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
-  address?: string | null;
+  zipCode?: string | null;
+  street?: string | null;
+  addressNumber?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
+  contactName?: string | null;
+  contactRole?: string | null;
+  contactPhone?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  bankAccount?: string | null;
+  bankAccountType?: string | null;
   category?: string | null;
   paymentTerms?: string | null;
   notes?: string | null;
   active: string;
   approvalStatus: SupplierApprovalStatus;
+  qualificationStatus?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface SupplierInput {
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
+  municipalRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
-  address?: string | null;
+  zipCode?: string | null;
+  street?: string | null;
+  addressNumber?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
+  contactName?: string | null;
+  contactRole?: string | null;
+  contactPhone?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  bankAccount?: string | null;
+  bankAccountType?: string | null;
   category?: string | null;
   paymentTerms?: string | null;
   notes?: string | null;
+  qualificationStatus?: string | null;
 }
 
 export interface PurchaseOrderItem {

@@ -8,9 +8,30 @@
 
 export interface ClientInput {
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
+  billingZipCode?: string | null;
+  billingStreet?: string | null;
+  billingNumber?: string | null;
+  billingComplement?: string | null;
+  billingNeighborhood?: string | null;
+  billingCity?: string | null;
+  billingState?: string | null;
+  shippingZipCode?: string | null;
+  shippingStreet?: string | null;
+  shippingNumber?: string | null;
+  shippingComplement?: string | null;
+  shippingNeighborhood?: string | null;
+  shippingCity?: string | null;
+  shippingState?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  creditLimit?: string | null;
+  defaultDiscountPct?: string | null;
+  taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;

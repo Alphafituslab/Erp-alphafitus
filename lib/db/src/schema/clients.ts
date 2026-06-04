@@ -1,13 +1,39 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const clientsTable = pgTable("clients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  tradeName: text("trade_name"),
   document: text("document"), // CPF or CNPJ
+  stateRegistration: text("state_registration"),
   email: text("email"),
   phone: text("phone"),
+  // Billing address
+  billingZipCode: text("billing_zip_code"),
+  billingStreet: text("billing_street"),
+  billingNumber: text("billing_number"),
+  billingComplement: text("billing_complement"),
+  billingNeighborhood: text("billing_neighborhood"),
+  billingCity: text("billing_city"),
+  billingState: text("billing_state"),
+  // Shipping address
+  shippingZipCode: text("shipping_zip_code"),
+  shippingStreet: text("shipping_street"),
+  shippingNumber: text("shipping_number"),
+  shippingComplement: text("shipping_complement"),
+  shippingNeighborhood: text("shipping_neighborhood"),
+  shippingCity: text("shipping_city"),
+  shippingState: text("shipping_state"),
+  // Contact
+  contactName: text("contact_name"),
+  contactPhone: text("contact_phone"),
+  // Commercial
+  creditLimit: numeric("credit_limit", { precision: 12, scale: 2 }),
+  defaultDiscountPct: numeric("default_discount_pct", { precision: 5, scale: 2 }),
+  taxRegime: text("tax_regime"), // simples | presumido | real | mei
+  // Legacy / misc
   address: text("address"),
   city: text("city"),
   state: text("state"),

@@ -9,11 +9,23 @@ export const productsTable = pgTable("products", {
   description: text("description"),
   category: text("category"),
   unit: text("unit").notNull().default("un"),
+  secondaryUnit: text("secondary_unit"),
   costPrice: numeric("cost_price", { precision: 12, scale: 2 }),
   salePrice: numeric("sale_price", { precision: 12, scale: 2 }),
   currentStock: numeric("current_stock", { precision: 12, scale: 3 }).notNull().default("0"),
   minStock: integer("min_stock").notNull().default(0),
   isCritical: text("is_critical").notNull().default("false"),
+  // Fiscal
+  ncm: text("ncm"),
+  cest: text("cest"),
+  // Technical / pharma
+  shelfLifeDays: integer("shelf_life_days"),
+  storageTemp: text("storage_temp"),
+  storageHumidity: text("storage_humidity"),
+  regulatoryInfo: text("regulatory_info"),
+  // Purchasing
+  defaultSupplierId: integer("default_supplier_id"),
+  leadTimeDays: integer("lead_time_days"),
   active: text("active").notNull().default("true"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

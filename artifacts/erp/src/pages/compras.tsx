@@ -166,17 +166,61 @@ function approvalBadge(status: string) {
 
 const supplierSchema = z.object({
   name: z.string().min(1, "Obrigatório"),
+  tradeName: z.string().optional(),
   document: z.string().optional(),
+  stateRegistration: z.string().optional(),
+  municipalRegistration: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
-  address: z.string().optional(),
+  // Address
+  zipCode: z.string().optional(),
+  street: z.string().optional(),
+  addressNumber: z.string().optional(),
+  complement: z.string().optional(),
+  neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
+  // Contact
+  contactName: z.string().optional(),
+  contactRole: z.string().optional(),
+  contactPhone: z.string().optional(),
+  // Banking
+  bankName: z.string().optional(),
+  bankAgency: z.string().optional(),
+  bankAccount: z.string().optional(),
+  bankAccountType: z.string().optional(),
+  // Misc
   category: z.string().optional(),
   paymentTerms: z.string().optional(),
+  qualificationStatus: z.string().optional(),
   notes: z.string().optional(),
 });
 type SupplierForm = z.infer<typeof supplierSchema>;
+
+const SUPPLIER_EMPTY: SupplierForm = {
+  name: "", tradeName: "", document: "", stateRegistration: "", municipalRegistration: "",
+  email: "", phone: "",
+  zipCode: "", street: "", addressNumber: "", complement: "", neighborhood: "", city: "", state: "",
+  contactName: "", contactRole: "", contactPhone: "",
+  bankName: "", bankAgency: "", bankAccount: "", bankAccountType: "",
+  category: "", paymentTerms: "", qualificationStatus: "", notes: "",
+};
+
+function supplierValues(s: Supplier): SupplierForm {
+  return {
+    name: s.name, tradeName: s.tradeName ?? "", document: s.document ?? "",
+    stateRegistration: s.stateRegistration ?? "", municipalRegistration: s.municipalRegistration ?? "",
+    email: s.email ?? "", phone: s.phone ?? "",
+    zipCode: s.zipCode ?? "", street: s.street ?? "", addressNumber: s.addressNumber ?? "",
+    complement: s.complement ?? "", neighborhood: s.neighborhood ?? "",
+    city: s.city ?? "", state: s.state ?? "",
+    contactName: s.contactName ?? "", contactRole: s.contactRole ?? "", contactPhone: s.contactPhone ?? "",
+    bankName: s.bankName ?? "", bankAgency: s.bankAgency ?? "",
+    bankAccount: s.bankAccount ?? "", bankAccountType: s.bankAccountType ?? "",
+    category: s.category ?? "", paymentTerms: s.paymentTerms ?? "",
+    qualificationStatus: s.qualificationStatus ?? "", notes: s.notes ?? "",
+  };
+}
 
 function SupplierDialog({
   open,
@@ -194,34 +238,24 @@ function SupplierDialog({
 
   const form = useForm<SupplierForm>({
     resolver: zodResolver(supplierSchema),
-    values: editing
-      ? {
-          name: editing.name,
-          document: editing.document ?? "",
-          email: editing.email ?? "",
-          phone: editing.phone ?? "",
-          address: editing.address ?? "",
-          city: editing.city ?? "",
-          state: editing.state ?? "",
-          category: editing.category ?? "",
-          paymentTerms: editing.paymentTerms ?? "",
-          notes: editing.notes ?? "",
-        }
-      : { name: "", document: "", email: "", phone: "", address: "", city: "", state: "", category: "", paymentTerms: "", notes: "" },
+    values: editing ? supplierValues(editing) : SUPPLIER_EMPTY,
   });
 
   const onSubmit = form.handleSubmit((data) => {
+    const n = (v?: string) => v || null;
     const payload = {
-      name: data.name,
-      document: data.document || null,
-      email: data.email || null,
-      phone: data.phone || null,
-      address: data.address || null,
-      city: data.city || null,
-      state: data.state || null,
-      category: data.category || null,
-      paymentTerms: data.paymentTerms || null,
-      notes: data.notes || null,
+      name: data.name, tradeName: n(data.tradeName),
+      document: n(data.document), stateRegistration: n(data.stateRegistration),
+      municipalRegistration: n(data.municipalRegistration),
+      email: n(data.email), phone: n(data.phone),
+      zipCode: n(data.zipCode), street: n(data.street), addressNumber: n(data.addressNumber),
+      complement: n(data.complement), neighborhood: n(data.neighborhood),
+      city: n(data.city), state: n(data.state),
+      contactName: n(data.contactName), contactRole: n(data.contactRole), contactPhone: n(data.contactPhone),
+      bankName: n(data.bankName), bankAgency: n(data.bankAgency),
+      bankAccount: n(data.bankAccount), bankAccountType: n(data.bankAccountType),
+      category: n(data.category), paymentTerms: n(data.paymentTerms),
+      qualificationStatus: n(data.qualificationStatus), notes: n(data.notes),
     };
     if (editing) {
       updateM.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
@@ -230,57 +264,175 @@ function SupplierDialog({
     }
   });
 
+  const F = form.formState.errors;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-3 pt-1">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1 col-span-2">
-              <label className="text-sm font-medium">Razão Social / Nome *</label>
-              <Input {...form.register("name")} placeholder="Nome do fornecedor" />
-              {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">CNPJ / CPF</label>
-              <Input {...form.register("document")} placeholder="00.000.000/0001-00" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Categoria</label>
-              <Input {...form.register("category")} placeholder="Ex: Matéria-prima, Serviço…" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">E-mail</label>
-              <Input {...form.register("email")} type="email" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Telefone</label>
-              <Input {...form.register("phone")} placeholder="(11) 99999-0000" />
-            </div>
-            <div className="space-y-1 col-span-2">
-              <label className="text-sm font-medium">Endereço</label>
-              <Input {...form.register("address")} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Cidade</label>
-              <Input {...form.register("city")} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Estado</label>
-              <Input {...form.register("state")} placeholder="SP" maxLength={2} />
-            </div>
-            <div className="space-y-1 col-span-2">
-              <label className="text-sm font-medium">Prazo de pagamento</label>
-              <Input {...form.register("paymentTerms")} placeholder="Ex: 30/60/90 dias, À vista…" />
-            </div>
-            <div className="space-y-1 col-span-2">
-              <label className="text-sm font-medium">Observações</label>
-              <Input {...form.register("notes")} />
-            </div>
-          </div>
-          <DialogFooter className="pt-2">
+        <form onSubmit={onSubmit} className="pt-1">
+          <Tabs defaultValue="geral">
+            <TabsList className="mb-4 w-full">
+              <TabsTrigger value="geral" className="flex-1">Geral</TabsTrigger>
+              <TabsTrigger value="endereco" className="flex-1">Endereço</TabsTrigger>
+              <TabsTrigger value="contato" className="flex-1">Contato</TabsTrigger>
+              <TabsTrigger value="bancario" className="flex-1">Bancário</TabsTrigger>
+            </TabsList>
+
+            {/* ── Geral ── */}
+            <TabsContent value="geral" className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Razão Social *</label>
+                <Input {...form.register("name")} placeholder="Nome / Razão Social do fornecedor" />
+                {F.name && <p className="text-xs text-destructive">{F.name.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Nome Fantasia</label>
+                <Input {...form.register("tradeName")} placeholder="Nome fantasia (opcional)" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">CNPJ / CPF</label>
+                  <Input {...form.register("document")} placeholder="00.000.000/0001-00" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Insc. Estadual</label>
+                  <Input {...form.register("stateRegistration")} placeholder="IE" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Insc. Municipal</label>
+                  <Input {...form.register("municipalRegistration")} placeholder="IM" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Categoria</label>
+                  <Input {...form.register("category")} placeholder="Matéria-prima, Serviço…" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">E-mail</label>
+                  <Input {...form.register("email")} type="email" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Telefone</label>
+                  <Input {...form.register("phone")} placeholder="(11) 99999-0000" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Prazo de pagamento</label>
+                  <Input {...form.register("paymentTerms")} placeholder="30/60/90 dias, À vista…" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Qualificação</label>
+                  <Controller control={form.control} name="qualificationStatus" render={({ field }) => (
+                    <select {...field} className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background">
+                      <option value="">— Selecionar —</option>
+                      <option value="qualified">Qualificado</option>
+                      <option value="in_process">Em processo</option>
+                      <option value="not_qualified">Não qualificado</option>
+                    </select>
+                  )} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Observações</label>
+                <Textarea {...form.register("notes")} rows={2} />
+              </div>
+            </TabsContent>
+
+            {/* ── Endereço ── */}
+            <TabsContent value="endereco" className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">CEP</label>
+                  <Input {...form.register("zipCode")} placeholder="00000-000" maxLength={9} />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Logradouro</label>
+                  <Input {...form.register("street")} placeholder="Rua, Avenida, Rodovia…" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Número</label>
+                  <Input {...form.register("addressNumber")} placeholder="123" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Complemento</label>
+                  <Input {...form.register("complement")} placeholder="Sala, Galpão…" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Bairro</label>
+                  <Input {...form.register("neighborhood")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Cidade</label>
+                  <Input {...form.register("city")} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">UF</label>
+                  <Input {...form.register("state")} placeholder="SP" maxLength={2} />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Contato ── */}
+            <TabsContent value="contato" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Pessoa de contato principal neste fornecedor.</p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Nome do contato</label>
+                <Input {...form.register("contactName")} placeholder="João da Silva" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Cargo / Função</label>
+                  <Input {...form.register("contactRole")} placeholder="Gerente Comercial" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Telefone do contato</label>
+                  <Input {...form.register("contactPhone")} placeholder="(11) 99999-0000" />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Bancário ── */}
+            <TabsContent value="bancario" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Dados para pagamento via transferência / TED / PIX.</p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Banco</label>
+                <Input {...form.register("bankName")} placeholder="Ex: Banco do Brasil, Itaú, Bradesco…" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Agência</label>
+                  <Input {...form.register("bankAgency")} placeholder="0001-5" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Conta</label>
+                  <Input {...form.register("bankAccount")} placeholder="12345-6" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Tipo de conta</label>
+                <Controller control={form.control} name="bankAccountType" render={({ field }) => (
+                  <select {...field} className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background">
+                    <option value="">— Selecionar —</option>
+                    <option value="corrente">Conta Corrente</option>
+                    <option value="poupanca">Conta Poupança</option>
+                  </select>
+                )} />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={createM.isPending || updateM.isPending}>
               {createM.isPending || updateM.isPending ? "Salvando…" : "Salvar"}

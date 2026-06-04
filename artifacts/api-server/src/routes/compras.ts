@@ -84,7 +84,14 @@ router.get("/compras/suppliers", async (req: Request, res: Response): Promise<vo
 router.post("/compras/suppliers", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { name, document, email, phone, address, city, state, category, paymentTerms, notes } = req.body;
+  const {
+    name, tradeName, document, stateRegistration, municipalRegistration,
+    email, phone,
+    zipCode, street, addressNumber, complement, neighborhood, city, state,
+    contactName, contactRole, contactPhone,
+    bankName, bankAgency, bankAccount, bankAccountType,
+    category, paymentTerms, notes, qualificationStatus,
+  } = req.body;
 
   if (!name || typeof name !== "string" || name.trim() === "") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -95,15 +102,30 @@ router.post("/compras/suppliers", async (req: Request, res: Response): Promise<v
     .insert(suppliersTable)
     .values({
       name: name.trim(),
+      tradeName: tradeName || null,
       document: document || null,
+      stateRegistration: stateRegistration || null,
+      municipalRegistration: municipalRegistration || null,
       email: email || null,
       phone: phone || null,
-      address: address || null,
+      zipCode: zipCode || null,
+      street: street || null,
+      addressNumber: addressNumber || null,
+      complement: complement || null,
+      neighborhood: neighborhood || null,
       city: city || null,
       state: state || null,
+      contactName: contactName || null,
+      contactRole: contactRole || null,
+      contactPhone: contactPhone || null,
+      bankName: bankName || null,
+      bankAgency: bankAgency || null,
+      bankAccount: bankAccount || null,
+      bankAccountType: bankAccountType || null,
       category: category || null,
       paymentTerms: paymentTerms || null,
       notes: notes || null,
+      qualificationStatus: qualificationStatus || null,
       active: "true",
       approvalStatus: "approved",
     })
@@ -118,7 +140,14 @@ router.put("/compras/suppliers/:id", async (req: Request, res: Response): Promis
   const id = parseId(req.params.id, res);
   if (id === null) return;
 
-  const { name, document, email, phone, address, city, state, category, paymentTerms, notes } = req.body;
+  const {
+    name, tradeName, document, stateRegistration, municipalRegistration,
+    email, phone,
+    zipCode, street, addressNumber, complement, neighborhood, city, state,
+    contactName, contactRole, contactPhone,
+    bankName, bankAgency, bankAccount, bankAccountType,
+    category, paymentTerms, notes, qualificationStatus,
+  } = req.body;
 
   if (!name || typeof name !== "string" || name.trim() === "") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -129,15 +158,30 @@ router.put("/compras/suppliers/:id", async (req: Request, res: Response): Promis
     .update(suppliersTable)
     .set({
       name: name.trim(),
+      tradeName: tradeName || null,
       document: document || null,
+      stateRegistration: stateRegistration || null,
+      municipalRegistration: municipalRegistration || null,
       email: email || null,
       phone: phone || null,
-      address: address || null,
+      zipCode: zipCode || null,
+      street: street || null,
+      addressNumber: addressNumber || null,
+      complement: complement || null,
+      neighborhood: neighborhood || null,
       city: city || null,
       state: state || null,
+      contactName: contactName || null,
+      contactRole: contactRole || null,
+      contactPhone: contactPhone || null,
+      bankName: bankName || null,
+      bankAgency: bankAgency || null,
+      bankAccount: bankAccount || null,
+      bankAccountType: bankAccountType || null,
       category: category || null,
       paymentTerms: paymentTerms || null,
       notes: notes || null,
+      qualificationStatus: qualificationStatus || null,
     })
     .where(eq(suppliersTable.id, id))
     .returning();

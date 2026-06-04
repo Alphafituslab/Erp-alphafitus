@@ -126,13 +126,46 @@ const productSchema = z.object({
   description: z.string().optional(),
   category: z.string().optional(),
   unit: z.string().optional(),
+  secondaryUnit: z.string().optional(),
   costPrice: z.string().optional().refine((v) => !v || !isNaN(Number(v)), "Valor inválido"),
   salePrice: z.string().optional().refine((v) => !v || !isNaN(Number(v)), "Valor inválido"),
   minStock: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
   currentStock: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
   isCritical: z.boolean().optional(),
+  // Fiscal
+  ncm: z.string().optional(),
+  cest: z.string().optional(),
+  // Technical
+  shelfLifeDays: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
+  storageTemp: z.string().optional(),
+  storageHumidity: z.string().optional(),
+  regulatoryInfo: z.string().optional(),
+  // Purchasing
+  leadTimeDays: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
 });
 type ProductForm = z.infer<typeof productSchema>;
+
+const PRODUCT_EMPTY: ProductForm = {
+  name: "", sku: "", description: "", category: "", unit: "un", secondaryUnit: "",
+  costPrice: "", salePrice: "", minStock: "0", currentStock: "0", isCritical: false,
+  ncm: "", cest: "", shelfLifeDays: "", storageTemp: "", storageHumidity: "",
+  regulatoryInfo: "", leadTimeDays: "",
+};
+
+function productValues(p: Product): ProductForm {
+  return {
+    name: p.name, sku: p.sku ?? "", description: p.description ?? "",
+    category: p.category ?? "", unit: p.unit ?? "un", secondaryUnit: p.secondaryUnit ?? "",
+    costPrice: p.costPrice ?? "", salePrice: p.salePrice ?? "",
+    minStock: String(p.minStock), currentStock: String(p.currentStock),
+    isCritical: p.isCritical === "true",
+    ncm: p.ncm ?? "", cest: p.cest ?? "",
+    shelfLifeDays: p.shelfLifeDays != null ? String(p.shelfLifeDays) : "",
+    storageTemp: p.storageTemp ?? "", storageHumidity: p.storageHumidity ?? "",
+    regulatoryInfo: p.regulatoryInfo ?? "",
+    leadTimeDays: p.leadTimeDays != null ? String(p.leadTimeDays) : "",
+  };
+}
 
 function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () => void; editing?: Product | null }) {
   const qc = useQueryClient();
@@ -145,13 +178,24 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
 
   const form = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
-    values: editing
-      ? { name: editing.name, sku: editing.sku ?? "", description: editing.description ?? "", category: editing.category ?? "", unit: editing.unit ?? "un", costPrice: editing.costPrice ?? "", salePrice: editing.salePrice ?? "", minStock: String(editing.minStock), currentStock: String(editing.currentStock), isCritical: editing.isCritical === "true" }
-      : { name: "", sku: "", description: "", category: "", unit: "un", costPrice: "", salePrice: "", minStock: "0", currentStock: "0", isCritical: false },
+    values: editing ? productValues(editing) : PRODUCT_EMPTY,
   });
 
   const onSubmit = form.handleSubmit((data) => {
-    const payload = { name: data.name, sku: data.sku || null, description: data.description || null, category: data.category || null, unit: data.unit || "un", costPrice: data.costPrice || null, salePrice: data.salePrice || null, minStock: data.minStock ? parseInt(data.minStock) : 0, currentStock: data.currentStock || "0", isCritical: data.isCritical ? "true" : "false" };
+    const payload = {
+      name: data.name, sku: data.sku || null, description: data.description || null,
+      category: data.category || null, unit: data.unit || "un",
+      secondaryUnit: data.secondaryUnit || null,
+      costPrice: data.costPrice || null, salePrice: data.salePrice || null,
+      minStock: data.minStock ? parseInt(data.minStock) : 0,
+      currentStock: data.currentStock || "0",
+      isCritical: data.isCritical ? "true" : "false",
+      ncm: data.ncm || null, cest: data.cest || null,
+      shelfLifeDays: data.shelfLifeDays ? parseInt(data.shelfLifeDays) : null,
+      storageTemp: data.storageTemp || null, storageHumidity: data.storageHumidity || null,
+      regulatoryInfo: data.regulatoryInfo || null,
+      leadTimeDays: data.leadTimeDays ? parseInt(data.leadTimeDays) : null,
+    };
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
     } else {
@@ -159,71 +203,140 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
     }
   });
 
+  const F = form.formState.errors;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{editing ? "Editar Produto" : "Novo Produto"}</DialogTitle></DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-3 pt-1">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1">
-              <label className="text-sm font-medium">Nome *</label>
-              <Input {...form.register("name")} placeholder="Nome do produto" />
-              {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">SKU</label>
-              <Input {...form.register("sku")} placeholder="ABC-001" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium">Categoria</label><Input {...form.register("category")} placeholder="Ex: Matéria-Prima" /></div>
-            <div className="space-y-1"><label className="text-sm font-medium">Unidade</label><Input {...form.register("unit")} placeholder="un, kg, cx, L…" /></div>
-          </div>
-          <div className="space-y-1"><label className="text-sm font-medium">Descrição</label><Input {...form.register("description")} placeholder="Opcional" /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Preço de custo</label>
-              <Input {...form.register("costPrice")} type="number" step="0.01" min="0" placeholder="0,00" />
-              {form.formState.errors.costPrice && <p className="text-xs text-destructive">{form.formState.errors.costPrice.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Preço de venda</label>
-              <Input {...form.register("salePrice")} type="number" step="0.01" min="0" placeholder="0,00" />
-              {form.formState.errors.salePrice && <p className="text-xs text-destructive">{form.formState.errors.salePrice.message}</p>}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Estoque mínimo</label>
-              <Input {...form.register("minStock")} type="number" min="0" step="1" />
-              {form.formState.errors.minStock && <p className="text-xs text-destructive">{form.formState.errors.minStock.message}</p>}
-            </div>
-            {!editing && (
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Estoque inicial</label>
-                <Input {...form.register("currentStock")} type="number" min="0" step="1" />
+        <form onSubmit={onSubmit} className="pt-1">
+          <Tabs defaultValue="geral">
+            <TabsList className="mb-4 w-full">
+              <TabsTrigger value="geral" className="flex-1">Geral</TabsTrigger>
+              <TabsTrigger value="fiscal" className="flex-1">Fiscal</TabsTrigger>
+              <TabsTrigger value="tecnico" className="flex-1">Técnico</TabsTrigger>
+              <TabsTrigger value="compras" className="flex-1">Compras</TabsTrigger>
+            </TabsList>
+
+            {/* ── Geral ── */}
+            <TabsContent value="geral" className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-sm font-medium">Nome *</label>
+                  <Input {...form.register("name")} placeholder="Nome do produto" />
+                  {F.name && <p className="text-xs text-destructive">{F.name.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">SKU</label>
+                  <Input {...form.register("sku")} placeholder="ABC-001" />
+                </div>
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <Controller
-              control={form.control}
-              name="isCritical"
-              render={({ field }) => (
-                <input
-                  id="isCritical"
-                  type="checkbox"
-                  checked={!!field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                  className="h-4 w-4 rounded border-input accent-primary"
-                />
-              )}
-            />
-            <label htmlFor="isCritical" className="text-sm font-medium cursor-pointer select-none">
-              Produto crítico (exige fornecedor aprovado no CQ)
-            </label>
-          </div>
-          <DialogFooter className="pt-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Descrição</label>
+                <Input {...form.register("description")} placeholder="Opcional" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Categoria</label>
+                  <Input {...form.register("category")} placeholder="Ex: Matéria-Prima" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Unidade principal</label>
+                  <Input {...form.register("unit")} placeholder="un, kg, cx, L…" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Unidade secundária</label>
+                  <Input {...form.register("secondaryUnit")} placeholder="caixa, pct…" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Preço de custo (R$)</label>
+                  <Input {...form.register("costPrice")} type="number" step="0.01" min="0" placeholder="0,00" />
+                  {F.costPrice && <p className="text-xs text-destructive">{F.costPrice.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Preço de venda (R$)</label>
+                  <Input {...form.register("salePrice")} type="number" step="0.01" min="0" placeholder="0,00" />
+                  {F.salePrice && <p className="text-xs text-destructive">{F.salePrice.message}</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Estoque mínimo</label>
+                  <Input {...form.register("minStock")} type="number" min="0" step="1" />
+                  {F.minStock && <p className="text-xs text-destructive">{F.minStock.message}</p>}
+                </div>
+                {!editing && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Estoque inicial</label>
+                    <Input {...form.register("currentStock")} type="number" min="0" step="1" />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Controller control={form.control} name="isCritical" render={({ field }) => (
+                  <input id="isCritical" type="checkbox" checked={!!field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-input accent-primary" />
+                )} />
+                <label htmlFor="isCritical" className="text-sm font-medium cursor-pointer select-none">
+                  Produto crítico (exige fornecedor aprovado no CQ)
+                </label>
+              </div>
+            </TabsContent>
+
+            {/* ── Fiscal ── */}
+            <TabsContent value="fiscal" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Dados fiscais para emissão de NF-e.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">NCM</label>
+                  <Input {...form.register("ncm")} placeholder="Ex: 30039099" maxLength={10} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">CEST</label>
+                  <Input {...form.register("cest")} placeholder="Ex: 1300100" maxLength={10} />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ── Técnico ── */}
+            <TabsContent value="tecnico" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Especificações técnicas e condições de armazenamento.</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Validade (dias)</label>
+                  <Input {...form.register("shelfLifeDays")} type="number" min="0" step="1" placeholder="365" />
+                  {F.shelfLifeDays && <p className="text-xs text-destructive">{F.shelfLifeDays.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Temp. armazenamento</label>
+                  <Input {...form.register("storageTemp")} placeholder="Ex: 2–8 °C" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Umidade relativa</label>
+                  <Input {...form.register("storageHumidity")} placeholder="Ex: ≤ 60 %" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Informações regulatórias</label>
+                <Textarea {...form.register("regulatoryInfo")} rows={3} placeholder="Registro ANVISA, Classe terapêutica, etc." />
+              </div>
+            </TabsContent>
+
+            {/* ── Compras ── */}
+            <TabsContent value="compras" className="space-y-3">
+              <p className="text-xs text-muted-foreground">Parâmetros para planejamento de compras.</p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Lead time (dias úteis)</label>
+                <Input {...form.register("leadTimeDays")} type="number" min="0" step="1" placeholder="Ex: 15" />
+                {F.leadTimeDays && <p className="text-xs text-destructive">{F.leadTimeDays.message}</p>}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
               {createMutation.isPending || updateMutation.isPending ? "Salvando…" : "Salvar"}
