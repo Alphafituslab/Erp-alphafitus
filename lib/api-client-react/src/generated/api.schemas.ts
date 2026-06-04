@@ -1933,6 +1933,131 @@ export interface RelatorioTopProduct {
   netQuantity: number;
 }
 
+export type ReportScheduleFrequency = typeof ReportScheduleFrequency[keyof typeof ReportScheduleFrequency];
+
+
+export const ReportScheduleFrequency = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type ReportSchedulePeriod = typeof ReportSchedulePeriod[keyof typeof ReportSchedulePeriod];
+
+
+export const ReportSchedulePeriod = {
+  this_month: 'this_month',
+  last_month: 'last_month',
+  this_quarter: 'this_quarter',
+  this_year: 'this_year',
+} as const;
+
+export interface ReportSchedule {
+  id: number;
+  frequency: ReportScheduleFrequency;
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  dayOfMonth?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+  /**
+     * @minimum 0
+     * @maximum 59
+     */
+  minute: number;
+  period: ReportSchedulePeriod;
+  recipients: string;
+  subject: string;
+  message?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ReportScheduleInputFrequency = typeof ReportScheduleInputFrequency[keyof typeof ReportScheduleInputFrequency];
+
+
+export const ReportScheduleInputFrequency = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type ReportScheduleInputPeriod = typeof ReportScheduleInputPeriod[keyof typeof ReportScheduleInputPeriod];
+
+
+export const ReportScheduleInputPeriod = {
+  this_month: 'this_month',
+  last_month: 'last_month',
+  this_quarter: 'this_quarter',
+  this_year: 'this_year',
+} as const;
+
+export interface ReportScheduleInput {
+  frequency: ReportScheduleInputFrequency;
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  dayOfMonth?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+  /**
+     * @minimum 0
+     * @maximum 59
+     */
+  minute: number;
+  period: ReportScheduleInputPeriod;
+  recipients: string;
+  subject: string;
+  message?: string | null;
+  active?: boolean;
+}
+
+export type ReportSendLogTriggerType = typeof ReportSendLogTriggerType[keyof typeof ReportSendLogTriggerType];
+
+
+export const ReportSendLogTriggerType = {
+  manual: 'manual',
+  scheduled: 'scheduled',
+} as const;
+
+export type ReportSendLogStatus = typeof ReportSendLogStatus[keyof typeof ReportSendLogStatus];
+
+
+export const ReportSendLogStatus = {
+  success: 'success',
+  error: 'error',
+} as const;
+
+export interface ReportSendLog {
+  id: number;
+  scheduleId?: number | null;
+  triggerType: ReportSendLogTriggerType;
+  period: string;
+  periodLabel: string;
+  recipients: string;
+  status: ReportSendLogStatus;
+  errorMessage?: string | null;
+  sentAt: string;
+}
+
 export interface DashboardGoal {
   id?: number | null;
   year: number;
@@ -3076,6 +3201,10 @@ export const GetExecutiveDashboardPeriod = {
   this_quarter: 'this_quarter',
   this_year: 'this_year',
 } as const;
+
+export type ListReportSendLogsParams = {
+limit?: number;
+};
 
 export type ListFiscalDocumentsParams = {
 type?: ListFiscalDocumentsType;

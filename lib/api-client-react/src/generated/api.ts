@@ -101,6 +101,7 @@ import type {
   ListQualityInspectionsParams,
   ListQualityNcrsParams,
   ListQuotationsParams,
+  ListReportSendLogsParams,
   ListSalesOrdersParams,
   ListStockMovementsParams,
   ListSuppliersParams,
@@ -160,6 +161,9 @@ import type {
   RelatoriSendEmailInput,
   RelatoriSendEmailResult,
   RelatorioDashboard,
+  ReportSchedule,
+  ReportScheduleInput,
+  ReportSendLog,
   ResolveNcrInput,
   RhDashboard,
   SalesOrder,
@@ -10678,6 +10682,380 @@ export const useSendRelatorioEmail = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getSendRelatorioEmailMutationOptions(options));
     }
+
+export const getListReportSchedulesUrl = () => {
+
+
+
+
+  return `/api/relatorios/schedules`
+}
+
+/**
+ * @summary List all report schedules
+ */
+export const listReportSchedules = async ( options?: RequestInit): Promise<ReportSchedule[]> => {
+
+  return customFetch<ReportSchedule[]>(getListReportSchedulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReportSchedulesQueryKey = () => {
+    return [
+    `/api/relatorios/schedules`
+    ] as const;
+    }
+
+
+export const getListReportSchedulesQueryOptions = <TData = Awaited<ReturnType<typeof listReportSchedules>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReportSchedules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReportSchedulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReportSchedules>>> = ({ signal }) => listReportSchedules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReportSchedules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReportSchedulesQueryResult = NonNullable<Awaited<ReturnType<typeof listReportSchedules>>>
+export type ListReportSchedulesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List all report schedules
+ */
+
+export function useListReportSchedules<TData = Awaited<ReturnType<typeof listReportSchedules>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReportSchedules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReportSchedulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateReportScheduleUrl = () => {
+
+
+
+
+  return `/api/relatorios/schedules`
+}
+
+/**
+ * @summary Create a new report schedule (admin only)
+ */
+export const createReportSchedule = async (reportScheduleInput: ReportScheduleInput, options?: RequestInit): Promise<ReportSchedule> => {
+
+  return customFetch<ReportSchedule>(getCreateReportScheduleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportScheduleInput,)
+  }
+);}
+
+
+
+
+export const getCreateReportScheduleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReportSchedule>>, TError,{data: BodyType<ReportScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReportSchedule>>, TError,{data: BodyType<ReportScheduleInput>}, TContext> => {
+
+const mutationKey = ['createReportSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReportSchedule>>, {data: BodyType<ReportScheduleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReportSchedule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReportScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof createReportSchedule>>>
+    export type CreateReportScheduleMutationBody = BodyType<ReportScheduleInput>
+    export type CreateReportScheduleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a new report schedule (admin only)
+ */
+export const useCreateReportSchedule = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReportSchedule>>, TError,{data: BodyType<ReportScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReportSchedule>>,
+        TError,
+        {data: BodyType<ReportScheduleInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReportScheduleMutationOptions(options));
+    }
+
+export const getUpdateReportScheduleUrl = (id: number,) => {
+
+
+
+
+  return `/api/relatorios/schedules/${id}`
+}
+
+/**
+ * @summary Update a report schedule (admin only)
+ */
+export const updateReportSchedule = async (id: number,
+    reportScheduleInput: ReportScheduleInput, options?: RequestInit): Promise<ReportSchedule> => {
+
+  return customFetch<ReportSchedule>(getUpdateReportScheduleUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportScheduleInput,)
+  }
+);}
+
+
+
+
+export const getUpdateReportScheduleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReportSchedule>>, TError,{id: number;data: BodyType<ReportScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateReportSchedule>>, TError,{id: number;data: BodyType<ReportScheduleInput>}, TContext> => {
+
+const mutationKey = ['updateReportSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateReportSchedule>>, {id: number;data: BodyType<ReportScheduleInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateReportSchedule(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateReportScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof updateReportSchedule>>>
+    export type UpdateReportScheduleMutationBody = BodyType<ReportScheduleInput>
+    export type UpdateReportScheduleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a report schedule (admin only)
+ */
+export const useUpdateReportSchedule = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReportSchedule>>, TError,{id: number;data: BodyType<ReportScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateReportSchedule>>,
+        TError,
+        {id: number;data: BodyType<ReportScheduleInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateReportScheduleMutationOptions(options));
+    }
+
+export const getDeleteReportScheduleUrl = (id: number,) => {
+
+
+
+
+  return `/api/relatorios/schedules/${id}`
+}
+
+/**
+ * @summary Delete a report schedule (admin only)
+ */
+export const deleteReportSchedule = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDeleteReportScheduleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteReportScheduleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReportSchedule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReportSchedule>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteReportSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReportSchedule>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteReportSchedule(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReportScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReportSchedule>>>
+
+    export type DeleteReportScheduleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a report schedule (admin only)
+ */
+export const useDeleteReportSchedule = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReportSchedule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReportSchedule>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteReportScheduleMutationOptions(options));
+    }
+
+export const getListReportSendLogsUrl = (params?: ListReportSendLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/relatorios/send-logs?${stringifiedParams}` : `/api/relatorios/send-logs`
+}
+
+/**
+ * @summary List report send history
+ */
+export const listReportSendLogs = async (params?: ListReportSendLogsParams, options?: RequestInit): Promise<ReportSendLog[]> => {
+
+  return customFetch<ReportSendLog[]>(getListReportSendLogsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReportSendLogsQueryKey = (params?: ListReportSendLogsParams,) => {
+    return [
+    `/api/relatorios/send-logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListReportSendLogsQueryOptions = <TData = Awaited<ReturnType<typeof listReportSendLogs>>, TError = ErrorType<ErrorResponse>>(params?: ListReportSendLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReportSendLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReportSendLogsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReportSendLogs>>> = ({ signal }) => listReportSendLogs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReportSendLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReportSendLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listReportSendLogs>>>
+export type ListReportSendLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List report send history
+ */
+
+export function useListReportSendLogs<TData = Awaited<ReturnType<typeof listReportSendLogs>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListReportSendLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReportSendLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReportSendLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListFiscalDocumentsUrl = (params?: ListFiscalDocumentsParams,) => {
   const normalizedParams = new URLSearchParams();

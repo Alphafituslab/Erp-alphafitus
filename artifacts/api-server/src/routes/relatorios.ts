@@ -12,10 +12,12 @@ import {
   employeesTable,
   projectsTable,
   dashboardGoalsTable,
+  reportSchedulesTable,
+  reportSendLogsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 import nodemailer from "nodemailer";
-import PDFDocument from "pdfkit";
+import { buildReportPdf } from "./relatorios-pdf";
 
 const router: IRouter = Router();
 
@@ -589,206 +591,6 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
   });
 });
 
-// ─── Helper: generate executive report PDF on the server ──────────────────────
-
-function fmtBRL(v: string | number | null | undefined): string {
-  return parseFloat(String(v ?? "0")).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  });
-}
-
-async function buildReportPdf(period: Period): Promise<Buffer> {
-  const range = getDateRange(period);
-  const prevRange = getPreviousPeriodRange(period, range);
-  const now = new Date();
-
-  const [
-    revenueRow,
-    expenseRow,
-    revenuePrevRow,
-    expensePrevRow,
-    openSalesRow,
-    newSalesRow,
-    lowStockRow,
-    pendingPurchaseRow,
-    activeEmployeesRow,
-    activeProjectsRow,
-  ] = await Promise.all([
-    db.select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
-      .from(financialEntriesTable)
-      .where(and(eq(financialEntriesTable.type, "income"), eq(financialEntriesTable.status, "paid"), gte(financialEntriesTable.paidAt, range.start), lte(financialEntriesTable.paidAt, range.end))),
-    db.select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
-      .from(financialEntriesTable)
-      .where(and(eq(financialEntriesTable.type, "expense"), eq(financialEntriesTable.status, "paid"), gte(financialEntriesTable.paidAt, range.start), lte(financialEntriesTable.paidAt, range.end))),
-    db.select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
-      .from(financialEntriesTable)
-      .where(and(eq(financialEntriesTable.type, "income"), eq(financialEntriesTable.status, "paid"), gte(financialEntriesTable.paidAt, prevRange.start), lte(financialEntriesTable.paidAt, prevRange.end))),
-    db.select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
-      .from(financialEntriesTable)
-      .where(and(eq(financialEntriesTable.type, "expense"), eq(financialEntriesTable.status, "paid"), gte(financialEntriesTable.paidAt, prevRange.start), lte(financialEntriesTable.paidAt, prevRange.end))),
-    db.select({ count: sql<number>`COUNT(*)::int` }).from(salesOrdersTable).where(sql`${salesOrdersTable.status} IN ('draft', 'confirmed')`),
-    db.select({ count: sql<number>`COUNT(*)::int` }).from(salesOrdersTable).where(and(sql`${salesOrdersTable.status} NOT IN ('cancelled')`, gte(salesOrdersTable.createdAt, range.start), lte(salesOrdersTable.createdAt, range.end))),
-    db.select({ count: sql<number>`COUNT(*)::int` }).from(productsTable).where(and(eq(productsTable.active, "true"), sql`${productsTable.currentStock} <= ${productsTable.minStock}`)),
-    db.select({ count: sql<number>`COUNT(*)::int` }).from(purchaseOrdersTable).where(sql`${purchaseOrdersTable.status} IN ('draft', 'sent')`),
-    db.select({ count: sql<number>`COUNT(*)::int` }).from(employeesTable).where(eq(employeesTable.status, "active")),
-    db.select({ count: sql<number>`COUNT(*)::int` }).from(projectsTable).where(eq(projectsTable.status, "active")),
-  ]);
-
-  const revenueTotal = revenueRow[0]?.total ?? "0";
-  const expenseTotal = expenseRow[0]?.total ?? "0";
-  const netBalance = (parseFloat(revenueTotal) - parseFloat(expenseTotal)).toFixed(2);
-
-  const topClientRows = await db
-    .select({
-      clientName: clientsTable.name,
-      totalRevenue: sql<string>`COALESCE(SUM(${salesOrdersTable.totalAmount}), 0)::text`,
-      orderCount: sql<number>`COUNT(${salesOrdersTable.id})::int`,
-    })
-    .from(salesOrdersTable)
-    .innerJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
-    .where(and(sql`${salesOrdersTable.status} IN ('confirmed', 'delivered')`, gte(salesOrdersTable.createdAt, range.start), lte(salesOrdersTable.createdAt, range.end)))
-    .groupBy(clientsTable.id, clientsTable.name)
-    .orderBy(desc(sql`SUM(${salesOrdersTable.totalAmount})`))
-    .limit(5);
-
-  const topProductRows = await db
-    .select({
-      productName: productsTable.name,
-      movementCount: sql<number>`COUNT(${stockMovementsTable.id})::int`,
-    })
-    .from(stockMovementsTable)
-    .innerJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
-    .where(and(gte(stockMovementsTable.createdAt, range.start), lte(stockMovementsTable.createdAt, range.end)))
-    .groupBy(productsTable.id, productsTable.name)
-    .orderBy(desc(sql`COUNT(${stockMovementsTable.id})`))
-    .limit(5);
-
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
-    const chunks: Buffer[] = [];
-    doc.on("data", (c: Buffer) => chunks.push(c));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-
-    const blue = "#2563eb";
-    const gray = "#6b7280";
-    const lightGray = "#f3f4f6";
-    const green = "#059669";
-    const red = "#dc2626";
-
-    // Header
-    doc.rect(0, 0, doc.page.width, 70).fill(blue);
-    doc.fillColor("white").fontSize(20).font("Helvetica-Bold")
-      .text("NEXUS ERP — Relatório Executivo", 50, 22);
-    doc.fontSize(10).font("Helvetica")
-      .text(`Período: ${range.label}  |  Gerado em: ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, 50, 48);
-
-    doc.fillColor("#1f2937");
-    let y = 90;
-
-    // Section title helper
-    function sectionTitle(title: string) {
-      doc.fontSize(12).font("Helvetica-Bold").fillColor(blue).text(title, 50, y);
-      y += 18;
-      doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").lineWidth(1).stroke();
-      y += 8;
-    }
-
-    // KPI row helper
-    function kpiRow(label: string, value: string, sub?: string) {
-      doc.fontSize(9).font("Helvetica").fillColor(gray).text(label, 50, y, { width: 200 });
-      doc.fontSize(11).font("Helvetica-Bold").fillColor("#1f2937").text(value, 260, y, { width: 200 });
-      if (sub) {
-        doc.fontSize(9).font("Helvetica").fillColor(gray).text(sub, 460, y, { width: 85 });
-      }
-      y += 18;
-    }
-
-    // Financial KPIs
-    sectionTitle("Indicadores Financeiros");
-    const revPrev = parseFloat(revenuePrevRow[0]?.total ?? "0");
-    const expPrev = parseFloat(expensePrevRow[0]?.total ?? "0");
-    const revCur = parseFloat(revenueTotal);
-    const expCur = parseFloat(expenseTotal);
-
-    const revChg = revPrev > 0 ? ((revCur - revPrev) / revPrev * 100).toFixed(1) + "%" : "—";
-    const expChg = expPrev > 0 ? ((expCur - expPrev) / expPrev * 100).toFixed(1) + "%" : "—";
-    const net = parseFloat(netBalance);
-
-    kpiRow("Receita (período)", fmtBRL(revenueTotal), `vs ant.: ${revChg}`);
-    kpiRow("Despesas (período)", fmtBRL(expenseTotal), `vs ant.: ${expChg}`);
-    kpiRow("Saldo Líquido", fmtBRL(netBalance));
-    doc.fontSize(9).font("Helvetica").fillColor(net >= 0 ? green : red)
-      .text(net >= 0 ? "▲ Positivo" : "▼ Negativo", 360, y - 18);
-
-    y += 10;
-
-    // Operational KPIs
-    sectionTitle("Indicadores Operacionais");
-    kpiRow("Pedidos Abertos (backlog)", String(openSalesRow[0]?.count ?? 0));
-    kpiRow("Novos Pedidos no Período", String(newSalesRow[0]?.count ?? 0));
-    kpiRow("Produtos com Estoque Baixo", String(lowStockRow[0]?.count ?? 0));
-    kpiRow("Compras Pendentes", String(pendingPurchaseRow[0]?.count ?? 0));
-    kpiRow("Funcionários Ativos", String(activeEmployeesRow[0]?.count ?? 0));
-    kpiRow("Projetos Ativos", String(activeProjectsRow[0]?.count ?? 0));
-
-    y += 10;
-
-    // Top 5 Clients
-    if (topClientRows.length > 0) {
-      sectionTitle("Top 5 Clientes por Receita");
-      // Table header
-      doc.rect(50, y, doc.page.width - 100, 16).fill(lightGray);
-      doc.fontSize(8).font("Helvetica-Bold").fillColor(gray);
-      doc.text("#", 55, y + 4);
-      doc.text("Cliente", 75, y + 4, { width: 220 });
-      doc.text("Pedidos", 300, y + 4, { width: 80 });
-      doc.text("Receita", 390, y + 4, { width: 110 });
-      y += 16;
-
-      topClientRows.forEach((c, i) => {
-        if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 16).fill("#fafafa");
-        doc.fontSize(9).font("Helvetica").fillColor("#1f2937");
-        doc.text(String(i + 1), 55, y + 4);
-        doc.text(c.clientName, 75, y + 4, { width: 220 });
-        doc.text(String(c.orderCount), 300, y + 4, { width: 80 });
-        doc.text(fmtBRL(c.totalRevenue), 390, y + 4, { width: 110 });
-        y += 16;
-      });
-      y += 8;
-    }
-
-    // Top 5 Products
-    if (topProductRows.length > 0) {
-      if (y > 650) { doc.addPage(); y = 50; }
-      sectionTitle("Top 5 Produtos por Movimentação");
-      doc.rect(50, y, doc.page.width - 100, 16).fill(lightGray);
-      doc.fontSize(8).font("Helvetica-Bold").fillColor(gray);
-      doc.text("#", 55, y + 4);
-      doc.text("Produto", 75, y + 4, { width: 350 });
-      doc.text("Movimentações", 430, y + 4, { width: 100 });
-      y += 16;
-
-      topProductRows.forEach((p, i) => {
-        if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 16).fill("#fafafa");
-        doc.fontSize(9).font("Helvetica").fillColor("#1f2937");
-        doc.text(String(i + 1), 55, y + 4);
-        doc.text(p.productName, 75, y + 4, { width: 350 });
-        doc.text(String(p.movementCount), 430, y + 4, { width: 100 });
-        y += 16;
-      });
-    }
-
-    // Footer
-    doc.fontSize(8).font("Helvetica").fillColor(gray)
-      .text("Gerado automaticamente pelo NEXUS ERP — uso interno", 50, doc.page.height - 40, { align: "center", width: doc.page.width - 100 });
-
-    doc.end();
-  });
-}
-
 // ─── Send report by email ─────────────────────────────────────────────────────
 
 router.post("/relatorios/send-email", async (req: Request, res: Response): Promise<void> => {
@@ -826,10 +628,13 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
     return;
   }
 
+  const range = getDateRange(safePeriod);
+  const periodLabel = range.label;
+  const recipientsStr = recipients.join(", ");
+
   try {
     const pdfBuffer = await buildReportPdf(safePeriod);
-    const range = getDateRange(safePeriod);
-    const filename = `relatorio-executivo-${range.label.toLowerCase().replace(/\//g, "-")}.pdf`;
+    const filename = `relatorio-executivo-${periodLabel.toLowerCase().replace(/\//g, "-")}.pdf`;
 
     const transporter = nodemailer.createTransport({
       host: smtpHost,
@@ -840,7 +645,7 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
 
     await transporter.sendMail({
       from: smtpFrom,
-      to: recipients.join(", "),
+      to: recipientsStr,
       subject: subject.trim(),
       text: message?.trim() || "Segue em anexo o relatório executivo gerado pelo NEXUS ERP.",
       attachments: [
@@ -852,12 +657,205 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
       ],
     });
 
+    await db.insert(reportSendLogsTable).values({
+      triggerType: "manual",
+      period: safePeriod,
+      periodLabel,
+      recipients: recipientsStr,
+      status: "success",
+    });
+
     res.json({ sent: true, recipients });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     req.log.error({ err }, "Failed to send report email");
+
+    await db.insert(reportSendLogsTable).values({
+      triggerType: "manual",
+      period: safePeriod,
+      periodLabel,
+      recipients: recipientsStr,
+      status: "error",
+      errorMessage: errMsg,
+    }).catch(() => {});
+
     res.status(500).json({ error: `Falha ao enviar e-mail: ${errMsg}` });
   }
+});
+
+// ─── Report Schedules: CRUD ───────────────────────────────────────────────────
+
+router.get("/relatorios/schedules", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const schedules = await db
+    .select()
+    .from(reportSchedulesTable)
+    .orderBy(reportSchedulesTable.id);
+
+  res.json(schedules);
+});
+
+router.post("/relatorios/schedules", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+
+  const body = req.body as {
+    frequency?: string;
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+    hour?: number;
+    minute?: number;
+    period?: string;
+    recipients?: string;
+    subject?: string;
+    message?: string;
+    active?: boolean;
+  };
+
+  const { frequency, hour, minute, period, recipients, subject } = body;
+
+  if (!frequency || !["weekly", "monthly"].includes(frequency)) {
+    res.status(400).json({ error: "frequency deve ser weekly ou monthly" });
+    return;
+  }
+  if (hour === undefined || hour < 0 || hour > 23) {
+    res.status(400).json({ error: "hour deve ser entre 0 e 23" });
+    return;
+  }
+  if (minute === undefined || minute < 0 || minute > 59) {
+    res.status(400).json({ error: "minute deve ser entre 0 e 59" });
+    return;
+  }
+  if (!period || !["this_month", "last_month", "this_quarter", "this_year"].includes(period)) {
+    res.status(400).json({ error: "period inválido" });
+    return;
+  }
+  if (!recipients || typeof recipients !== "string" || recipients.trim() === "") {
+    res.status(400).json({ error: "recipients é obrigatório" });
+    return;
+  }
+  if (!subject || typeof subject !== "string" || subject.trim() === "") {
+    res.status(400).json({ error: "subject é obrigatório" });
+    return;
+  }
+  if (frequency === "weekly" && (body.dayOfWeek === undefined || body.dayOfWeek < 0 || body.dayOfWeek > 6)) {
+    res.status(400).json({ error: "dayOfWeek deve ser entre 0 (Dom) e 6 (Sáb) para frequência semanal" });
+    return;
+  }
+  if (frequency === "monthly" && (body.dayOfMonth === undefined || body.dayOfMonth < 1 || body.dayOfMonth > 28)) {
+    res.status(400).json({ error: "dayOfMonth deve ser entre 1 e 28 para frequência mensal" });
+    return;
+  }
+
+  const [created] = await db.insert(reportSchedulesTable).values({
+    frequency: frequency as "weekly" | "monthly",
+    dayOfWeek: frequency === "weekly" ? body.dayOfWeek : null,
+    dayOfMonth: frequency === "monthly" ? body.dayOfMonth : null,
+    hour,
+    minute,
+    period: period as "this_month" | "last_month" | "this_quarter" | "this_year",
+    recipients: recipients.trim(),
+    subject: subject.trim(),
+    message: body.message?.trim() || null,
+    active: body.active !== false,
+  }).returning();
+
+  res.status(201).json(created);
+});
+
+router.put("/relatorios/schedules/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "id inválido" }); return; }
+
+  const body = req.body as {
+    frequency?: string;
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+    hour?: number;
+    minute?: number;
+    period?: string;
+    recipients?: string;
+    subject?: string;
+    message?: string;
+    active?: boolean;
+  };
+
+  const { frequency, hour, minute, period, recipients, subject } = body;
+
+  if (!frequency || !["weekly", "monthly"].includes(frequency)) {
+    res.status(400).json({ error: "frequency deve ser weekly ou monthly" }); return;
+  }
+  if (hour === undefined || hour < 0 || hour > 23) {
+    res.status(400).json({ error: "hour deve ser entre 0 e 23" }); return;
+  }
+  if (minute === undefined || minute < 0 || minute > 59) {
+    res.status(400).json({ error: "minute deve ser entre 0 e 59" }); return;
+  }
+  if (!period || !["this_month", "last_month", "this_quarter", "this_year"].includes(period)) {
+    res.status(400).json({ error: "period inválido" }); return;
+  }
+  if (!recipients || typeof recipients !== "string" || recipients.trim() === "") {
+    res.status(400).json({ error: "recipients é obrigatório" }); return;
+  }
+  if (!subject || typeof subject !== "string" || subject.trim() === "") {
+    res.status(400).json({ error: "subject é obrigatório" }); return;
+  }
+
+  const [updated] = await db
+    .update(reportSchedulesTable)
+    .set({
+      frequency: frequency as "weekly" | "monthly",
+      dayOfWeek: frequency === "weekly" ? body.dayOfWeek ?? null : null,
+      dayOfMonth: frequency === "monthly" ? body.dayOfMonth ?? null : null,
+      hour,
+      minute,
+      period: period as "this_month" | "last_month" | "this_quarter" | "this_year",
+      recipients: recipients.trim(),
+      subject: subject.trim(),
+      message: body.message?.trim() || null,
+      active: body.active !== false,
+      updatedAt: new Date(),
+    })
+    .where(eq(reportSchedulesTable.id, id))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Agendamento não encontrado" }); return; }
+
+  res.json(updated);
+});
+
+router.delete("/relatorios/schedules/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "id inválido" }); return; }
+
+  const [deleted] = await db
+    .delete(reportSchedulesTable)
+    .where(eq(reportSchedulesTable.id, id))
+    .returning({ id: reportSchedulesTable.id });
+
+  if (!deleted) { res.status(404).json({ error: "Agendamento não encontrado" }); return; }
+
+  res.json({ success: true });
+});
+
+// ─── Report Send Logs ─────────────────────────────────────────────────────────
+
+router.get("/relatorios/send-logs", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 200);
+
+  const logs = await db
+    .select()
+    .from(reportSendLogsTable)
+    .orderBy(desc(reportSendLogsTable.sentAt))
+    .limit(limit);
+
+  res.json(logs);
 });
 
 export default router;

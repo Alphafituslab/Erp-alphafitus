@@ -15,3 +15,4 @@ export * from "./purchasing";
 export * from "./production";
 export * from "./aps";
 export * from "./dashboard-goals";
+export * from "./report-schedules";

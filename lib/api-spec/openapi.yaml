@@ -4557,6 +4557,185 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/schedules:
+    get:
+      operationId: listReportSchedules
+      tags: [relatorios]
+      summary: List all report schedules
+      responses:
+        "200":
+          description: List of report schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportSchedule"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createReportSchedule
+      tags: [relatorios]
+      summary: Create a new report schedule (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportScheduleInput"
+      responses:
+        "201":
+          description: Created schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSchedule"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /relatorios/schedules/{id}:
+    put:
+      operationId: updateReportSchedule
+      tags: [relatorios]
+      summary: Update a report schedule (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportScheduleInput"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSchedule"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteReportSchedule
+      tags: [relatorios]
+      summary: Delete a report schedule (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /relatorios/send-logs:
+    get:
+      operationId: listReportSendLogs
+      tags: [relatorios]
+      summary: List report send history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of report send log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportSendLog"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Fiscal: Documents ─────────────────────────────────────────────────────
 
   /fiscal/documents:
@@ -9848,6 +10027,141 @@ components:
           type: integer
         netQuantity:
           type: integer
+
+    ReportSchedule:
+      type: object
+      required:
+        - id
+        - frequency
+        - hour
+        - minute
+        - period
+        - recipients
+        - subject
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        frequency:
+          type: string
+          enum: [weekly, monthly]
+        dayOfWeek:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 6
+        dayOfMonth:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 28
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        period:
+          type: string
+          enum: [this_month, last_month, this_quarter, this_year]
+        recipients:
+          type: string
+        subject:
+          type: string
+        message:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReportScheduleInput:
+      type: object
+      required:
+        - frequency
+        - hour
+        - minute
+        - period
+        - recipients
+        - subject
+      properties:
+        frequency:
+          type: string
+          enum: [weekly, monthly]
+        dayOfWeek:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 6
+        dayOfMonth:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 28
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        period:
+          type: string
+          enum: [this_month, last_month, this_quarter, this_year]
+        recipients:
+          type: string
+        subject:
+          type: string
+        message:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+
+    ReportSendLog:
+      type: object
+      required:
+        - id
+        - triggerType
+        - period
+        - periodLabel
+        - recipients
+        - status
+        - sentAt
+      properties:
+        id:
+          type: integer
+        scheduleId:
+          type: integer
+          nullable: true
+        triggerType:
+          type: string
+          enum: [manual, scheduled]
+        period:
+          type: string
+        periodLabel:
+          type: string
+        recipients:
+          type: string
+        status:
+          type: string
+          enum: [success, error]
+        errorMessage:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
 
     DashboardGoal:
       type: object

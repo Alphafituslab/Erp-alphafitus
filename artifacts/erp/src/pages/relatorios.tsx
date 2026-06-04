@@ -68,7 +68,13 @@ import {
   useGetDashboardGoals,
   useUpsertDashboardGoals,
   useSendRelatorioEmail,
+  useListReportSchedules,
+  useCreateReportSchedule,
+  useUpdateReportSchedule,
+  useDeleteReportSchedule,
+  useListReportSendLogs,
 } from "@workspace/api-client-react";
+import type { ReportSchedule } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -734,6 +740,392 @@ function EmployeeDashboard() {
   );
 }
 
+// ── Schedule Dialog ───────────────────────────────────────────────────────────
+
+const DAY_OF_WEEK_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+const PERIOD_OPTIONS = [
+  { value: "last_month", label: "Mês anterior" },
+  { value: "this_month", label: "Este mês" },
+  { value: "this_quarter", label: "Este trimestre" },
+  { value: "this_year", label: "Este ano" },
+];
+
+function ScheduleDialog({
+  schedule,
+  onClose,
+}: {
+  schedule: ReportSchedule | null;
+  onClose: () => void;
+}) {
+  const isEdit = schedule !== null;
+  const [frequency, setFrequency] = useState<"weekly" | "monthly">(schedule?.frequency as "weekly" | "monthly" ?? "monthly");
+  const [dayOfWeek, setDayOfWeek] = useState(String(schedule?.dayOfWeek ?? 1));
+  const [dayOfMonth, setDayOfMonth] = useState(String(schedule?.dayOfMonth ?? 1));
+  const [hour, setHour] = useState(String(schedule?.hour ?? 8));
+  const [minute, setMinute] = useState(String(schedule?.minute ?? 0));
+  const [period, setPeriod] = useState(schedule?.period ?? "last_month");
+  const [recipients, setRecipients] = useState(schedule?.recipients ?? "");
+  const [subject, setSubject] = useState(schedule?.subject ?? "Relatório Executivo — NEXUS ERP");
+  const [message, setMessage] = useState(schedule?.message ?? "");
+  const [active, setActive] = useState(schedule?.active ?? true);
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/relatorios/schedules"] });
+  };
+
+  const { mutate: createSchedule, isPending: isCreating } = useCreateReportSchedule({
+    mutation: {
+      onSuccess: () => { toast({ title: "Agendamento criado!" }); invalidate(); onClose(); },
+      onError: (e: unknown) => {
+        const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao criar agendamento";
+        toast({ title: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  const { mutate: updateSchedule, isPending: isUpdating } = useUpdateReportSchedule({
+    mutation: {
+      onSuccess: () => { toast({ title: "Agendamento atualizado!" }); invalidate(); onClose(); },
+      onError: (e: unknown) => {
+        const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao atualizar agendamento";
+        toast({ title: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = {
+      frequency,
+      dayOfWeek: frequency === "weekly" ? parseInt(dayOfWeek) : undefined,
+      dayOfMonth: frequency === "monthly" ? parseInt(dayOfMonth) : undefined,
+      hour: parseInt(hour),
+      minute: parseInt(minute),
+      period,
+      recipients: recipients.trim(),
+      subject: subject.trim(),
+      message: message.trim() || undefined,
+      active,
+    };
+    if (isEdit) {
+      updateSchedule({ id: schedule!.id, data: payload });
+    } else {
+      createSchedule({ data: payload });
+    }
+  }
+
+  const isPending = isCreating || isUpdating;
+
+  return (
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{isEdit ? "Editar Agendamento" : "Novo Agendamento"}</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Frequência</Label>
+            <Select value={frequency} onValueChange={(v) => setFrequency(v as "weekly" | "monthly")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Semanal</SelectItem>
+                <SelectItem value="monthly">Mensal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {frequency === "weekly" ? (
+            <div className="space-y-1">
+              <Label>Dia da semana</Label>
+              <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DAY_OF_WEEK_LABELS.map((d, i) => (
+                    <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label>Dia do mês</Label>
+              <Input
+                type="number" min="1" max="28"
+                value={dayOfMonth}
+                onChange={(e) => setDayOfMonth(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Hora (0–23)</Label>
+            <Input type="number" min="0" max="23" value={hour} onChange={(e) => setHour(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label>Minuto (0–59)</Label>
+            <Input type="number" min="0" max="59" value={minute} onChange={(e) => setMinute(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Período do relatório</Label>
+          <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Destinatários</Label>
+          <Input
+            placeholder="email1@empresa.com, email2@empresa.com"
+            value={recipients}
+            onChange={(e) => setRecipients(e.target.value)}
+            required
+          />
+          <p className="text-xs text-muted-foreground">Separe múltiplos e-mails com vírgula</p>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Assunto</Label>
+          <Input value={subject} onChange={(e) => setSubject(e.target.value)} required />
+        </div>
+
+        <div className="space-y-1">
+          <Label>Mensagem (opcional)</Label>
+          <Textarea
+            placeholder="Mensagem personalizada..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={2}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="active-check"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <Label htmlFor="active-check" className="cursor-pointer">Agendamento ativo</Label>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancelar</Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {isEdit ? "Salvar" : "Criar"}
+          </Button>
+        </div>
+      </form>
+    </DialogContent>
+  );
+}
+
+// ── Schedule Management Section ────────────────────────────────────────────────
+
+function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
+  const [editTarget, setEditTarget] = useState<ReportSchedule | null | undefined>(undefined);
+  const [deleteTarget, setDeleteTarget] = useState<ReportSchedule | null>(null);
+
+  const { data: schedules, isLoading } = useListReportSchedules();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { mutate: deleteSchedule, isPending: isDeleting } = useDeleteReportSchedule({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Agendamento removido" });
+        queryClient.invalidateQueries({ queryKey: ["/api/relatorios/schedules"] });
+        setDeleteTarget(null);
+      },
+      onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
+    },
+  });
+
+  function describeSchedule(s: ReportSchedule): string {
+    if (s.frequency === "weekly") {
+      return `Toda ${DAY_OF_WEEK_LABELS[s.dayOfWeek ?? 1]} às ${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`;
+    }
+    return `Todo dia ${s.dayOfMonth ?? 1} às ${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`;
+  }
+
+  const periodLabel = (p: string) => PERIOD_OPTIONS.find((o) => o.value === p)?.label ?? p;
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-base">Agendamentos de Envio</CardTitle>
+          {isAdmin && (
+            <Dialog open={editTarget === null} onOpenChange={(o) => { if (!o) setEditTarget(undefined); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" onClick={() => setEditTarget(null)}>
+                  + Novo agendamento
+                </Button>
+              </DialogTrigger>
+              {editTarget === null && (
+                <ScheduleDialog schedule={null} onClose={() => setEditTarget(undefined)} />
+              )}
+            </Dialog>
+          )}
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (schedules?.length ?? 0) === 0 ? (
+            <p className="text-center py-8 text-sm text-muted-foreground">
+              {isAdmin ? "Nenhum agendamento configurado. Clique em \"+ Novo agendamento\" para criar." : "Nenhum agendamento configurado."}
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Recorrência</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead>Destinatários</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {schedules?.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="text-sm font-medium">{describeSchedule(s)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{periodLabel(s.period)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.recipients}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {s.active ? "Ativo" : "Inativo"}
+                      </span>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Dialog open={editTarget?.id === s.id} onOpenChange={(o) => { if (!o) setEditTarget(undefined); }}>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => setEditTarget(s)}>Editar</Button>
+                            </DialogTrigger>
+                            {editTarget?.id === s.id && (
+                              <ScheduleDialog schedule={s} onClose={() => setEditTarget(undefined)} />
+                            )}
+                          </Dialog>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => setDeleteTarget(s)}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover agendamento?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mt-2">
+            Esta ação não pode ser desfeita. O histórico de envios será mantido.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={() => deleteTarget && deleteSchedule({ id: deleteTarget.id })}
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Remover
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ── Send History Section ───────────────────────────────────────────────────────
+
+function SendHistory() {
+  const { data: logs, isLoading } = useListReportSendLogs({ limit: 30 });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Histórico de Envios</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (logs?.length ?? 0) === 0 ? (
+          <p className="text-center py-8 text-sm text-muted-foreground">Nenhum envio registrado ainda</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data/Hora</TableHead>
+                <TableHead>Período</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Destinatários</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs?.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    {new Date(log.sentAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{log.periodLabel}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${log.triggerType === "scheduled" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
+                      {log.triggerType === "scheduled" ? "Automático" : "Manual"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">{log.recipients}</TableCell>
+                  <TableCell>
+                    {log.status === "success" ? (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Enviado</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700" title={log.errorMessage ?? ""}>Erro</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Executive dashboard ───────────────────────────────────────────────────────
 
 type PeriodKey = "this_month" | "last_month" | "this_quarter" | "this_year";
@@ -1115,6 +1507,10 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Schedule management + send history */}
+          <ScheduleSection isAdmin={isAdmin} />
+          <SendHistory />
         </>
       )}
     </div>

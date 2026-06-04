@@ -3764,6 +3764,168 @@ export const SendRelatorioEmailResponse = zod.object({
 
 
 /**
+ * @summary List all report schedules
+ */
+export const listReportSchedulesResponseDayOfWeekMin = 0;
+export const listReportSchedulesResponseDayOfWeekMax = 6;
+
+export const listReportSchedulesResponseDayOfMonthMax = 28;
+
+export const listReportSchedulesResponseHourMin = 0;
+export const listReportSchedulesResponseHourMax = 23;
+
+export const listReportSchedulesResponseMinuteMin = 0;
+export const listReportSchedulesResponseMinuteMax = 59;
+
+
+
+export const ListReportSchedulesResponseItem = zod.object({
+  "id": zod.number(),
+  "frequency": zod.enum(['weekly', 'monthly']),
+  "dayOfWeek": zod.number().min(listReportSchedulesResponseDayOfWeekMin).max(listReportSchedulesResponseDayOfWeekMax).nullish(),
+  "dayOfMonth": zod.number().min(1).max(listReportSchedulesResponseDayOfMonthMax).nullish(),
+  "hour": zod.number().min(listReportSchedulesResponseHourMin).max(listReportSchedulesResponseHourMax),
+  "minute": zod.number().min(listReportSchedulesResponseMinuteMin).max(listReportSchedulesResponseMinuteMax),
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']),
+  "recipients": zod.string(),
+  "subject": zod.string(),
+  "message": zod.string().nullish(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListReportSchedulesResponse = zod.array(ListReportSchedulesResponseItem)
+
+
+/**
+ * @summary Create a new report schedule (admin only)
+ */
+export const createReportScheduleBodyDayOfWeekMin = 0;
+export const createReportScheduleBodyDayOfWeekMax = 6;
+
+export const createReportScheduleBodyDayOfMonthMax = 28;
+
+export const createReportScheduleBodyHourMin = 0;
+export const createReportScheduleBodyHourMax = 23;
+
+export const createReportScheduleBodyMinuteMin = 0;
+export const createReportScheduleBodyMinuteMax = 59;
+
+
+
+export const CreateReportScheduleBody = zod.object({
+  "frequency": zod.enum(['weekly', 'monthly']),
+  "dayOfWeek": zod.number().min(createReportScheduleBodyDayOfWeekMin).max(createReportScheduleBodyDayOfWeekMax).nullish(),
+  "dayOfMonth": zod.number().min(1).max(createReportScheduleBodyDayOfMonthMax).nullish(),
+  "hour": zod.number().min(createReportScheduleBodyHourMin).max(createReportScheduleBodyHourMax),
+  "minute": zod.number().min(createReportScheduleBodyMinuteMin).max(createReportScheduleBodyMinuteMax),
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']),
+  "recipients": zod.string(),
+  "subject": zod.string(),
+  "message": zod.string().nullish(),
+  "active": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a report schedule (admin only)
+ */
+export const UpdateReportScheduleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateReportScheduleBodyDayOfWeekMin = 0;
+export const updateReportScheduleBodyDayOfWeekMax = 6;
+
+export const updateReportScheduleBodyDayOfMonthMax = 28;
+
+export const updateReportScheduleBodyHourMin = 0;
+export const updateReportScheduleBodyHourMax = 23;
+
+export const updateReportScheduleBodyMinuteMin = 0;
+export const updateReportScheduleBodyMinuteMax = 59;
+
+
+
+export const UpdateReportScheduleBody = zod.object({
+  "frequency": zod.enum(['weekly', 'monthly']),
+  "dayOfWeek": zod.number().min(updateReportScheduleBodyDayOfWeekMin).max(updateReportScheduleBodyDayOfWeekMax).nullish(),
+  "dayOfMonth": zod.number().min(1).max(updateReportScheduleBodyDayOfMonthMax).nullish(),
+  "hour": zod.number().min(updateReportScheduleBodyHourMin).max(updateReportScheduleBodyHourMax),
+  "minute": zod.number().min(updateReportScheduleBodyMinuteMin).max(updateReportScheduleBodyMinuteMax),
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']),
+  "recipients": zod.string(),
+  "subject": zod.string(),
+  "message": zod.string().nullish(),
+  "active": zod.boolean().optional()
+})
+
+export const updateReportScheduleResponseDayOfWeekMin = 0;
+export const updateReportScheduleResponseDayOfWeekMax = 6;
+
+export const updateReportScheduleResponseDayOfMonthMax = 28;
+
+export const updateReportScheduleResponseHourMin = 0;
+export const updateReportScheduleResponseHourMax = 23;
+
+export const updateReportScheduleResponseMinuteMin = 0;
+export const updateReportScheduleResponseMinuteMax = 59;
+
+
+
+export const UpdateReportScheduleResponse = zod.object({
+  "id": zod.number(),
+  "frequency": zod.enum(['weekly', 'monthly']),
+  "dayOfWeek": zod.number().min(updateReportScheduleResponseDayOfWeekMin).max(updateReportScheduleResponseDayOfWeekMax).nullish(),
+  "dayOfMonth": zod.number().min(1).max(updateReportScheduleResponseDayOfMonthMax).nullish(),
+  "hour": zod.number().min(updateReportScheduleResponseHourMin).max(updateReportScheduleResponseHourMax),
+  "minute": zod.number().min(updateReportScheduleResponseMinuteMin).max(updateReportScheduleResponseMinuteMax),
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']),
+  "recipients": zod.string(),
+  "subject": zod.string(),
+  "message": zod.string().nullish(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a report schedule (admin only)
+ */
+export const DeleteReportScheduleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteReportScheduleResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List report send history
+ */
+export const listReportSendLogsQueryLimitDefault = 50;
+
+export const ListReportSendLogsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listReportSendLogsQueryLimitDefault)
+})
+
+export const ListReportSendLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "scheduleId": zod.number().nullish(),
+  "triggerType": zod.enum(['manual', 'scheduled']),
+  "period": zod.string(),
+  "periodLabel": zod.string(),
+  "recipients": zod.string(),
+  "status": zod.enum(['success', 'error']),
+  "errorMessage": zod.string().nullish(),
+  "sentAt": zod.coerce.date()
+})
+export const ListReportSendLogsResponse = zod.array(ListReportSendLogsResponseItem)
+
+
+/**
  * @summary List fiscal documents with optional filters
  */
 export const ListFiscalDocumentsQueryParams = zod.object({
