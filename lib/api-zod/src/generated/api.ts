@@ -6055,3 +6055,16 @@ export const DeleteUsuarioResponse = zod.object({
 })
 
 
+/**
+ * @summary List recent backup log entries (admin only)
+ */
+export const ListBackupLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "filename": zod.string(),
+  "fileSizeBytes": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListBackupLogsResponse = zod.array(ListBackupLogsResponseItem)
+
+

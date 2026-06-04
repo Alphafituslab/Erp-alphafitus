@@ -5,6 +5,14 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface BackupLog {
+  id: number;
+  userId: number;
+  filename: string;
+  fileSizeBytes: number;
+  createdAt: string;
+}
+
 export interface OkResponse {
   ok: boolean;
 }

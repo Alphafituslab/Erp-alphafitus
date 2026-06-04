@@ -32,6 +32,7 @@ export * from './attendanceLogStatus';
 export * from './attendanceSummary';
 export * from './authUser';
 export * from './authUserRole';
+export * from './backupLog';
 export * from './backwardTraceResult';
 export * from './backwardTraceResultConsumedMpLotsItem';
 export * from './backwardTraceResultMpLotsItem';

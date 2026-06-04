@@ -14,6 +14,7 @@ import producaoRouter from "./producao";
 import apsRouter from "./aps";
 import rastreabilidadeRouter from "./rastreabilidade";
 import usuariosRouter from "./usuarios";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(relatoriosRouter);
 router.use(producaoRouter);
 router.use(apsRouter);
 router.use(rastreabilidadeRouter);
+router.use(adminRouter);
 
 export default router;

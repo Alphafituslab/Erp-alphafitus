@@ -36,6 +36,8 @@ tags:
     description: Advanced Planning and Scheduling — work centers, shifts, Gantt schedule
   - name: rastreabilidade
     description: Full lot traceability — forward (MP → PA → clients) and backward (PA → MP → suppliers)
+  - name: admin
+    description: Administration — database backup and system maintenance (admin-only)
 paths:
   /healthz:
     get:
@@ -6924,8 +6926,86 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Admin: Backup ──────────────────────────────────────────────────────────
+
+  /admin/backup:
+    post:
+      operationId: generateBackup
+      tags: [admin]
+      summary: Generate a database backup (admin only)
+      description: Runs pg_dump, compresses with gzip and streams the file for download. Registers a record in backup_logs.
+      responses:
+        "200":
+          description: Backup file streamed as application/gzip attachment
+          content:
+            application/gzip:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: pg_dump failed or not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/backup/logs:
+    get:
+      operationId: listBackupLogs
+      tags: [admin]
+      summary: List recent backup log entries (admin only)
+      responses:
+        "200":
+          description: Last 20 backup log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BackupLog"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
+    BackupLog:
+      type: object
+      required: [id, userId, filename, fileSizeBytes, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        filename:
+          type: string
+        fileSizeBytes:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
     OkResponse:
       type: object
       properties:

@@ -51,6 +51,10 @@ import {
   UserX,
   Shield,
   Users,
+  Database,
+  Download,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -58,8 +62,11 @@ import {
   useUpdateUsuario,
   useDeleteUsuario,
   getListUsuariosQueryKey,
+  useGenerateBackup,
+  useListBackupLogs,
+  getListBackupLogsQueryKey,
 } from "@workspace/api-client-react";
-import type { UserItem } from "@workspace/api-client-react";
+import type { UserItem, BackupLog } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -267,6 +274,141 @@ function EditUsuarioDialog({ user, currentUserId, onSuccess }: { user: UserItem;
   );
 }
 
+// ── Backup Panel ──────────────────────────────────────────────────────────────
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function BackupPanel() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [lastFilename, setLastFilename] = useState<string | null>(null);
+
+  const { data: logs, isLoading: logsLoading } = useListBackupLogs();
+
+  const { mutate: generateBackup, isPending } = useGenerateBackup({
+    mutation: {
+      onSuccess: (blob) => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
+        setLastFilename(filename);
+
+        // Trigger browser download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        void qc.invalidateQueries({ queryKey: getListBackupLogsQueryKey() });
+        toast({ title: "Backup gerado com sucesso!", description: `Download iniciado: ${filename}` });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao gerar backup.";
+        toast({ title: "Erro ao gerar backup", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  return (
+    <Card className="shadow-sm mt-6">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-base">Backup do Banco de Dados</CardTitle>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => generateBackup()}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Gerando backup…
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Gerar Backup Agora
+              </>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isPending && (
+          <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+            <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+            <span>Executando <code className="font-mono text-xs">pg_dump</code> e comprimindo… aguarde o download iniciar automaticamente.</span>
+          </div>
+        )}
+        {lastFilename && !isPending && (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2 text-sm text-emerald-700">
+            <CheckCircle className="h-4 w-4 shrink-0" />
+            <span>Último backup baixado: <span className="font-mono text-xs">{lastFilename}</span></span>
+          </div>
+        )}
+
+        <div>
+          <p className="text-sm font-medium mb-2">Histórico de backups (últimos 20)</p>
+          {logsLoading ? (
+            <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando histórico…
+            </div>
+          ) : !logs || logs.length === 0 ? (
+            <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
+              <Database className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p>Nenhum backup gerado ainda.</p>
+              <p className="text-xs mt-1">Clique em "Gerar Backup Agora" para criar o primeiro backup.</p>
+            </div>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="text-xs">Arquivo</TableHead>
+                    <TableHead className="text-xs text-right">Tamanho</TableHead>
+                    <TableHead className="text-xs">Gerado em</TableHead>
+                    <TableHead className="text-xs">Usuário (ID)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(logs as BackupLog[]).map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs font-mono">{log.filename}</TableCell>
+                      <TableCell className="text-xs text-right">{formatBytes(log.fileSizeBytes)}</TableCell>
+                      <TableCell className="text-xs">
+                        {new Date(log.createdAt).toLocaleString("pt-BR")}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">#{log.userId}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          O arquivo gerado é um dump SQL completo comprimido (.sql.gz). Guarde-o em local seguro.
+          Restore deve ser realizado diretamente no servidor com <code className="font-mono">psql</code> ou <code className="font-mono">pg_restore</code>.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function UsuariosPage() {
@@ -428,6 +570,8 @@ export default function UsuariosPage() {
           )}
         </CardContent>
       </Card>
+
+      <BackupPanel />
 
       {/* Permissions reference */}
       <Card className="shadow-sm mt-6">
