@@ -54,6 +54,7 @@ import {
   Bell,
   BellOff,
   CheckCircle2,
+  FileDown,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -430,6 +431,13 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
 
 // ── Send Email Dialog ─────────────────────────────────────────────────────────
 
+const REPORT_SECTIONS = [
+  { icon: "💰", label: "Indicadores Financeiros", desc: "Receita, despesas e saldo líquido vs. período anterior" },
+  { icon: "📦", label: "Indicadores Operacionais", desc: "Pedidos, estoque baixo, compras pendentes, RH e projetos" },
+  { icon: "🏆", label: "Top 5 Clientes", desc: "Maiores clientes por receita no período" },
+  { icon: "🔄", label: "Top 5 Produtos", desc: "Produtos com maior movimentação no período" },
+];
+
 function SendEmailDialog({
   period,
   periodLabel,
@@ -444,6 +452,7 @@ function SendEmailDialog({
   const [recipients, setRecipients] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [showSections, setShowSections] = useState(false);
   const { toast } = useToast();
 
   const { mutate: sendEmail, isPending: isSending } = useSendRelatorioEmail({
@@ -479,6 +488,7 @@ function SendEmailDialog({
       setRecipientInput("");
       setRecipients([]);
       setMessage("");
+      setShowSections(false);
     }
   }
 
@@ -536,6 +546,46 @@ function SendEmailDialog({
         </DialogHeader>
 
         <form onSubmit={handleSend} className="space-y-4 mt-2">
+          {/* Report preview section */}
+          <div className="rounded-lg border bg-muted/40 px-3 py-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Conteúdo do relatório PDF
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/relatorios/export-pdf?period=${period}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary underline-offset-2 hover:underline flex items-center gap-1"
+                >
+                  <FileDown className="h-3 w-3" />
+                  Baixar prévia
+                </a>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowSections((v) => !v)}
+                >
+                  {showSections ? "ocultar ▲" : "ver seções ▼"}
+                </button>
+              </div>
+            </div>
+            {showSections && (
+              <ul className="space-y-1.5 pt-1">
+                {REPORT_SECTIONS.map((s) => (
+                  <li key={s.label} className="flex items-start gap-2 text-xs">
+                    <span>{s.icon}</span>
+                    <div>
+                      <span className="font-medium">{s.label}</span>
+                      <span className="text-muted-foreground"> — {s.desc}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="space-y-1">
             <Label>Destinatários</Label>
             <div className="flex gap-2">
