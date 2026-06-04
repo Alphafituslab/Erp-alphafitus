@@ -130,6 +130,8 @@ export * from './getTraceabilityForwardParams';
 export * from './getTraceabilityTraceParams';
 export * from './getTrainingMatrixParams';
 export * from './getVendasDashboardParams';
+export * from './goalAlertSettings';
+export * from './goalAlertSettingsInput';
 export * from './goalsHistoryItem';
 export * from './healthStatus';
 export * from './listApsScheduleParams';

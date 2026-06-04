@@ -14,6 +14,7 @@ import {
   dashboardGoalsTable,
   reportSchedulesTable,
   reportSendLogsTable,
+  goalAlertSettingsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 import nodemailer from "nodemailer";
@@ -948,6 +949,83 @@ router.delete("/relatorios/schedules/:id", async (req: Request, res: Response): 
   if (!deleted) { res.status(404).json({ error: "Agendamento não encontrado" }); return; }
 
   res.json({ success: true });
+});
+
+// ─── Goal Alert Settings ───────────────────────────────────────────────────────
+
+async function getOrInitGoalAlertSettings() {
+  const [existing] = await db.select().from(goalAlertSettingsTable).limit(1);
+  if (existing) return existing;
+  const [created] = await db.insert(goalAlertSettingsTable).values({}).returning();
+  return created;
+}
+
+router.get("/relatorios/goal-alerts/settings", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+  const settings = await getOrInitGoalAlertSettings();
+  res.json({
+    id: settings.id,
+    enabled: settings.enabled,
+    notifyHour: settings.notifyHour,
+    notifyMinute: settings.notifyMinute,
+    progressThreshold: settings.progressThreshold,
+    daysRemainingThreshold: settings.daysRemainingThreshold,
+    lastSentDate: settings.lastSentDate,
+    updatedAt: settings.updatedAt,
+  });
+});
+
+router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+
+  const body = req.body as {
+    enabled?: boolean;
+    notifyHour?: number;
+    notifyMinute?: number;
+    progressThreshold?: number;
+    daysRemainingThreshold?: number;
+  };
+
+  const { enabled, notifyHour, notifyMinute, progressThreshold, daysRemainingThreshold } = body;
+
+  if (notifyHour !== undefined && (notifyHour < 0 || notifyHour > 23)) {
+    res.status(400).json({ error: "notifyHour deve ser entre 0 e 23" }); return;
+  }
+  if (notifyMinute !== undefined && (notifyMinute < 0 || notifyMinute > 59)) {
+    res.status(400).json({ error: "notifyMinute deve ser entre 0 e 59" }); return;
+  }
+  if (progressThreshold !== undefined && (progressThreshold < 1 || progressThreshold > 99)) {
+    res.status(400).json({ error: "progressThreshold deve ser entre 1 e 99" }); return;
+  }
+  if (daysRemainingThreshold !== undefined && (daysRemainingThreshold < 1 || daysRemainingThreshold > 28)) {
+    res.status(400).json({ error: "daysRemainingThreshold deve ser entre 1 e 28" }); return;
+  }
+
+  const settings = await getOrInitGoalAlertSettings();
+
+  const [updated] = await db
+    .update(goalAlertSettingsTable)
+    .set({
+      ...(enabled !== undefined && { enabled }),
+      ...(notifyHour !== undefined && { notifyHour }),
+      ...(notifyMinute !== undefined && { notifyMinute }),
+      ...(progressThreshold !== undefined && { progressThreshold }),
+      ...(daysRemainingThreshold !== undefined && { daysRemainingThreshold }),
+      updatedAt: new Date(),
+    })
+    .where(eq(goalAlertSettingsTable.id, settings.id))
+    .returning();
+
+  res.json({
+    id: updated.id,
+    enabled: updated.enabled,
+    notifyHour: updated.notifyHour,
+    notifyMinute: updated.notifyMinute,
+    progressThreshold: updated.progressThreshold,
+    daysRemainingThreshold: updated.daysRemainingThreshold,
+    lastSentDate: updated.lastSentDate,
+    updatedAt: updated.updatedAt,
+  });
 });
 
 // ─── Report Send Logs ─────────────────────────────────────────────────────────

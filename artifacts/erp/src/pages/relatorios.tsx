@@ -51,6 +51,9 @@ import {
   X,
   Upload,
   ImageIcon,
+  Bell,
+  BellOff,
+  CheckCircle2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,6 +82,8 @@ import {
   useDeleteReportSchedule,
   useListReportSendLogs,
   useGetGoalsHistory,
+  useGetGoalAlertSettings,
+  useUpdateGoalAlertSettings,
 } from "@workspace/api-client-react";
 import type { ReportSchedule } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -1317,6 +1322,203 @@ function SendHistory() {
   );
 }
 
+// ── Goal Alert Settings Section ───────────────────────────────────────────────
+
+function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
+  const { data: settings, isLoading } = useGetGoalAlertSettings();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [notifyHour, setNotifyHour] = useState<string>("");
+  const [notifyMinute, setNotifyMinute] = useState<string>("");
+  const [progressThreshold, setProgressThreshold] = useState<string>("");
+  const [daysRemainingThreshold, setDaysRemainingThreshold] = useState<string>("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setEnabled(settings.enabled);
+      setNotifyHour(String(settings.notifyHour));
+      setNotifyMinute(String(settings.notifyMinute));
+      setProgressThreshold(String(settings.progressThreshold));
+      setDaysRemainingThreshold(String(settings.daysRemainingThreshold));
+      setDirty(false);
+    }
+  }, [settings]);
+
+  const { mutate: updateSettings, isPending: isSaving } = useUpdateGoalAlertSettings({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Configurações de alerta salvas" });
+        queryClient.invalidateQueries({ queryKey: ["/api/relatorios/goal-alerts/settings"] });
+        setDirty(false);
+      },
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : "Erro ao salvar";
+        toast({ title: message, variant: "destructive" });
+      },
+    },
+  });
+
+  function handleSave() {
+    updateSettings({
+      data: {
+        enabled: enabled ?? true,
+        notifyHour: parseInt(notifyHour, 10),
+        notifyMinute: parseInt(notifyMinute, 10),
+        progressThreshold: parseInt(progressThreshold, 10),
+        daysRemainingThreshold: parseInt(daysRemainingThreshold, 10),
+      },
+    });
+  }
+
+  function markDirty() {
+    setDirty(true);
+  }
+
+  const isOn = enabled ?? settings?.enabled ?? true;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <div className="flex items-center gap-2">
+          {isOn ? (
+            <Bell className="h-4 w-4 text-amber-500" />
+          ) : (
+            <BellOff className="h-4 w-4 text-muted-foreground" />
+          )}
+          <CardTitle className="text-base">Alertas de Metas por E-mail</CardTitle>
+        </div>
+        {settings?.lastSentDate && (
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3 text-green-600" />
+            Último envio: {settings.lastSentDate}
+          </span>
+        )}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <p className="text-sm text-muted-foreground">
+              Quando uma meta do mês cair abaixo do limiar configurado e restarem poucos dias, todos os administradores e gestores recebem um e-mail de alerta automaticamente.
+            </p>
+
+            {/* Enable / Disable toggle */}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="goal-alert-enabled"
+                checked={isOn}
+                disabled={!isAdmin}
+                onCheckedChange={(checked) => {
+                  setEnabled(checked === true);
+                  markDirty();
+                }}
+              />
+              <Label htmlFor="goal-alert-enabled" className={!isAdmin ? "text-muted-foreground" : ""}>
+                {isOn ? "Notificações ativadas" : "Notificações desativadas"}
+              </Label>
+              {!isOn && (
+                <span className="ml-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Inativo</span>
+              )}
+              {isOn && (
+                <span className="ml-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Ativo</span>
+              )}
+            </div>
+
+            {/* Config grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Hora do envio</Label>
+                <Select
+                  value={notifyHour}
+                  onValueChange={(v) => { setNotifyHour(v); markDirty(); }}
+                  disabled={!isAdmin}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Hora" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <SelectItem key={i} value={String(i)}>
+                        {String(i).padStart(2, "0")}h
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Minuto</Label>
+                <Select
+                  value={notifyMinute}
+                  onValueChange={(v) => { setNotifyMinute(v); markDirty(); }}
+                  disabled={!isAdmin}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Minuto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 15, 30, 45].map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {String(m).padStart(2, "0")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Limiar de progresso (%)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={progressThreshold}
+                  disabled={!isAdmin}
+                  className="h-8 text-sm"
+                  onChange={(e) => { setProgressThreshold(e.target.value); markDirty(); }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Dias restantes ≤</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={daysRemainingThreshold}
+                  disabled={!isAdmin}
+                  className="h-8 text-sm"
+                  onChange={(e) => { setDaysRemainingThreshold(e.target.value); markDirty(); }}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              O alerta é disparado uma vez por dia, na hora configurada, se a meta estiver abaixo de {progressThreshold || settings?.progressThreshold}% e restar até {daysRemainingThreshold || settings?.daysRemainingThreshold} dias no mês. Os destinatários são todos os admins e gestores cadastrados.
+            </p>
+
+            {!isAdmin && (
+              <p className="text-xs text-amber-600 font-medium">Apenas administradores podem alterar estas configurações.</p>
+            )}
+
+            {isAdmin && dirty && (
+              <div className="flex justify-end">
+                <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                  {isSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Salvar configurações
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Goals History Section ─────────────────────────────────────────────────────
 
 type GoalsMetric = "revenue" | "expense" | "salesOrders";
@@ -2048,6 +2250,9 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
               </div>
             </CardContent>
           </Card>
+
+          {/* Goal alert settings */}
+          <GoalAlertSettingsSection isAdmin={isAdmin} />
 
           {/* Schedule management + send history */}
           <ScheduleSection isAdmin={isAdmin} />

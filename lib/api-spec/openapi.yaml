@@ -4739,6 +4739,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/goal-alerts/settings:
+    get:
+      operationId: getGoalAlertSettings
+      tags: [relatorios]
+      summary: Get goal alert notification settings
+      responses:
+        "200":
+          description: Goal alert settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalAlertSettings"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateGoalAlertSettings
+      tags: [relatorios]
+      summary: Update goal alert notification settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalAlertSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalAlertSettings"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /relatorios/send-logs:
     get:
       operationId: listReportSendLogs
@@ -10221,6 +10281,66 @@ components:
           type: string
         salesOrdersGoal:
           type: integer
+
+    GoalAlertSettings:
+      type: object
+      required:
+        - id
+        - enabled
+        - notifyHour
+        - notifyMinute
+        - progressThreshold
+        - daysRemainingThreshold
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        enabled:
+          type: boolean
+        notifyHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        notifyMinute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        progressThreshold:
+          type: integer
+          minimum: 1
+          maximum: 99
+        daysRemainingThreshold:
+          type: integer
+          minimum: 1
+          maximum: 28
+        lastSentDate:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+
+    GoalAlertSettingsInput:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        notifyHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        notifyMinute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        progressThreshold:
+          type: integer
+          minimum: 1
+          maximum: 99
+        daysRemainingThreshold:
+          type: integer
+          minimum: 1
+          maximum: 28
 
     GoalsHistoryItem:
       type: object

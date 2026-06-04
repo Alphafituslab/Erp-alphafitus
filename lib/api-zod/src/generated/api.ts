@@ -3930,6 +3930,80 @@ export const DeleteReportScheduleResponse = zod.object({
 
 
 /**
+ * @summary Get goal alert notification settings
+ */
+export const getGoalAlertSettingsResponseNotifyHourMin = 0;
+export const getGoalAlertSettingsResponseNotifyHourMax = 23;
+
+export const getGoalAlertSettingsResponseNotifyMinuteMin = 0;
+export const getGoalAlertSettingsResponseNotifyMinuteMax = 59;
+
+export const getGoalAlertSettingsResponseProgressThresholdMax = 99;
+
+export const getGoalAlertSettingsResponseDaysRemainingThresholdMax = 28;
+
+
+
+export const GetGoalAlertSettingsResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "notifyHour": zod.number().min(getGoalAlertSettingsResponseNotifyHourMin).max(getGoalAlertSettingsResponseNotifyHourMax),
+  "notifyMinute": zod.number().min(getGoalAlertSettingsResponseNotifyMinuteMin).max(getGoalAlertSettingsResponseNotifyMinuteMax),
+  "progressThreshold": zod.number().min(1).max(getGoalAlertSettingsResponseProgressThresholdMax),
+  "daysRemainingThreshold": zod.number().min(1).max(getGoalAlertSettingsResponseDaysRemainingThresholdMax),
+  "lastSentDate": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update goal alert notification settings (admin only)
+ */
+export const updateGoalAlertSettingsBodyNotifyHourMin = 0;
+export const updateGoalAlertSettingsBodyNotifyHourMax = 23;
+
+export const updateGoalAlertSettingsBodyNotifyMinuteMin = 0;
+export const updateGoalAlertSettingsBodyNotifyMinuteMax = 59;
+
+export const updateGoalAlertSettingsBodyProgressThresholdMax = 99;
+
+export const updateGoalAlertSettingsBodyDaysRemainingThresholdMax = 28;
+
+
+
+export const UpdateGoalAlertSettingsBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "notifyHour": zod.number().min(updateGoalAlertSettingsBodyNotifyHourMin).max(updateGoalAlertSettingsBodyNotifyHourMax).optional(),
+  "notifyMinute": zod.number().min(updateGoalAlertSettingsBodyNotifyMinuteMin).max(updateGoalAlertSettingsBodyNotifyMinuteMax).optional(),
+  "progressThreshold": zod.number().min(1).max(updateGoalAlertSettingsBodyProgressThresholdMax).optional(),
+  "daysRemainingThreshold": zod.number().min(1).max(updateGoalAlertSettingsBodyDaysRemainingThresholdMax).optional()
+})
+
+export const updateGoalAlertSettingsResponseNotifyHourMin = 0;
+export const updateGoalAlertSettingsResponseNotifyHourMax = 23;
+
+export const updateGoalAlertSettingsResponseNotifyMinuteMin = 0;
+export const updateGoalAlertSettingsResponseNotifyMinuteMax = 59;
+
+export const updateGoalAlertSettingsResponseProgressThresholdMax = 99;
+
+export const updateGoalAlertSettingsResponseDaysRemainingThresholdMax = 28;
+
+
+
+export const UpdateGoalAlertSettingsResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "notifyHour": zod.number().min(updateGoalAlertSettingsResponseNotifyHourMin).max(updateGoalAlertSettingsResponseNotifyHourMax),
+  "notifyMinute": zod.number().min(updateGoalAlertSettingsResponseNotifyMinuteMin).max(updateGoalAlertSettingsResponseNotifyMinuteMax),
+  "progressThreshold": zod.number().min(1).max(updateGoalAlertSettingsResponseProgressThresholdMax),
+  "daysRemainingThreshold": zod.number().min(1).max(updateGoalAlertSettingsResponseDaysRemainingThresholdMax),
+  "lastSentDate": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List report send history
  */
 export const listReportSendLogsQueryLimitDefault = 50;

@@ -16,3 +16,4 @@ export * from "./production";
 export * from "./aps";
 export * from "./dashboard-goals";
 export * from "./report-schedules";
+export * from "./goal-alert-settings";

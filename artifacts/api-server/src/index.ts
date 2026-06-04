@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { seedUsers } from "./seed";
 import { startReportScheduler } from "./lib/report-scheduler";
+import { startGoalAlertScheduler } from "./lib/goal-alert-scheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -22,6 +23,7 @@ seedUsers().catch((err) => {
 });
 
 startReportScheduler();
+startGoalAlertScheduler();
 
 app.listen(port, (err) => {
   if (err) {

@@ -2067,6 +2067,57 @@ export interface DashboardGoal {
   salesOrdersGoal: number;
 }
 
+export interface GoalAlertSettings {
+  id: number;
+  enabled: boolean;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  notifyHour: number;
+  /**
+     * @minimum 0
+     * @maximum 59
+     */
+  notifyMinute: number;
+  /**
+     * @minimum 1
+     * @maximum 99
+     */
+  progressThreshold: number;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  daysRemainingThreshold: number;
+  lastSentDate?: string | null;
+  updatedAt: string;
+}
+
+export interface GoalAlertSettingsInput {
+  enabled?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  notifyHour?: number;
+  /**
+     * @minimum 0
+     * @maximum 59
+     */
+  notifyMinute?: number;
+  /**
+     * @minimum 1
+     * @maximum 99
+     */
+  progressThreshold?: number;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  daysRemainingThreshold?: number;
+}
+
 export interface GoalsHistoryItem {
   year: number;
   month: number;

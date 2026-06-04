@@ -82,6 +82,8 @@ import type {
   GetTraceabilityTraceParams,
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
+  GoalAlertSettings,
+  GoalAlertSettingsInput,
   GoalsHistoryItem,
   HealthStatus,
   ListApsScheduleParams,
@@ -11057,6 +11059,154 @@ export const useDeleteReportSchedule = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteReportScheduleMutationOptions(options));
+    }
+
+export const getGetGoalAlertSettingsUrl = () => {
+
+
+
+
+  return `/api/relatorios/goal-alerts/settings`
+}
+
+/**
+ * @summary Get goal alert notification settings
+ */
+export const getGoalAlertSettings = async ( options?: RequestInit): Promise<GoalAlertSettings> => {
+
+  return customFetch<GoalAlertSettings>(getGetGoalAlertSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGoalAlertSettingsQueryKey = () => {
+    return [
+    `/api/relatorios/goal-alerts/settings`
+    ] as const;
+    }
+
+
+export const getGetGoalAlertSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getGoalAlertSettings>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalAlertSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGoalAlertSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoalAlertSettings>>> = ({ signal }) => getGoalAlertSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGoalAlertSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGoalAlertSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getGoalAlertSettings>>>
+export type GetGoalAlertSettingsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get goal alert notification settings
+ */
+
+export function useGetGoalAlertSettings<TData = Awaited<ReturnType<typeof getGoalAlertSettings>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalAlertSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGoalAlertSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateGoalAlertSettingsUrl = () => {
+
+
+
+
+  return `/api/relatorios/goal-alerts/settings`
+}
+
+/**
+ * @summary Update goal alert notification settings (admin only)
+ */
+export const updateGoalAlertSettings = async (goalAlertSettingsInput: GoalAlertSettingsInput, options?: RequestInit): Promise<GoalAlertSettings> => {
+
+  return customFetch<GoalAlertSettings>(getUpdateGoalAlertSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      goalAlertSettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateGoalAlertSettingsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGoalAlertSettings>>, TError,{data: BodyType<GoalAlertSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGoalAlertSettings>>, TError,{data: BodyType<GoalAlertSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateGoalAlertSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGoalAlertSettings>>, {data: BodyType<GoalAlertSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateGoalAlertSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGoalAlertSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateGoalAlertSettings>>>
+    export type UpdateGoalAlertSettingsMutationBody = BodyType<GoalAlertSettingsInput>
+    export type UpdateGoalAlertSettingsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update goal alert notification settings (admin only)
+ */
+export const useUpdateGoalAlertSettings = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGoalAlertSettings>>, TError,{data: BodyType<GoalAlertSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGoalAlertSettings>>,
+        TError,
+        {data: BodyType<GoalAlertSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateGoalAlertSettingsMutationOptions(options));
     }
 
 export const getListReportSendLogsUrl = (params?: ListReportSendLogsParams,) => {
