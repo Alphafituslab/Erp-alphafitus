@@ -10,6 +10,7 @@ import {
   useListProductLots, useCreateProductLot, useUpdateProductLot,
   useAdjustLotInventory, useTransferLot, useGetLotMovements,
   useGetProductLotLabel,
+  useListSuppliers,
   getListProductsQueryKey, getListStockMovementsQueryKey,
   getGetEstoqueDashboardQueryKey, getListWarehousesQueryKey,
   getListProductLotsQueryKey, getGetLotMovementsQueryKey,
@@ -141,6 +142,7 @@ const productSchema = z.object({
   storageHumidity: z.string().optional(),
   regulatoryInfo: z.string().optional(),
   // Purchasing
+  defaultSupplierId: z.string().optional(),
   leadTimeDays: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), "Deve ser ≥ 0"),
 });
 type ProductForm = z.infer<typeof productSchema>;
@@ -149,7 +151,7 @@ const PRODUCT_EMPTY: ProductForm = {
   name: "", sku: "", description: "", category: "", unit: "un", secondaryUnit: "",
   costPrice: "", salePrice: "", minStock: "0", currentStock: "0", isCritical: false,
   ncm: "", cest: "", shelfLifeDays: "", storageTemp: "", storageHumidity: "",
-  regulatoryInfo: "", leadTimeDays: "",
+  regulatoryInfo: "", defaultSupplierId: "", leadTimeDays: "",
 };
 
 function productValues(p: Product): ProductForm {
@@ -163,6 +165,7 @@ function productValues(p: Product): ProductForm {
     shelfLifeDays: p.shelfLifeDays != null ? String(p.shelfLifeDays) : "",
     storageTemp: p.storageTemp ?? "", storageHumidity: p.storageHumidity ?? "",
     regulatoryInfo: p.regulatoryInfo ?? "",
+    defaultSupplierId: p.defaultSupplierId != null ? String(p.defaultSupplierId) : "",
     leadTimeDays: p.leadTimeDays != null ? String(p.leadTimeDays) : "",
   };
 }
@@ -175,6 +178,7 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
   };
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
+  const { data: suppliers = [] } = useListSuppliers({});
 
   const form = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
@@ -194,6 +198,7 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
       shelfLifeDays: data.shelfLifeDays ? parseInt(data.shelfLifeDays) : null,
       storageTemp: data.storageTemp || null, storageHumidity: data.storageHumidity || null,
       regulatoryInfo: data.regulatoryInfo || null,
+      defaultSupplierId: data.defaultSupplierId ? parseInt(data.defaultSupplierId) : null,
       leadTimeDays: data.leadTimeDays ? parseInt(data.leadTimeDays) : null,
     };
     if (editing) {
@@ -328,6 +333,17 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
             {/* ── Compras ── */}
             <TabsContent value="compras" className="space-y-3">
               <p className="text-xs text-muted-foreground">Parâmetros para planejamento de compras.</p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Fornecedor padrão</label>
+                <Controller control={form.control} name="defaultSupplierId" render={({ field }) => (
+                  <select {...field} className="w-full h-9 px-3 border border-input rounded-md text-sm bg-background">
+                    <option value="">— Nenhum —</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={String(s.id)}>{s.name}</option>
+                    ))}
+                  </select>
+                )} />
+              </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Lead time (dias úteis)</label>
                 <Input {...form.register("leadTimeDays")} type="number" min="0" step="1" placeholder="Ex: 15" />

@@ -11,6 +11,8 @@ export const suppliersTable = pgTable("suppliers", {
   municipalRegistration: text("municipal_registration"),
   email: text("email"),
   phone: text("phone"),
+  // Address (legacy single-line, kept for backward compat)
+  address: text("address"),
   // Address (structured)
   zipCode: text("zip_code"),
   street: text("street"),

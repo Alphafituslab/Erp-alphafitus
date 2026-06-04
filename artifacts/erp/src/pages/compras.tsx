@@ -164,10 +164,16 @@ function approvalBadge(status: string) {
 
 // ─── Supplier Dialog ──────────────────────────────────────────────────────────
 
+function validateDocument(doc: string | undefined): boolean {
+  if (!doc) return true;
+  const digits = doc.replace(/\D/g, "");
+  return digits.length === 0 || digits.length === 11 || digits.length === 14;
+}
+
 const supplierSchema = z.object({
   name: z.string().min(1, "Obrigatório"),
   tradeName: z.string().optional(),
-  document: z.string().optional(),
+  document: z.string().optional().refine(validateDocument, "CPF (11) ou CNPJ (14) dígitos"),
   stateRegistration: z.string().optional(),
   municipalRegistration: z.string().optional(),
   email: z.string().optional(),
@@ -211,7 +217,7 @@ function supplierValues(s: Supplier): SupplierForm {
     name: s.name, tradeName: s.tradeName ?? "", document: s.document ?? "",
     stateRegistration: s.stateRegistration ?? "", municipalRegistration: s.municipalRegistration ?? "",
     email: s.email ?? "", phone: s.phone ?? "",
-    zipCode: s.zipCode ?? "", street: s.street ?? "", addressNumber: s.addressNumber ?? "",
+    zipCode: s.zipCode ?? "", street: s.street ?? s.address ?? "", addressNumber: s.addressNumber ?? "",
     complement: s.complement ?? "", neighborhood: s.neighborhood ?? "",
     city: s.city ?? "", state: s.state ?? "",
     contactName: s.contactName ?? "", contactRole: s.contactRole ?? "", contactPhone: s.contactPhone ?? "",
@@ -296,6 +302,7 @@ function SupplierDialog({
                 <div className="space-y-1">
                   <label className="text-sm font-medium">CNPJ / CPF</label>
                   <Input {...form.register("document")} placeholder="00.000.000/0001-00" />
+                  {F.document && <p className="text-xs text-destructive">{F.document.message}</p>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Insc. Estadual</label>

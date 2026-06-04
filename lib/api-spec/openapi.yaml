@@ -9068,6 +9068,9 @@ components:
         phone:
           type: string
           nullable: true
+        address:
+          type: string
+          nullable: true
         zipCode:
           type: string
           nullable: true
@@ -9157,6 +9160,9 @@ components:
           type: string
           nullable: true
         phone:
+          type: string
+          nullable: true
+        address:
           type: string
           nullable: true
         zipCode:

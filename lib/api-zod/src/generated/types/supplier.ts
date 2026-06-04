@@ -16,6 +16,7 @@ export interface Supplier {
   municipalRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
+  address?: string | null;
   zipCode?: string | null;
   street?: string | null;
   addressNumber?: string | null;
