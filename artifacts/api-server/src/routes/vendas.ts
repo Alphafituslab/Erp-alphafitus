@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq, gte, lte, sql, desc, isNotNull } from "drizzle-orm";
-import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable, usersTable } from "@workspace/db";
+import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable, usersTable, stockMovementsTable, productsTable, financialEntriesTable } from "@workspace/db";
 import type { Request, Response } from "express";
 
 const router: IRouter = Router();
@@ -551,6 +551,48 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
   const clientName = updated.clientId
     ? (await db.select({ name: clientsTable.name }).from(clientsTable).where(eq(clientsTable.id, updated.clientId)))[0]?.name ?? null
     : null;
+
+  // #38 — on delivery: deduct stock and create receivable (conta a receber)
+  if (toStatus === "delivered") {
+    const items = await db
+      .select()
+      .from(salesOrderItemsTable)
+      .where(eq(salesOrderItemsTable.salesOrderId, id));
+
+    for (const item of items) {
+      if (!item.productId) continue;
+      const qty = parseFloat(String(item.quantity));
+      if (qty <= 0) continue;
+
+      await db.insert(stockMovementsTable).values({
+        productId: item.productId,
+        type: "output",
+        quantity: String(qty),
+        reason: `Entrega PV #${id}`,
+        referenceId: id,
+        referenceType: "sales_order",
+      });
+
+      await db
+        .update(productsTable)
+        .set({ currentStock: sql`GREATEST(0, ${productsTable.currentStock} - ${qty})` })
+        .where(eq(productsTable.id, item.productId));
+    }
+
+    const totalAmt = parseFloat(String(updated.totalAmount || "0"));
+    if (totalAmt > 0) {
+      await db.insert(financialEntriesTable).values({
+        description: `Recebimento PV #${id}${clientName ? ` — ${clientName}` : ""}`,
+        type: "income",
+        category: "Vendas",
+        amount: String(totalAmt.toFixed(2)),
+        dueDate: new Date(),
+        status: "pending",
+        referenceId: String(id),
+        referenceType: "sales_order",
+      });
+    }
+  }
 
   res.json({ ...updated, clientName });
 });

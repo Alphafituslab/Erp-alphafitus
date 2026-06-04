@@ -183,9 +183,22 @@ export interface MarkPaidInput {
 export interface CashflowMonth {
   month: number;
   year: number;
+  /** Realized income (paid entries) — kept for backward compat */
   income: number;
+  /** Realized expense (paid entries) — kept for backward compat */
   expense: number;
+  /** Monthly balance (incomeRealized - expenseRealized) */
   balance: number;
+  incomeRealized: number;
+  expenseRealized: number;
+  /** Pending + overdue income entries */
+  incomeProjected: number;
+  /** Pending + overdue expense entries */
+  expenseProjected: number;
+  /** Running cumulative realized balance up to this month */
+  cumulativeBalance: number;
+  /** Running cumulative balance including projected entries */
+  cumulativeProjected: number;
 }
 
 export interface Client {
@@ -1627,6 +1640,22 @@ export interface PurchaseRequestRejectionInput {
   notes?: string | null;
 }
 
+export type EmployeeLinkedUserRole = typeof EmployeeLinkedUserRole[keyof typeof EmployeeLinkedUserRole];
+
+
+export const EmployeeLinkedUserRole = {
+  admin: 'admin',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export interface EmployeeLinkedUser {
+  id: number;
+  email: string;
+  role: EmployeeLinkedUserRole;
+  active: string;
+}
+
 export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
 
 
@@ -1646,6 +1675,7 @@ export interface Employee {
   hireDate?: string | null;
   salary?: string | null;
   status: EmployeeStatus;
+  linkedUser?: EmployeeLinkedUser | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1658,6 +1688,18 @@ export const EmployeeInputStatus = {
   inactive: 'inactive',
 } as const;
 
+/**
+ * Permission level for system access
+ */
+export type EmployeeInputSystemAccessRole = typeof EmployeeInputSystemAccessRole[keyof typeof EmployeeInputSystemAccessRole] | null;
+
+
+export const EmployeeInputSystemAccessRole = {
+  admin: 'admin',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
 export interface EmployeeInput {
   name: string;
   cpf?: string | null;
@@ -1668,6 +1710,14 @@ export interface EmployeeInput {
   hireDate?: string | null;
   salary?: string | null;
   status?: EmployeeInputStatus;
+  /** Whether the employee should have system login access */
+  systemAccessEnabled?: boolean | null;
+  /** Login email for system access */
+  systemAccessEmail?: string | null;
+  /** Initial password (only used on create; leave blank to keep existing) */
+  systemAccessPassword?: string | null;
+  /** Permission level for system access */
+  systemAccessRole?: EmployeeInputSystemAccessRole;
 }
 
 export type AttendanceLogStatus = typeof AttendanceLogStatus[keyof typeof AttendanceLogStatus];

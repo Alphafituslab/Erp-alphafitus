@@ -4,10 +4,12 @@ import {
   db,
   departmentsTable,
   employeesTable,
+  usersTable,
   attendanceLogsTable,
   trainingsTable,
   employeeTrainingsTable,
 } from "@workspace/db";
+import bcrypt from "bcryptjs";
 import type { Request, Response } from "express";
 import multer from "multer";
 import path from "path";
@@ -52,6 +54,16 @@ function parseId(param: string | string[], res: Response): number | null {
   return id;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function attachLinkedUser(emp: typeof employeesTable.$inferSelect) {
+  const [lu] = await db
+    .select({ id: usersTable.id, email: usersTable.email, role: usersTable.role, active: usersTable.active })
+    .from(usersTable)
+    .where(eq(usersTable.employeeId, emp.id));
+  return { ...emp, linkedUser: lu ?? null };
+}
+
 // ─── Employees ────────────────────────────────────────────────────────────────
 
 router.get("/rh/employees", async (req: Request, res: Response): Promise<void> => {
@@ -79,13 +91,17 @@ router.get("/rh/employees", async (req: Request, res: Response): Promise<void> =
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(employeesTable.name);
 
-  res.json(employees);
+  const result = await Promise.all(employees.map(attachLinkedUser));
+  res.json(result);
 });
 
 router.post("/rh/employees", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
-  const { name, cpf, email, phone, role, department, hireDate, salary, status } = req.body;
+  const {
+    name, cpf, email, phone, role, department, hireDate, salary, status,
+    systemAccessEnabled, systemAccessEmail, systemAccessPassword, systemAccessRole,
+  } = req.body;
 
   if (!name || !role) {
     res.status(400).json({ error: "Nome e cargo são obrigatórios" });
@@ -107,7 +123,24 @@ router.post("/rh/employees", async (req: Request, res: Response): Promise<void> 
     })
     .returning();
 
-  res.status(201).json(emp);
+  if (systemAccessEnabled && systemAccessEmail && systemAccessPassword) {
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, systemAccessEmail.toLowerCase()));
+    if (existing.length > 0) {
+      res.status(409).json({ error: "Email de acesso já cadastrado para outro usuário" });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(systemAccessPassword, 10);
+    await db.insert(usersTable).values({
+      name,
+      email: systemAccessEmail.toLowerCase(),
+      passwordHash,
+      role: systemAccessRole ?? "employee",
+      active: "true",
+      employeeId: emp.id,
+    });
+  }
+
+  res.status(201).json(await attachLinkedUser(emp));
 });
 
 router.get("/rh/employees/:id", async (req: Request, res: Response): Promise<void> => {
@@ -129,7 +162,7 @@ router.get("/rh/employees/:id", async (req: Request, res: Response): Promise<voi
     .orderBy(desc(attendanceLogsTable.date))
     .limit(30);
 
-  res.json({ ...emp, attendance });
+  res.json({ ...(await attachLinkedUser(emp)), attendance });
 });
 
 router.put("/rh/employees/:id", async (req: Request, res: Response): Promise<void> => {
@@ -148,7 +181,10 @@ router.put("/rh/employees/:id", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  const { name, cpf, email, phone, role, department, hireDate, salary, status } = req.body;
+  const {
+    name, cpf, email, phone, role, department, hireDate, salary, status,
+    systemAccessEnabled, systemAccessEmail, systemAccessPassword, systemAccessRole,
+  } = req.body;
 
   const [updated] = await db
     .update(employeesTable)
@@ -166,7 +202,40 @@ router.put("/rh/employees/:id", async (req: Request, res: Response): Promise<voi
     .where(eq(employeesTable.id, id))
     .returning();
 
-  res.json(updated);
+  // Handle system access changes
+  const [linkedUser] = await db.select().from(usersTable).where(eq(usersTable.employeeId, id));
+
+  if (systemAccessEnabled === false) {
+    if (linkedUser) await db.update(usersTable).set({ active: "false" }).where(eq(usersTable.id, linkedUser.id));
+  } else if (systemAccessEnabled === true && systemAccessEmail) {
+    if (linkedUser) {
+      const updates: Partial<typeof usersTable.$inferInsert> = {
+        name,
+        email: systemAccessEmail.toLowerCase(),
+        role: systemAccessRole ?? linkedUser.role,
+        active: "true",
+      };
+      if (systemAccessPassword) updates.passwordHash = await bcrypt.hash(systemAccessPassword, 10);
+      await db.update(usersTable).set(updates).where(eq(usersTable.id, linkedUser.id));
+    } else if (systemAccessPassword) {
+      const already = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, systemAccessEmail.toLowerCase()));
+      if (already.length > 0) {
+        res.status(409).json({ error: "Email de acesso já cadastrado para outro usuário" });
+        return;
+      }
+      const passwordHash = await bcrypt.hash(systemAccessPassword, 10);
+      await db.insert(usersTable).values({
+        name,
+        email: systemAccessEmail.toLowerCase(),
+        passwordHash,
+        role: systemAccessRole ?? "employee",
+        active: "true",
+        employeeId: id,
+      });
+    }
+  }
+
+  res.json(await attachLinkedUser(updated));
 });
 
 router.delete("/rh/employees/:id", async (req: Request, res: Response): Promise<void> => {

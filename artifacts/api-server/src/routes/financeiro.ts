@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, lt, sql } from "drizzle-orm";
 import { db, financialEntriesTable } from "@workspace/db";
 import {
   CreateFinancialEntryBody,
@@ -19,6 +19,12 @@ function requireAuth(req: any, res: any): boolean {
 
 router.get("/financeiro/entries", async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
+
+  // #10 — lazily mark pending entries whose due date has passed as "overdue"
+  await db
+    .update(financialEntriesTable)
+    .set({ status: "overdue" })
+    .where(and(eq(financialEntriesTable.status, "pending"), lt(financialEntriesTable.dueDate, new Date())));
 
   const { type, status, category, startDate, endDate } = req.query as Record<string, string>;
 
@@ -146,11 +152,24 @@ router.get("/financeiro/cashflow", async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
   const year = parseInt((req.query.year as string) ?? String(new Date().getFullYear()));
+  const initialBalance = parseFloat((req.query.initialBalance as string) ?? "0") || 0;
 
-  const rows = await db
+  // Realized: paid entries
+  const realizedRows = await db
     .select({
       month: sql<number>`EXTRACT(MONTH FROM due_date)::int`,
-      year: sql<number>`EXTRACT(YEAR FROM due_date)::int`,
+      type: financialEntriesTable.type,
+      total: sql<number>`COALESCE(SUM(amount::numeric), 0)`,
+    })
+    .from(financialEntriesTable)
+    .where(and(sql`EXTRACT(YEAR FROM due_date) = ${year}`, eq(financialEntriesTable.status, "paid")))
+    .groupBy(sql`EXTRACT(MONTH FROM due_date)`, financialEntriesTable.type)
+    .orderBy(sql`EXTRACT(MONTH FROM due_date)`);
+
+  // Projected: pending + overdue entries
+  const projectedRows = await db
+    .select({
+      month: sql<number>`EXTRACT(MONTH FROM due_date)::int`,
       type: financialEntriesTable.type,
       total: sql<number>`COALESCE(SUM(amount::numeric), 0)`,
     })
@@ -158,32 +177,53 @@ router.get("/financeiro/cashflow", async (req, res): Promise<void> => {
     .where(
       and(
         sql`EXTRACT(YEAR FROM due_date) = ${year}`,
-        eq(financialEntriesTable.status, "paid"),
+        sql`status IN ('pending', 'overdue')`,
       ),
     )
-    .groupBy(
-      sql`EXTRACT(MONTH FROM due_date)`,
-      sql`EXTRACT(YEAR FROM due_date)`,
-      financialEntriesTable.type,
-    )
+    .groupBy(sql`EXTRACT(MONTH FROM due_date)`, financialEntriesTable.type)
     .orderBy(sql`EXTRACT(MONTH FROM due_date)`);
 
-  const monthMap: Record<number, { month: number; year: number; income: number; expense: number }> = {};
+  type MonthData = {
+    month: number; year: number;
+    incomeRealized: number; expenseRealized: number;
+    incomeProjected: number; expenseProjected: number;
+  };
+  const monthMap: Record<number, MonthData> = {};
   for (let m = 1; m <= 12; m++) {
-    monthMap[m] = { month: m, year, income: 0, expense: 0 };
+    monthMap[m] = { month: m, year, incomeRealized: 0, expenseRealized: 0, incomeProjected: 0, expenseProjected: 0 };
   }
-
-  for (const row of rows) {
+  for (const row of realizedRows) {
     const m = monthMap[row.month];
     if (!m) continue;
-    if (row.type === "income") m.income = Number(row.total);
-    else m.expense = Number(row.total);
+    if (row.type === "income") m.incomeRealized = Number(row.total);
+    else m.expenseRealized = Number(row.total);
+  }
+  for (const row of projectedRows) {
+    const m = monthMap[row.month];
+    if (!m) continue;
+    if (row.type === "income") m.incomeProjected = Number(row.total);
+    else m.expenseProjected = Number(row.total);
   }
 
-  const result = Object.values(monthMap).map((m) => ({
-    ...m,
-    balance: m.income - m.expense,
-  }));
+  let cumRealized = initialBalance;
+  let cumProjected = initialBalance;
+  const result = Object.values(monthMap).map((m) => {
+    const balance = m.incomeRealized - m.expenseRealized;
+    cumRealized += balance;
+    cumProjected += balance + m.incomeProjected - m.expenseProjected;
+    return {
+      month: m.month, year: m.year,
+      income: m.incomeRealized,     // backward compat
+      expense: m.expenseRealized,   // backward compat
+      balance,
+      incomeRealized: m.incomeRealized,
+      expenseRealized: m.expenseRealized,
+      incomeProjected: m.incomeProjected,
+      expenseProjected: m.expenseProjected,
+      cumulativeBalance: parseFloat(cumRealized.toFixed(2)),
+      cumulativeProjected: parseFloat(cumProjected.toFixed(2)),
+    };
+  });
 
   res.json(result);
 });

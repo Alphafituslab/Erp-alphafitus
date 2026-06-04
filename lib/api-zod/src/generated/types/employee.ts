@@ -5,6 +5,7 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeLinkedUser } from './employeeLinkedUser';
 import type { EmployeeStatus } from './employeeStatus';
 
 export interface Employee {
@@ -18,6 +19,7 @@ export interface Employee {
   hireDate?: Date | null;
   salary?: string | null;
   status: EmployeeStatus;
+  linkedUser?: EmployeeLinkedUser | null;
   createdAt: Date;
   updatedAt: Date;
 }

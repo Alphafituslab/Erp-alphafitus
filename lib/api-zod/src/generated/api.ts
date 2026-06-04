@@ -182,9 +182,15 @@ export const GetCashflowQueryParams = zod.object({
 export const GetCashflowResponseItem = zod.object({
   "month": zod.number(),
   "year": zod.number(),
-  "income": zod.number(),
-  "expense": zod.number(),
-  "balance": zod.number()
+  "income": zod.number().describe('Realized income (paid entries) — kept for backward compat'),
+  "expense": zod.number().describe('Realized expense (paid entries) — kept for backward compat'),
+  "balance": zod.number().describe('Monthly balance (incomeRealized - expenseRealized)'),
+  "incomeRealized": zod.number(),
+  "expenseRealized": zod.number(),
+  "incomeProjected": zod.number().describe('Pending + overdue income entries'),
+  "expenseProjected": zod.number().describe('Pending + overdue expense entries'),
+  "cumulativeBalance": zod.number().describe('Running cumulative realized balance up to this month'),
+  "cumulativeProjected": zod.number().describe('Running cumulative balance including projected entries')
 })
 export const GetCashflowResponse = zod.array(GetCashflowResponseItem)
 
@@ -3075,6 +3081,12 @@ export const ListEmployeesResponseItem = zod.object({
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
+  "linkedUser": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "active": zod.string()
+}).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -3093,7 +3105,11 @@ export const CreateEmployeeBody = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
-  "status": zod.enum(['active', 'inactive']).optional()
+  "status": zod.enum(['active', 'inactive']).optional(),
+  "systemAccessEnabled": zod.boolean().nullish().describe('Whether the employee should have system login access'),
+  "systemAccessEmail": zod.string().nullish().describe('Login email for system access'),
+  "systemAccessPassword": zod.string().nullish().describe('Initial password (only used on create; leave blank to keep existing)'),
+  "systemAccessRole": zod.enum(['admin', 'manager', 'employee']).nullish().describe('Permission level for system access')
 })
 
 
@@ -3115,6 +3131,12 @@ export const GetEmployeeResponse = zod.object({
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
+  "linkedUser": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "active": zod.string()
+}).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }).and(zod.object({
@@ -3147,7 +3169,11 @@ export const UpdateEmployeeBody = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
-  "status": zod.enum(['active', 'inactive']).optional()
+  "status": zod.enum(['active', 'inactive']).optional(),
+  "systemAccessEnabled": zod.boolean().nullish().describe('Whether the employee should have system login access'),
+  "systemAccessEmail": zod.string().nullish().describe('Login email for system access'),
+  "systemAccessPassword": zod.string().nullish().describe('Initial password (only used on create; leave blank to keep existing)'),
+  "systemAccessRole": zod.enum(['admin', 'manager', 'employee']).nullish().describe('Permission level for system access')
 })
 
 export const UpdateEmployeeResponse = zod.object({
@@ -3161,6 +3187,12 @@ export const UpdateEmployeeResponse = zod.object({
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
+  "linkedUser": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "active": zod.string()
+}).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -3349,6 +3381,12 @@ export const GetRhDashboardResponse = zod.object({
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
+  "linkedUser": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "active": zod.string()
+}).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),

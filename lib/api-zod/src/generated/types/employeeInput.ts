@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EmployeeInputStatus } from './employeeInputStatus';
+import type { EmployeeInputSystemAccessRole } from './employeeInputSystemAccessRole';
 
 export interface EmployeeInput {
   name: string;
@@ -17,4 +18,12 @@ export interface EmployeeInput {
   hireDate?: Date | null;
   salary?: string | null;
   status?: EmployeeInputStatus;
+  /** Whether the employee should have system login access */
+  systemAccessEnabled?: boolean | null;
+  /** Login email for system access */
+  systemAccessEmail?: string | null;
+  /** Initial password (only used on create; leave blank to keep existing) */
+  systemAccessPassword?: string | null;
+  /** Permission level for system access */
+  systemAccessRole?: EmployeeInputSystemAccessRole;
 }

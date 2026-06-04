@@ -9,7 +9,20 @@
 export interface CashflowMonth {
   month: number;
   year: number;
+  /** Realized income (paid entries) — kept for backward compat */
   income: number;
+  /** Realized expense (paid entries) — kept for backward compat */
   expense: number;
+  /** Monthly balance (incomeRealized - expenseRealized) */
   balance: number;
+  incomeRealized: number;
+  expenseRealized: number;
+  /** Pending + overdue income entries */
+  incomeProjected: number;
+  /** Pending + overdue expense entries */
+  expenseProjected: number;
+  /** Running cumulative realized balance up to this month */
+  cumulativeBalance: number;
+  /** Running cumulative balance including projected entries */
+  cumulativeProjected: number;
 }

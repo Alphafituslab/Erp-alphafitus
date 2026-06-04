@@ -13,8 +13,9 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -280,8 +281,12 @@ export default function FinanceiroPage() {
 
   const chartData = cashflow.map((m) => ({
     name: MONTHS[m.month - 1],
-    Receitas: m.income,
-    Despesas: m.expense,
+    "Receitas (real)": m.incomeRealized,
+    "Despesas (real)": m.expenseRealized,
+    "Receitas (prev)": m.incomeProjected,
+    "Despesas (prev)": m.expenseProjected,
+    "Saldo Acum.": m.cumulativeBalance,
+    "Saldo Prev.": m.cumulativeProjected,
   }));
 
   function openCreate() {
@@ -369,22 +374,33 @@ export default function FinanceiroPage() {
         {/* Cash Flow Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Fluxo de Caixa — {currentYear}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Fluxo de Caixa — {currentYear}</CardTitle>
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-green-500" /> Realizado</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-green-200" /> Previsto</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-blue-500" /> Saldo Acum.</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="bar" tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                <YAxis yAxisId="line" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(value: number) => fmt(value)}
                   contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
                 />
-                <Legend />
-                <Bar dataKey="Receitas" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Bar yAxisId="bar" dataKey="Receitas (real)" stackId="income" fill="#22c55e" radius={[0,0,0,0]} />
+                <Bar yAxisId="bar" dataKey="Receitas (prev)" stackId="income" fill="#bbf7d0" radius={[4,4,0,0]} />
+                <Bar yAxisId="bar" dataKey="Despesas (real)" stackId="expense" fill="#ef4444" radius={[0,0,0,0]} />
+                <Bar yAxisId="bar" dataKey="Despesas (prev)" stackId="expense" fill="#fecaca" radius={[4,4,0,0]} />
+                <Line yAxisId="line" type="monotone" dataKey="Saldo Acum." stroke="#3b82f6" strokeWidth={2} dot={false} />
+                <Line yAxisId="line" type="monotone" dataKey="Saldo Prev." stroke="#93c5fd" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
+              </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

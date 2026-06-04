@@ -14,6 +14,7 @@ import {
   lotMovementsTable,
   warehousesTable,
   usersTable,
+  financialEntriesTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -803,6 +804,14 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
 
         anyNewlyReceived = true;
 
+        // #17 — update product cost price with the supplier's unit price on each receipt
+        if (item.unitPrice) {
+          await tx
+            .update(productsTable)
+            .set({ costPrice: item.unitPrice })
+            .where(eq(productsTable.id, item.productId));
+        }
+
         const warehouseId = ri?.warehouseId ?? defaultWarehouse?.id ?? null;
         const internalLot = `RC-${id}-${item.id}-${Date.now()}`;
 
@@ -875,6 +884,28 @@ router.post("/compras/orders/:id/receive", async (req: Request, res: Response): 
             : null,
         })
         .where(eq(purchaseOrdersTable.id, id));
+
+      // #16 — create payable (conta a pagar) when PO is fully received
+      if (newStatus === "received") {
+        const [supplier] = await tx
+          .select({ name: suppliersTable.name })
+          .from(suppliersTable)
+          .where(eq(suppliersTable.id, existing.supplierId!));
+        const supplierName = supplier?.name ?? `Fornecedor #${existing.supplierId}`;
+        const totalAmt = parseFloat(String(existing.totalAmount || "0"));
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30); // 30-day payment term default
+        await tx.insert(financialEntriesTable).values({
+          description: `Pagamento PC #${id} — ${supplierName}`,
+          type: "expense",
+          category: "Compras",
+          amount: String(totalAmt.toFixed(2)),
+          dueDate,
+          status: "pending",
+          referenceId: String(id),
+          referenceType: "purchase_order",
+        });
+      }
     });
   } catch (err: any) {
     if (err?.message === "ALREADY_PROCESSED") {

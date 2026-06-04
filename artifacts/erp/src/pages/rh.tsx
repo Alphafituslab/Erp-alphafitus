@@ -108,7 +108,9 @@ import {
   Award,
   Upload,
   Filter,
+  KeyRound,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -184,7 +186,17 @@ const employeeSchema = z.object({
   hireDate: z.string().optional(),
   salary: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
-});
+  systemAccessEnabled: z.boolean().default(false),
+  systemAccessEmail: z.string().optional(),
+  systemAccessPassword: z.string().optional(),
+  systemAccessRole: z.enum(["admin", "manager", "employee"]).optional(),
+}).refine(
+  (d) => {
+    if (!d.systemAccessEnabled) return true;
+    return !!d.systemAccessEmail;
+  },
+  { message: "Email de acesso obrigatório", path: ["systemAccessEmail"] }
+);
 type EmployeeForm = z.infer<typeof employeeSchema>;
 
 function EmployeeDialog({
@@ -206,17 +218,14 @@ function EmployeeDialog({
   const form = useForm<EmployeeForm>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
-      name: "",
-      cpf: "",
-      email: "",
-      phone: "",
-      role: "",
-      department: "",
-      hireDate: "",
-      salary: "",
-      status: "active",
+      name: "", cpf: "", email: "", phone: "", role: "", department: "",
+      hireDate: "", salary: "", status: "active",
+      systemAccessEnabled: false, systemAccessEmail: "", systemAccessPassword: "", systemAccessRole: "employee",
     },
   });
+
+  const accessEnabled = form.watch("systemAccessEnabled");
+  const lu = (editing as any)?.linkedUser as { id: number; email: string; role: string; active: string } | null | undefined;
 
   useEffect(() => {
     if (open) {
@@ -231,18 +240,16 @@ function EmployeeDialog({
           hireDate: editing.hireDate ? new Date(editing.hireDate).toISOString().slice(0, 10) : "",
           salary: editing.salary ?? "",
           status: (editing.status as "active" | "inactive") ?? "active",
+          systemAccessEnabled: !!lu && lu.active === "true",
+          systemAccessEmail: lu?.email ?? "",
+          systemAccessPassword: "",
+          systemAccessRole: (lu?.role as any) ?? "employee",
         });
       } else {
         form.reset({
-          name: "",
-          cpf: "",
-          email: "",
-          phone: "",
-          role: "",
-          department: "",
-          hireDate: "",
-          salary: "",
-          status: "active",
+          name: "", cpf: "", email: "", phone: "", role: "", department: "",
+          hireDate: "", salary: "", status: "active",
+          systemAccessEnabled: false, systemAccessEmail: "", systemAccessPassword: "", systemAccessRole: "employee",
         });
       }
     }
@@ -254,38 +261,36 @@ function EmployeeDialog({
   };
 
   const onSubmit = form.handleSubmit((data) => {
-    const payload = {
-      ...data,
+    const payload: any = {
+      name: data.name,
       cpf: data.cpf || undefined,
       email: data.email || undefined,
       phone: data.phone || undefined,
+      role: data.role,
       department: data.department || undefined,
       hireDate: data.hireDate ? new Date(data.hireDate).toISOString() : undefined,
       salary: data.salary || undefined,
+      status: data.status,
+      systemAccessEnabled: data.systemAccessEnabled,
+      systemAccessEmail: data.systemAccessEnabled ? data.systemAccessEmail : undefined,
+      systemAccessPassword: data.systemAccessEnabled && data.systemAccessPassword ? data.systemAccessPassword : undefined,
+      systemAccessRole: data.systemAccessEnabled ? data.systemAccessRole : undefined,
     };
 
     if (editing) {
       updateM.mutate(
         { id: editing.id, data: payload },
         {
-          onSuccess: () => {
-            toast({ title: "Funcionário atualizado" });
-            invalidate();
-            onClose();
-          },
-          onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+          onSuccess: () => { toast({ title: "Funcionário atualizado" }); invalidate(); onClose(); },
+          onError: (e: any) => toast({ title: "Erro", description: e?.data?.error ?? e?.message, variant: "destructive" }),
         }
       );
     } else {
       createM.mutate(
         { data: payload },
         {
-          onSuccess: () => {
-            toast({ title: "Funcionário cadastrado" });
-            invalidate();
-            onClose();
-          },
-          onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+          onSuccess: () => { toast({ title: "Funcionário cadastrado" }); invalidate(); onClose(); },
+          onError: (e: any) => toast({ title: "Erro", description: e?.data?.error ?? e?.message, variant: "destructive" }),
         }
       );
     }
@@ -337,15 +342,11 @@ function EmployeeDialog({
                 name="department"
                 render={({ field }) => (
                   <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecionar…" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— Nenhum —</SelectItem>
                       {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.name}>
-                          {d.name}
-                        </SelectItem>
+                        <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -367,9 +368,7 @@ function EmployeeDialog({
                 name="status"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Ativo</SelectItem>
                       <SelectItem value="inactive">Inativo</SelectItem>
@@ -379,10 +378,63 @@ function EmployeeDialog({
               />
             </div>
           </div>
+
+          {/* ── System Access Section ───────────────────────────────────────── */}
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Acesso ao Sistema</span>
+              </div>
+              <Controller
+                control={form.control}
+                name="systemAccessEnabled"
+                render={({ field }) => (
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                )}
+              />
+            </div>
+            {accessEnabled && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <Label>Email de login *</Label>
+                  <Input {...form.register("systemAccessEmail")} type="email" placeholder="login@empresa.com.br" />
+                  {form.formState.errors.systemAccessEmail && (
+                    <p className="text-xs text-destructive">{form.formState.errors.systemAccessEmail.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label>{editing && lu ? "Nova senha (deixe em branco para manter)" : "Senha inicial *"}</Label>
+                  <Input {...form.register("systemAccessPassword")} type="password" placeholder="Mínimo 6 caracteres" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Perfil de acesso</Label>
+                  <Controller
+                    control={form.control}
+                    name="systemAccessRole"
+                    render={({ field }) => (
+                      <Select value={field.value ?? "employee"} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="employee">Colaborador</SelectItem>
+                          <SelectItem value="manager">Gerente</SelectItem>
+                          <SelectItem value="admin">Administrador</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+            {!accessEnabled && editing && lu && lu.active === "true" && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Ao salvar com acesso desabilitado, o acesso do usuário será inativado.
+              </p>
+            )}
+          </div>
+
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? "Salvando…" : editing ? "Salvar" : "Cadastrar"}
             </Button>
@@ -1755,7 +1807,9 @@ export default function RhPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                    {filteredEmployees.map((e) => (
+                    {filteredEmployees.map((e) => {
+                      const lu = (e as any).linkedUser as { id: number; email: string; role: string; active: string } | null;
+                      return (
                       <TableRow key={e.id}>
                         <TableCell className="font-medium">{e.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{e.cpf ?? "—"}</TableCell>
@@ -1763,42 +1817,37 @@ export default function RhPage() {
                         <TableCell>{e.department ?? "—"}</TableCell>
                         <TableCell>{fmtDate(e.hireDate)}</TableCell>
                         <TableCell>{fmtCurrency(e.salary)}</TableCell>
-                        <TableCell>{statusBadge(e.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {statusBadge(e.status)}
+                            {lu && lu.active === "true" ? (
+                              <Badge variant="outline" className="text-xs gap-1 w-fit">
+                                <KeyRound className="h-3 w-3" />
+                                {lu.role === "admin" ? "Admin" : lu.role === "manager" ? "Gerente" : "Colaborador"}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem acesso</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              title="Ver perfil"
-                              onClick={() => setProfileEmpId(e.id)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver perfil" onClick={() => setProfileEmpId(e.id)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              title="Editar"
-                              onClick={() => { setEditingEmp(e); setEmpDialog(true); }}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => { setEditingEmp(e); setEmpDialog(true); }}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             {e.status === "active" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                title="Desativar"
-                                onClick={() => setDeleteEmp(e)}
-                              >
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Desativar" onClick={() => setDeleteEmp(e)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>

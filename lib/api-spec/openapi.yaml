@@ -7245,6 +7245,12 @@ components:
         - income
         - expense
         - balance
+        - incomeRealized
+        - expenseRealized
+        - incomeProjected
+        - expenseProjected
+        - cumulativeBalance
+        - cumulativeProjected
       properties:
         month:
           type: integer
@@ -7252,10 +7258,29 @@ components:
           type: integer
         income:
           type: number
+          description: Realized income (paid entries) — kept for backward compat
         expense:
           type: number
+          description: Realized expense (paid entries) — kept for backward compat
         balance:
           type: number
+          description: Monthly balance (incomeRealized - expenseRealized)
+        incomeRealized:
+          type: number
+        expenseRealized:
+          type: number
+        incomeProjected:
+          type: number
+          description: Pending + overdue income entries
+        expenseProjected:
+          type: number
+          description: Pending + overdue expense entries
+        cumulativeBalance:
+          type: number
+          description: Running cumulative realized balance up to this month
+        cumulativeProjected:
+          type: number
+          description: Running cumulative balance including projected entries
 
     # ── Vendas schemas ──────────────────────────────────────────────────────
 
@@ -9953,6 +9978,20 @@ components:
           type: string
           nullable: true
 
+    EmployeeLinkedUser:
+      type: object
+      required: [id, email, role, active]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, manager, employee]
+        active:
+          type: string
+
     Employee:
       type: object
       required:
@@ -9991,6 +10030,10 @@ components:
         status:
           type: string
           enum: [active, inactive]
+        linkedUser:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/EmployeeLinkedUser"
         createdAt:
           type: string
           format: date-time
@@ -10030,6 +10073,23 @@ components:
         status:
           type: string
           enum: [active, inactive]
+        systemAccessEnabled:
+          type: boolean
+          nullable: true
+          description: Whether the employee should have system login access
+        systemAccessEmail:
+          type: string
+          nullable: true
+          description: Login email for system access
+        systemAccessPassword:
+          type: string
+          nullable: true
+          description: Initial password (only used on create; leave blank to keep existing)
+        systemAccessRole:
+          type: string
+          nullable: true
+          enum: [admin, manager, employee]
+          description: Permission level for system access
 
     EmployeeWithAttendance:
       allOf:
