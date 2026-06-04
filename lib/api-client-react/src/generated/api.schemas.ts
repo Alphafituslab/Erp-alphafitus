@@ -2502,6 +2502,12 @@ export interface NFeImportItem {
   category?: string | null;
 }
 
+export type NFeParseResultInstallmentsItem = {
+  number: string;
+  dueDate: string;
+  value: string;
+};
+
 export interface NFeParseResult {
   accessKey: string;
   issueDate: string;
@@ -2528,6 +2534,17 @@ export interface NFeParseResult {
   xmlContent: string;
   existingSupplierId: number | null;
   duplicateAccessKey?: boolean | null;
+  /** Número da fatura (cobr.fat.nFat) */
+  fatNumber?: string | null;
+  /** Valor original da fatura */
+  fatOriginalValue?: string | null;
+  /** Valor líquido da fatura */
+  fatNetValue?: string | null;
+  installments?: NFeParseResultInstallmentsItem[];
+  /** Informações complementares (infAdic.infCpl) */
+  additionalInfo?: string | null;
+  /** Informações ao fisco (infAdic.infAdFisco) */
+  fiscalInfo?: string | null;
 }
 
 export interface NFeImportConfirmInput {

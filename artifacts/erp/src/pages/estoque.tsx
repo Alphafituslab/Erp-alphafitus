@@ -1167,7 +1167,7 @@ export default function EstoquePage() {
           subtitle="Produtos, lotes, validade e movimentações"
           actions={
             <Button variant="outline" size="sm" asChild>
-              <a href="/erp/fiscal">
+              <a href="/erp/fiscal?openXmlImport=1">
                 <FileCode className="h-4 w-4 mr-1.5" /> Importar XML NF-e
               </a>
             </Button>

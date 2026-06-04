@@ -299,7 +299,7 @@ function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Esta NF-e já foi importada anteriormente (chave de acesso duplicada). Confirmar criará um registro duplicado.
+                  Esta NF-e já foi importada anteriormente (chave de acesso duplicada). A confirmação será rejeitada pelo servidor — exclua o registro existente antes de reimportar.
                 </AlertDescription>
               </Alert>
             )}
@@ -892,6 +892,17 @@ export default function FiscalPage() {
   const [docDialogOpen, setDocDialogOpen] = useState(false);
   const [editDoc, setEditDoc] = useState<FiscalDocument | null>(null);
   const [xmlImportOpen, setXmlImportOpen] = useState(false);
+
+  // Auto-open XML import when redirected from Estoque with ?openXmlImport=1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("openXmlImport") === "1") {
+      setXmlImportOpen(true);
+      // Remove the query param without triggering a page reload
+      const clean = window.location.pathname;
+      window.history.replaceState(null, "", clean);
+    }
+  }, []);
 
   const deleteMut = useDeleteFiscalDocument();
 

@@ -59,6 +59,14 @@ function parseNFeXmlContent(xmlStr: string): {
   totalICMS: string;
   totalPIS: string;
   totalCOFINS: string;
+  // cobr — billing/payment summary
+  fatNumber: string | null;
+  fatOriginalValue: string | null;
+  fatNetValue: string | null;
+  installments: Array<{ number: string; dueDate: string; value: string }>;
+  // infAdic — additional information
+  additionalInfo: string | null;
+  fiscalInfo: string | null;
 } {
   const parser = new XMLParser({
     ignoreAttributes: false,
@@ -160,6 +168,26 @@ function parseNFeXmlContent(xmlStr: string): {
   // Parse issue date from dEmi (format: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
   const dEmi = str(ide.dEmi || ide.dhEmi);
 
+  // Parse cobr (billing/payment)
+  const cobr = (infNFe.cobr ?? {}) as Record<string, unknown>;
+  const fat = (cobr.fat ?? {}) as Record<string, unknown>;
+  const dupRaw = cobr.dup;
+  const dupList: Array<{ number: string; dueDate: string; value: string }> = [];
+  if (dupRaw) {
+    const dups = Array.isArray(dupRaw) ? dupRaw : [dupRaw];
+    for (const dup of dups) {
+      const d = dup as Record<string, unknown>;
+      dupList.push({
+        number: str(d.nDup),
+        dueDate: str(d.dVenc),
+        value: str(d.vDup),
+      });
+    }
+  }
+
+  // Parse infAdic (additional info)
+  const infAdic = (infNFe.infAdic ?? {}) as Record<string, unknown>;
+
   return {
     accessKey,
     issueDate: dEmi,
@@ -182,6 +210,12 @@ function parseNFeXmlContent(xmlStr: string): {
     totalICMS: str(total.vICMS || "0"),
     totalPIS: str(total.vPIS || "0"),
     totalCOFINS: str(total.vCOFINS || "0"),
+    fatNumber: str(fat.nFat) || null,
+    fatOriginalValue: str(fat.vOrig) || null,
+    fatNetValue: str(fat.vLiq) || null,
+    installments: dupList,
+    additionalInfo: str(infAdic.infCpl) || null,
+    fiscalInfo: str(infAdic.infAdFisco) || null,
   };
 }
 
@@ -369,25 +403,26 @@ router.post("/fiscal/import-xml/confirm", async (req: Request, res: Response): P
       }
 
       if (productId && parseFloat(item.quantity) > 0) {
-        // Create stock input movement
         const qty = parseFloat(item.quantity);
         const unitCost = parseFloat(item.totalPrice) / qty;
+        const movType = direction === "entrada" ? "input" : "output";
 
         await tx.insert(stockMovementsTable).values({
           productId,
-          type: "input",
+          type: movType,
           quantity: String(qty),
           reason: `NF-e ${number || ""} - ${emitterName}`,
           notes: accessKey ? `Chave: ${accessKey}` : null,
           referenceType: "nfe_import",
         });
 
-        // Update product stock
+        // Increment for entrada, decrement for saída
+        const stockDelta = direction === "entrada" ? qty : -qty;
         await tx
           .update(productsTable)
           .set({
-            currentStock: sql`${productsTable.currentStock} + ${qty}`,
-            costPrice: String(unitCost.toFixed(2)),
+            currentStock: sql`${productsTable.currentStock} + ${stockDelta}`,
+            ...(direction === "entrada" ? { costPrice: String(unitCost.toFixed(2)) } : {}),
           })
           .where(eq(productsTable.id, productId));
       }

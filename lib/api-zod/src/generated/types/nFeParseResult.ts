@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { NFeImportItem } from './nFeImportItem';
+import type { NFeParseResultInstallmentsItem } from './nFeParseResultInstallmentsItem';
 
 export interface NFeParseResult {
   accessKey: string;
@@ -33,4 +34,15 @@ export interface NFeParseResult {
   xmlContent: string;
   existingSupplierId: number | null;
   duplicateAccessKey?: boolean | null;
+  /** Número da fatura (cobr.fat.nFat) */
+  fatNumber?: string | null;
+  /** Valor original da fatura */
+  fatOriginalValue?: string | null;
+  /** Valor líquido da fatura */
+  fatNetValue?: string | null;
+  installments?: NFeParseResultInstallmentsItem[];
+  /** Informações complementares (infAdic.infCpl) */
+  additionalInfo?: string | null;
+  /** Informações ao fisco (infAdic.infAdFisco) */
+  fiscalInfo?: string | null;
 }

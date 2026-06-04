@@ -11431,6 +11431,38 @@ components:
         duplicateAccessKey:
           type: boolean
           nullable: true
+        fatNumber:
+          type: string
+          nullable: true
+          description: "Número da fatura (cobr.fat.nFat)"
+        fatOriginalValue:
+          type: string
+          nullable: true
+          description: "Valor original da fatura"
+        fatNetValue:
+          type: string
+          nullable: true
+          description: "Valor líquido da fatura"
+        installments:
+          type: array
+          items:
+            type: object
+            required: [number, dueDate, value]
+            properties:
+              number:
+                type: string
+              dueDate:
+                type: string
+              value:
+                type: string
+        additionalInfo:
+          type: string
+          nullable: true
+          description: "Informações complementares (infAdic.infCpl)"
+        fiscalInfo:
+          type: string
+          nullable: true
+          description: "Informações ao fisco (infAdic.infAdFisco)"
 
     NFeImportConfirmInput:
       type: object

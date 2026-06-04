@@ -4467,7 +4467,17 @@ export const NfeXmlUploadResponse = zod.object({
   "totalCOFINS": zod.string(),
   "xmlContent": zod.string(),
   "existingSupplierId": zod.number().nullable(),
-  "duplicateAccessKey": zod.boolean().nullish()
+  "duplicateAccessKey": zod.boolean().nullish(),
+  "fatNumber": zod.string().nullish().describe('Número da fatura (cobr.fat.nFat)'),
+  "fatOriginalValue": zod.string().nullish().describe('Valor original da fatura'),
+  "fatNetValue": zod.string().nullish().describe('Valor líquido da fatura'),
+  "installments": zod.array(zod.object({
+  "number": zod.string(),
+  "dueDate": zod.string(),
+  "value": zod.string()
+})).optional(),
+  "additionalInfo": zod.string().nullish().describe('Informações complementares (infAdic.infCpl)'),
+  "fiscalInfo": zod.string().nullish().describe('Informações ao fisco (infAdic.infAdFisco)')
 })
 
 

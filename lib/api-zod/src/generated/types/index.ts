@@ -209,6 +209,7 @@ export * from './nFeImportConfirmInput';
 export * from './nFeImportItem';
 export * from './nFeImportItemImportAs';
 export * from './nFeParseResult';
+export * from './nFeParseResultInstallmentsItem';
 export * from './nFeXmlInput';
 export * from './okResponse';
 export * from './parameterRejectionStat';
