@@ -157,6 +157,8 @@ import type {
   QuotationInput,
   QuotationWithItems,
   ReceivePurchaseOrderInput,
+  RelatoriSendEmailInput,
+  RelatoriSendEmailResult,
   RelatorioDashboard,
   ResolveNcrInput,
   RhDashboard,
@@ -10604,6 +10606,77 @@ export const useUpsertDashboardGoals = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpsertDashboardGoalsMutationOptions(options));
+    }
+
+export const getSendRelatorioEmailUrl = () => {
+
+
+
+
+  return `/api/relatorios/send-email`
+}
+
+/**
+ * @summary Send the executive dashboard report as a PDF attachment via email
+ */
+export const sendRelatorioEmail = async (relatoriSendEmailInput: RelatoriSendEmailInput, options?: RequestInit): Promise<RelatoriSendEmailResult> => {
+
+  return customFetch<RelatoriSendEmailResult>(getSendRelatorioEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      relatoriSendEmailInput,)
+  }
+);}
+
+
+
+
+export const getSendRelatorioEmailMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendRelatorioEmail>>, TError,{data: BodyType<RelatoriSendEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendRelatorioEmail>>, TError,{data: BodyType<RelatoriSendEmailInput>}, TContext> => {
+
+const mutationKey = ['sendRelatorioEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendRelatorioEmail>>, {data: BodyType<RelatoriSendEmailInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendRelatorioEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendRelatorioEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendRelatorioEmail>>>
+    export type SendRelatorioEmailMutationBody = BodyType<RelatoriSendEmailInput>
+    export type SendRelatorioEmailMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send the executive dashboard report as a PDF attachment via email
+ */
+export const useSendRelatorioEmail = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendRelatorioEmail>>, TError,{data: BodyType<RelatoriSendEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendRelatorioEmail>>,
+        TError,
+        {data: BodyType<RelatoriSendEmailInput>},
+        TContext
+      > => {
+      return useMutation(getSendRelatorioEmailMutationOptions(options));
     }
 
 export const getListFiscalDocumentsUrl = (params?: ListFiscalDocumentsParams,) => {

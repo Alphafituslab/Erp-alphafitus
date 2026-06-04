@@ -47,7 +47,10 @@ import {
   Download,
   Target,
   Settings,
+  Mail,
+  X,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ComposedChart,
   Bar,
@@ -64,6 +67,7 @@ import {
   useGetMyTasks,
   useGetDashboardGoals,
   useUpsertDashboardGoals,
+  useSendRelatorioEmail,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -383,6 +387,200 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   );
 }
 
+// ── Send Email Dialog ─────────────────────────────────────────────────────────
+
+function SendEmailDialog({
+  period,
+  periodLabel,
+  disabled,
+}: {
+  period: PeriodKey;
+  periodLabel: string | undefined;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [recipientInput, setRecipientInput] = useState("");
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const { toast } = useToast();
+
+  const { mutate: sendEmail, isPending: isSending } = useSendRelatorioEmail({
+    mutation: {
+      onSuccess: (data) => {
+        toast({
+          title: "E-mail enviado com sucesso!",
+          description: `Relatório enviado para ${data.recipients.join(", ")}`,
+        });
+        setOpen(false);
+        resetForm();
+      },
+      onError: (err: unknown) => {
+        const msg =
+          (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+          "Não foi possível enviar o e-mail. Verifique as configurações de SMTP.";
+        toast({ title: "Erro ao enviar e-mail", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  function resetForm() {
+    setRecipientInput("");
+    setRecipients([]);
+    setSubject("");
+    setMessage("");
+  }
+
+  function handleOpen(isOpen: boolean) {
+    setOpen(isOpen);
+    if (isOpen) {
+      setSubject(`Relatório Executivo — ${periodLabel ?? "Dashboard"}`);
+      setRecipientInput("");
+      setRecipients([]);
+      setMessage("");
+    }
+  }
+
+  function addRecipient() {
+    const email = recipientInput.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "E-mail inválido", variant: "destructive" });
+      return;
+    }
+    if (recipients.includes(email)) {
+      toast({ title: "E-mail já adicionado", variant: "destructive" });
+      return;
+    }
+    setRecipients((prev) => [...prev, email]);
+    setRecipientInput("");
+  }
+
+  function removeRecipient(email: string) {
+    setRecipients((prev) => prev.filter((r) => r !== email));
+  }
+
+  function handleRecipientKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addRecipient();
+    }
+  }
+
+  function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    if (recipients.length === 0) {
+      toast({ title: "Adicione ao menos um destinatário", variant: "destructive" });
+      return;
+    }
+    sendEmail({ data: { recipients, subject, message: message || undefined, period } });
+  }
+
+  const isLoading = isSending;
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" disabled={disabled}>
+          <Mail className="h-4 w-4 mr-2" />
+          Enviar por e-mail
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Enviar Relatório por E-mail
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSend} className="space-y-4 mt-2">
+          <div className="space-y-1">
+            <Label>Destinatários</Label>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="email@exemplo.com"
+                value={recipientInput}
+                onChange={(e) => setRecipientInput(e.target.value)}
+                onKeyDown={handleRecipientKeyDown}
+                onBlur={addRecipient}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={addRecipient}>
+                Adicionar
+              </Button>
+            </div>
+            {recipients.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {recipients.map((r) => (
+                  <span
+                    key={r}
+                    className="flex items-center gap-1 text-xs bg-secondary text-secondary-foreground rounded-full px-2.5 py-1"
+                  >
+                    {r}
+                    <button
+                      type="button"
+                      onClick={() => removeRecipient(r)}
+                      className="ml-0.5 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {recipients.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Pressione Enter ou vírgula para adicionar cada endereço
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="email-subject">Assunto</Label>
+            <Input
+              id="email-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="email-message">Mensagem (opcional)</Label>
+            <Textarea
+              id="email-message"
+              placeholder="Mensagem personalizada a incluir no e-mail..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading || recipients.length === 0}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Enviando…
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Enviar
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Alert Banner ──────────────────────────────────────────────────────────────
 
 function AlertBanner({ alerts }: { alerts: { kpi: string; label: string; progress: number; daysRemaining: number }[] }) {
@@ -663,6 +861,11 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
           {isAdmin && (
             <GoalsDialog currentYear={currentYear} currentMonth={currentMonth} />
           )}
+          <SendEmailDialog
+            period={period}
+            periodLabel={data?.periodLabel}
+            disabled={isLoading}
+          />
           <Button
             variant="outline"
             size="sm"

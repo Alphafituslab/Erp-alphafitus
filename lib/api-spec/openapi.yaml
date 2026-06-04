@@ -4520,6 +4520,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/send-email:
+    post:
+      operationId: sendRelatorioEmail
+      tags: [relatorios]
+      summary: Send the executive dashboard report as a PDF attachment via email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelatoriSendEmailInput"
+      responses:
+        "200":
+          description: Email sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelatoriSendEmailResult"
+        "400":
+          description: Invalid input or SMTP not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Fiscal: Documents ─────────────────────────────────────────────────────
 
   /fiscal/documents:
@@ -9848,6 +9885,40 @@ components:
           type: string
         salesOrdersGoal:
           type: integer
+
+    RelatoriSendEmailInput:
+      type: object
+      required:
+        - recipients
+        - subject
+        - period
+      properties:
+        recipients:
+          type: array
+          items:
+            type: string
+            format: email
+          minItems: 1
+        subject:
+          type: string
+        message:
+          type: string
+        period:
+          type: string
+          enum: [this_month, last_month, this_quarter, this_year]
+
+    RelatoriSendEmailResult:
+      type: object
+      required:
+        - sent
+        - recipients
+      properties:
+        sent:
+          type: boolean
+        recipients:
+          type: array
+          items:
+            type: string
 
     DashboardGoalAlert:
       type: object

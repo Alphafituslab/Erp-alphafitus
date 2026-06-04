@@ -3745,6 +3745,25 @@ export const UpsertDashboardGoalsResponse = zod.object({
 
 
 /**
+ * @summary Send the executive dashboard report as a PDF attachment via email
+ */
+
+
+
+export const SendRelatorioEmailBody = zod.object({
+  "recipients": zod.array(zod.string().email()).min(1),
+  "subject": zod.string(),
+  "message": zod.string().optional(),
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year'])
+})
+
+export const SendRelatorioEmailResponse = zod.object({
+  "sent": zod.boolean(),
+  "recipients": zod.array(zod.string())
+})
+
+
+/**
  * @summary List fiscal documents with optional filters
  */
 export const ListFiscalDocumentsQueryParams = zod.object({

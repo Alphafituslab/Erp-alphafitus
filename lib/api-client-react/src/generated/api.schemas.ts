@@ -1948,6 +1948,29 @@ export interface DashboardGoalInput {
   salesOrdersGoal: number;
 }
 
+export type RelatoriSendEmailInputPeriod = typeof RelatoriSendEmailInputPeriod[keyof typeof RelatoriSendEmailInputPeriod];
+
+
+export const RelatoriSendEmailInputPeriod = {
+  this_month: 'this_month',
+  last_month: 'last_month',
+  this_quarter: 'this_quarter',
+  this_year: 'this_year',
+} as const;
+
+export interface RelatoriSendEmailInput {
+  /** @minItems 1 */
+  recipients: string[];
+  subject: string;
+  message?: string;
+  period: RelatoriSendEmailInputPeriod;
+}
+
+export interface RelatoriSendEmailResult {
+  sent: boolean;
+  recipients: string[];
+}
+
 export interface DashboardGoalAlert {
   kpi: string;
   label: string;
