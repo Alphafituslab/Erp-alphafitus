@@ -54,7 +54,6 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   const user = parsedUrl.username;
   const password = parsedUrl.password;
 
-  // Build filename: nexus-erp-backup-YYYY-MM-DD-HHmm.sql.gz
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
@@ -68,49 +67,58 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   );
 
   const gzip = createGzip();
-
-  // State tracking — used to decide whether to insert log and whether we can still send JSON errors
-  let pgDumpFailed = false;
-  let pgDumpExitCode: number | null = null;
-  let streamingStarted = false;
-  let fileSizeBytes = 0; // running counter — never buffer full backup in memory
-
   pgdump.stdout.pipe(gzip);
 
+  // State ─────────────────────────────────────────────────────────────────────
+  // pgDumpHadData: true only after pgdump.stdout emits real SQL bytes.
+  // This is the correct signal for "pg_dump is working". It fires BEFORE the
+  // corresponding gzip.on("data") chunk, since piping is synchronous per tick.
+  // gzip emits ~20 bytes of empty-stream header even with zero pg_dump output,
+  // so we cannot rely on gzip output to detect success.
+  let pgDumpHadData = false;
+  let pgDumpFailed = false;
   let pgDumpStderr = "";
+  let fileSizeBytes = 0; // running counter — never buffer full backup in memory
+
+  pgdump.stdout.on("data", () => {
+    pgDumpHadData = true;
+  });
+
   pgdump.stderr.on("data", (data: Buffer) => {
     pgDumpStderr += data.toString();
   });
 
-  // pg_dump spawn error (binary not found, etc.)
+  // pg_dump spawn error (binary not found)
   pgdump.on("error", (err) => {
     pgDumpFailed = true;
     req.log.error({ err }, "pg_dump spawn error");
     gzip.destroy();
-    if (!streamingStarted) {
-      res.status(500).json({ error: "pg_dump não encontrado ou falhou ao iniciar. Verifique se o pacote postgresql-client está instalado." });
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "pg_dump não encontrado ou falhou ao iniciar. Verifique se o pacote postgresql-client está instalado no servidor.",
+      });
     } else {
       res.end();
     }
   });
 
-  // pg_dump process exit — record exit code, trigger gzip finish on non-zero
+  // pg_dump process exit
   pgdump.on("close", (code) => {
-    pgDumpExitCode = code;
     if (code !== 0) {
       pgDumpFailed = true;
       req.log.error({ code, pgDumpStderr }, "pg_dump exited with non-zero code");
-      // End gzip to flush remaining data, but gzip.on("end") will check pgDumpFailed
-      gzip.end();
+      gzip.end(); // flush any remaining gzip bytes, gzip.on("end") handles response
     }
-    // On code === 0, gzip ends naturally when stdout closes
+    // On code === 0, gzip ends naturally when pgdump.stdout closes
   });
 
-  // Stream each compressed chunk directly to response — count bytes without buffering
+  // Stream compressed bytes to response.
+  // Only write to res AFTER pgDumpHadData is true — this prevents the ~20-byte
+  // empty gzip wrapper from being sent as a 200 OK response on failure.
   gzip.on("data", (chunk: Buffer) => {
+    if (!pgDumpHadData) return; // discard gzip wrapper bytes from empty input
     fileSizeBytes += chunk.length;
-    if (!streamingStarted) {
-      streamingStarted = true;
+    if (!res.headersSent) {
       res.setHeader("Content-Type", "application/gzip");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.setHeader("Cache-Control", "no-cache");
@@ -118,49 +126,59 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
     res.write(chunk);
   });
 
-  // gzip stream finished — finalize response and (only on success) insert log.
-  // NOTE: pgdump.on("close") may fire AFTER gzip.on("end") in the success path
-  // (gzip flushes remaining data before the process close event fires), so we
-  // rely only on !pgDumpFailed rather than checking pgDumpExitCode === 0.
   gzip.on("end", async () => {
+    if (pgDumpFailed || !pgDumpHadData) {
+      // pg_dump did not produce any data or exited with error
+      if (!res.headersSent) {
+        const errMsg = pgDumpStderr.trim()
+          ? `pg_dump falhou: ${pgDumpStderr.slice(0, 300)}`
+          : "pg_dump não produziu dados. Verifique se está instalado e se o banco está acessível.";
+        res.status(500).json({ error: errMsg });
+      } else {
+        // Headers already sent — can't send JSON; just close the connection
+        res.end();
+      }
+      return;
+    }
+
     res.end();
 
-    if (!pgDumpFailed) {
-      try {
-        await db.insert(backupLogsTable).values({
-          userId: req.session.userId!,
-          filename,
-          fileSizeBytes,
-        });
-      } catch (logErr) {
-        req.log.error({ logErr }, "Failed to insert backup log");
-      }
-    } else {
-      req.log.warn({ pgDumpExitCode, pgDumpFailed }, "Backup not logged — pg_dump failed");
+    // Insert success log
+    try {
+      await db.insert(backupLogsTable).values({
+        userId: req.session.userId!,
+        filename,
+        fileSizeBytes,
+      });
+    } catch (logErr) {
+      req.log.error({ logErr }, "Failed to insert backup log");
     }
   });
 
   gzip.on("error", (err) => {
     pgDumpFailed = true;
     req.log.error({ err }, "gzip stream error");
-    if (!streamingStarted) {
+    if (!res.headersSent) {
       res.status(500).json({ error: "Erro ao comprimir backup." });
     } else {
       res.end();
     }
   });
 
-  // If no data is sent within 30 s, respond with a timeout error
-  const timeout = setTimeout(() => {
-    if (!streamingStarted) {
+  // Kill pg_dump and respond with error if no output starts within 30 s
+  const startupTimeout = setTimeout(() => {
+    if (!pgDumpHadData) {
       pgDumpFailed = true;
       pgdump.kill();
-      res.status(500).json({ error: "Timeout ao gerar backup. pg_dump demorou mais de 30 segundos para iniciar." });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Timeout: pg_dump não produziu dados em 30 segundos." });
+      }
     }
   }, 30_000);
-  gzip.once("data", () => clearTimeout(timeout));
-  gzip.once("error", () => clearTimeout(timeout));
-  pgdump.once("error", () => clearTimeout(timeout));
+
+  pgdump.stdout.once("data", () => clearTimeout(startupTimeout));
+  pgdump.once("error", () => clearTimeout(startupTimeout));
+  pgdump.once("close", () => clearTimeout(startupTimeout));
 });
 
 // ─── GET /admin/backup/logs ───────────────────────────────────────────────────
