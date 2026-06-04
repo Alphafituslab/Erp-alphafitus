@@ -3659,6 +3659,7 @@ export const GetExecutiveDashboardResponse = zod.object({
   "revenueLastPeriod": zod.string(),
   "expenseLastPeriod": zod.string(),
   "openSalesOrders": zod.number(),
+  "newSalesOrders": zod.number(),
   "lowStockProducts": zod.number(),
   "pendingPurchaseOrders": zod.number(),
   "activeEmployees": zod.number(),
@@ -3683,7 +3684,63 @@ export const GetExecutiveDashboardResponse = zod.object({
   "productName": zod.string(),
   "movementCount": zod.number(),
   "netQuantity": zod.number()
-}))
+})),
+  "goals": zod.object({
+  "id": zod.number().nullish(),
+  "year": zod.number(),
+  "month": zod.number(),
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
+}).nullish(),
+  "alerts": zod.array(zod.object({
+  "kpi": zod.string(),
+  "label": zod.string(),
+  "progress": zod.number(),
+  "daysRemaining": zod.number()
+})).optional()
+})
+
+
+/**
+ * @summary Get monthly goals for the executive dashboard
+ */
+export const GetDashboardGoalsParams = zod.object({
+  "year": zod.coerce.number(),
+  "month": zod.coerce.number()
+})
+
+export const GetDashboardGoalsResponse = zod.object({
+  "id": zod.number().nullish(),
+  "year": zod.number(),
+  "month": zod.number(),
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
+})
+
+
+/**
+ * @summary Create or update monthly goals (admin only)
+ */
+export const UpsertDashboardGoalsParams = zod.object({
+  "year": zod.coerce.number(),
+  "month": zod.coerce.number()
+})
+
+export const UpsertDashboardGoalsBody = zod.object({
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
+})
+
+export const UpsertDashboardGoalsResponse = zod.object({
+  "id": zod.number().nullish(),
+  "year": zod.number(),
+  "month": zod.number(),
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
 })
 
 

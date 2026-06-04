@@ -13,6 +13,7 @@ export interface RelatorioKpis {
   revenueLastPeriod: string;
   expenseLastPeriod: string;
   openSalesOrders: number;
+  newSalesOrders: number;
   lowStockProducts: number;
   pendingPurchaseOrders: number;
   activeEmployees: number;

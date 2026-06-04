@@ -4444,6 +4444,82 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/goals/{year}/{month}:
+    get:
+      operationId: getDashboardGoals
+      tags: [relatorios]
+      summary: Get monthly goals for the executive dashboard
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly goals (null fields when not yet set)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardGoal"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: upsertDashboardGoals
+      tags: [relatorios]
+      summary: Create or update monthly goals (admin only)
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardGoalInput"
+      responses:
+        "200":
+          description: Upserted goals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardGoal"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — only admins can set goals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Fiscal: Documents ─────────────────────────────────────────────────────
 
   /fiscal/documents:
@@ -9650,6 +9726,7 @@ components:
         - revenueLastPeriod
         - expenseLastPeriod
         - openSalesOrders
+        - newSalesOrders
         - lowStockProducts
         - pendingPurchaseOrders
         - activeEmployees
@@ -9666,6 +9743,8 @@ components:
         expenseLastPeriod:
           type: string
         openSalesOrders:
+          type: integer
+        newSalesOrders:
           type: integer
         lowStockProducts:
           type: integer
@@ -9733,6 +9812,60 @@ components:
         netQuantity:
           type: integer
 
+    DashboardGoal:
+      type: object
+      required:
+        - year
+        - month
+        - revenueGoal
+        - expenseGoal
+        - salesOrdersGoal
+      properties:
+        id:
+          type: integer
+          nullable: true
+        year:
+          type: integer
+        month:
+          type: integer
+        revenueGoal:
+          type: string
+        expenseGoal:
+          type: string
+        salesOrdersGoal:
+          type: integer
+
+    DashboardGoalInput:
+      type: object
+      required:
+        - revenueGoal
+        - expenseGoal
+        - salesOrdersGoal
+      properties:
+        revenueGoal:
+          type: string
+        expenseGoal:
+          type: string
+        salesOrdersGoal:
+          type: integer
+
+    DashboardGoalAlert:
+      type: object
+      required:
+        - kpi
+        - label
+        - progress
+        - daysRemaining
+      properties:
+        kpi:
+          type: string
+        label:
+          type: string
+        progress:
+          type: number
+        daysRemaining:
+          type: integer
+
     RelatorioDashboard:
       type: object
       required:
@@ -9761,6 +9894,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RelatorioTopProduct"
+        goals:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/DashboardGoal"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardGoalAlert"
 
     FiscalDocument:
       type: object

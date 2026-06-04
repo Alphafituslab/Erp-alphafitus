@@ -45,6 +45,8 @@ import type {
   ClientInput,
   CompleteAnalysisInput,
   ComprasDashboard,
+  DashboardGoal,
+  DashboardGoalInput,
   Department,
   DepartmentInput,
   Employee,
@@ -10447,6 +10449,162 @@ export function useGetExecutiveDashboard<TData = Awaited<ReturnType<typeof getEx
 
 
 
+
+export const getGetDashboardGoalsUrl = (year: number,
+    month: number,) => {
+
+
+
+
+  return `/api/relatorios/goals/${year}/${month}`
+}
+
+/**
+ * @summary Get monthly goals for the executive dashboard
+ */
+export const getDashboardGoals = async (year: number,
+    month: number, options?: RequestInit): Promise<DashboardGoal> => {
+
+  return customFetch<DashboardGoal>(getGetDashboardGoalsUrl(year,month),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDashboardGoalsQueryKey = (year: number,
+    month: number,) => {
+    return [
+    `/api/relatorios/goals/${year}/${month}`
+    ] as const;
+    }
+
+
+export const getGetDashboardGoalsQueryOptions = <TData = Awaited<ReturnType<typeof getDashboardGoals>>, TError = ErrorType<ErrorResponse>>(year: number,
+    month: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDashboardGoalsQueryKey(year,month);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboardGoals>>> = ({ signal }) => getDashboardGoals(year,month, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(year && month), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDashboardGoalsQueryResult = NonNullable<Awaited<ReturnType<typeof getDashboardGoals>>>
+export type GetDashboardGoalsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get monthly goals for the executive dashboard
+ */
+
+export function useGetDashboardGoals<TData = Awaited<ReturnType<typeof getDashboardGoals>>, TError = ErrorType<ErrorResponse>>(
+ year: number,
+    month: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDashboardGoalsQueryOptions(year,month,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpsertDashboardGoalsUrl = (year: number,
+    month: number,) => {
+
+
+
+
+  return `/api/relatorios/goals/${year}/${month}`
+}
+
+/**
+ * @summary Create or update monthly goals (admin only)
+ */
+export const upsertDashboardGoals = async (year: number,
+    month: number,
+    dashboardGoalInput: DashboardGoalInput, options?: RequestInit): Promise<DashboardGoal> => {
+
+  return customFetch<DashboardGoal>(getUpsertDashboardGoalsUrl(year,month),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      dashboardGoalInput,)
+  }
+);}
+
+
+
+
+export const getUpsertDashboardGoalsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertDashboardGoals>>, TError,{year: number;month: number;data: BodyType<DashboardGoalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertDashboardGoals>>, TError,{year: number;month: number;data: BodyType<DashboardGoalInput>}, TContext> => {
+
+const mutationKey = ['upsertDashboardGoals'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertDashboardGoals>>, {year: number;month: number;data: BodyType<DashboardGoalInput>}> = (props) => {
+          const {year,month,data} = props ?? {};
+
+          return  upsertDashboardGoals(year,month,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertDashboardGoalsMutationResult = NonNullable<Awaited<ReturnType<typeof upsertDashboardGoals>>>
+    export type UpsertDashboardGoalsMutationBody = BodyType<DashboardGoalInput>
+    export type UpsertDashboardGoalsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create or update monthly goals (admin only)
+ */
+export const useUpsertDashboardGoals = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertDashboardGoals>>, TError,{year: number;month: number;data: BodyType<DashboardGoalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertDashboardGoals>>,
+        TError,
+        {year: number;month: number;data: BodyType<DashboardGoalInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertDashboardGoalsMutationOptions(options));
+    }
 
 export const getListFiscalDocumentsUrl = (params?: ListFiscalDocumentsParams,) => {
   const normalizedParams = new URLSearchParams();

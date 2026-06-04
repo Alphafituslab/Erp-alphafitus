@@ -5,6 +5,8 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DashboardGoal } from './dashboardGoal';
+import type { DashboardGoalAlert } from './dashboardGoalAlert';
 import type { RelatorioKpis } from './relatorioKpis';
 import type { RelatorioMonthlyTrend } from './relatorioMonthlyTrend';
 import type { RelatorioTopClient } from './relatorioTopClient';
@@ -17,4 +19,6 @@ export interface RelatorioDashboard {
   monthlyTrend: RelatorioMonthlyTrend[];
   topClients: RelatorioTopClient[];
   topProducts: RelatorioTopProduct[];
+  goals?: DashboardGoal | null;
+  alerts?: DashboardGoalAlert[];
 }

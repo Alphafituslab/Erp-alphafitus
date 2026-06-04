@@ -11,6 +11,7 @@ import {
   purchaseOrdersTable,
   employeesTable,
   projectsTable,
+  dashboardGoalsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -29,7 +30,6 @@ async function requireManagerAsync(req: Request, res: Response): Promise<boolean
     res.status(401).json({ error: "Não autenticado" });
     return false;
   }
-  // role may be absent in pre-existing sessions — backfill from DB
   let role = req.session.role;
   if (!role) {
     const [user] = await db
@@ -42,10 +42,36 @@ async function requireManagerAsync(req: Request, res: Response): Promise<boolean
       return false;
     }
     role = user.role;
-    req.session.role = role; // cache for next request
+    req.session.role = role;
   }
   if (role !== "admin" && role !== "manager") {
     res.status(403).json({ error: "Acesso restrito a gestores e administradores" });
+    return false;
+  }
+  return true;
+}
+
+async function requireAdminAsync(req: Request, res: Response): Promise<boolean> {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Não autenticado" });
+    return false;
+  }
+  let role = req.session.role;
+  if (!role) {
+    const [user] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.session.userId))
+      .limit(1);
+    if (!user) {
+      res.status(401).json({ error: "Não autenticado" });
+      return false;
+    }
+    role = user.role;
+    req.session.role = role;
+  }
+  if (role !== "admin") {
+    res.status(403).json({ error: "Acesso restrito a administradores" });
     return false;
   }
   return true;
@@ -79,7 +105,6 @@ function getDateRange(period: Period): DateRange {
     case "last_month": {
       const lm = m === 0 ? 11 : m - 1;
       const ly = m === 0 ? y - 1 : y;
-      // last day of previous month at 23:59:59.999 (fully inclusive)
       const lastDay = new Date(y, m, 0, 23, 59, 59, 999);
       return {
         start: new Date(ly, lm, 1),
@@ -126,20 +151,18 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
   const range = getDateRange(period);
   const prevRange = getPreviousPeriodRange(period, range);
 
-  // ── KPIs — run all counts/sums in parallel ─────────────────────────────────
-
   const [
     revenueRow,
     expenseRow,
     revenuePrevRow,
     expensePrevRow,
     openSalesRow,
+    newSalesRow,
     lowStockRow,
     pendingPurchaseRow,
     activeEmployeesRow,
     activeProjectsRow,
   ] = await Promise.all([
-    // Revenue (paid income in period)
     db
       .select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
       .from(financialEntriesTable)
@@ -152,7 +175,6 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
         )
       ),
 
-    // Expense (paid expense in period)
     db
       .select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
       .from(financialEntriesTable)
@@ -165,7 +187,6 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
         )
       ),
 
-    // Revenue previous period
     db
       .select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
       .from(financialEntriesTable)
@@ -178,7 +199,6 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
         )
       ),
 
-    // Expense previous period
     db
       .select({ total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text` })
       .from(financialEntriesTable)
@@ -191,13 +211,24 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
         )
       ),
 
-    // Open sales orders (draft + confirmed)
+    // Open sales orders backlog (all-time, status-based snapshot)
     db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(salesOrdersTable)
       .where(sql`${salesOrdersTable.status} IN ('draft', 'confirmed')`),
 
-    // Low stock products (currentStock <= minStock)
+    // New sales orders created within the selected period (period-bounded, for goal comparison)
+    db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(salesOrdersTable)
+      .where(
+        and(
+          sql`${salesOrdersTable.status} NOT IN ('cancelled')`,
+          gte(salesOrdersTable.createdAt, range.start),
+          lte(salesOrdersTable.createdAt, range.end)
+        )
+      ),
+
     db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(productsTable)
@@ -208,19 +239,16 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
         )
       ),
 
-    // Pending purchase orders (draft + sent)
     db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(purchaseOrdersTable)
       .where(sql`${purchaseOrdersTable.status} IN ('draft', 'sent')`),
 
-    // Active employees
     db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(employeesTable)
       .where(eq(employeesTable.status, "active")),
 
-    // Active projects
     db
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(projectsTable)
@@ -238,6 +266,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     revenueLastPeriod: revenuePrevRow[0]?.total ?? "0",
     expenseLastPeriod: expensePrevRow[0]?.total ?? "0",
     openSalesOrders: openSalesRow[0]?.count ?? 0,
+    newSalesOrders: newSalesRow[0]?.count ?? 0,
     lowStockProducts: lowStockRow[0]?.count ?? 0,
     pendingPurchaseOrders: pendingPurchaseRow[0]?.count ?? 0,
     activeEmployees: activeEmployeesRow[0]?.count ?? 0,
@@ -289,14 +318,13 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
       ),
   ]);
 
-  // Build map for fast lookup
   const revMap = new Map(revTrend.map((r) => [`${r.year}-${r.month}`, r.total]));
   const expMap = new Map(expTrend.map((r) => [`${r.year}-${r.month}`, r.total]));
 
   const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
     const y = d.getFullYear();
-    const m = d.getMonth() + 1; // 1-indexed
+    const m = d.getMonth() + 1;
     const key = `${y}-${m}`;
     const rev = parseFloat(revMap.get(key) ?? "0");
     const exp = parseFloat(expMap.get(key) ?? "0");
@@ -310,7 +338,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     };
   });
 
-  // ── Top 5 clients by sales revenue within selected period ────────────────
+  // ── Top 5 clients ─────────────────────────────────────────────────────────
 
   const topClientRows = await db
     .select({
@@ -332,7 +360,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     .orderBy(desc(sql`SUM(${salesOrdersTable.totalAmount})`))
     .limit(5);
 
-  // ── Top 5 products by stock movement count within selected period ─────────
+  // ── Top 5 products ────────────────────────────────────────────────────────
 
   const topProductRows = await db
     .select({
@@ -355,6 +383,98 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     .orderBy(desc(sql`COUNT(${stockMovementsTable.id})`))
     .limit(5);
 
+  // ── Goals & Alerts (only for this_month) ─────────────────────────────────
+
+  let goals: {
+    id: number | null;
+    year: number;
+    month: number;
+    revenueGoal: string;
+    expenseGoal: string;
+    salesOrdersGoal: number;
+  } | null = null;
+
+  let alerts: {
+    kpi: string;
+    label: string;
+    progress: number;
+    daysRemaining: number;
+  }[] = [];
+
+  if (period === "this_month") {
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1; // 1-indexed
+
+    const [goalRow] = await db
+      .select()
+      .from(dashboardGoalsTable)
+      .where(
+        and(
+          eq(dashboardGoalsTable.year, y),
+          eq(dashboardGoalsTable.month, m)
+        )
+      )
+      .limit(1);
+
+    if (goalRow) {
+      goals = {
+        id: goalRow.id,
+        year: goalRow.year,
+        month: goalRow.month,
+        revenueGoal: goalRow.revenueGoal,
+        expenseGoal: goalRow.expenseGoal,
+        salesOrdersGoal: goalRow.salesOrdersGoal,
+      };
+
+      // Compute alerts: < 70% progress and <= 15 days remaining in month
+      const daysInMonth = new Date(y, m, 0).getDate();
+      const daysRemaining = daysInMonth - now.getDate();
+
+      if (daysRemaining <= 15) {
+        const revGoal = parseFloat(goalRow.revenueGoal);
+        const expGoal = parseFloat(goalRow.expenseGoal);
+        const soGoal = goalRow.salesOrdersGoal;
+
+        if (revGoal > 0) {
+          const revProgress = (parseFloat(revenueTotal) / revGoal) * 100;
+          if (revProgress < 70) {
+            alerts.push({
+              kpi: "revenue",
+              label: "Receita",
+              progress: Math.round(revProgress * 10) / 10,
+              daysRemaining,
+            });
+          }
+        }
+
+        if (expGoal > 0) {
+          const expProgress = (parseFloat(expenseTotal) / expGoal) * 100;
+          if (expProgress < 70) {
+            alerts.push({
+              kpi: "expense",
+              label: "Despesas",
+              progress: Math.round(expProgress * 10) / 10,
+              daysRemaining,
+            });
+          }
+        }
+
+        if (soGoal > 0) {
+          // Use newSalesOrders (period-bounded new orders) for goal comparison — not the open backlog
+          const soProgress = ((newSalesRow[0]?.count ?? 0) / soGoal) * 100;
+          if (soProgress < 70) {
+            alerts.push({
+              kpi: "salesOrders",
+              label: "Novos Pedidos no Mês",
+              progress: Math.round(soProgress * 10) / 10,
+              daysRemaining,
+            });
+          }
+        }
+      }
+    }
+  }
+
   res.json({
     period,
     periodLabel: range.label,
@@ -362,6 +482,108 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     monthlyTrend,
     topClients: topClientRows,
     topProducts: topProductRows,
+    goals,
+    alerts,
+  });
+});
+
+// ─── Goals: GET ────────────────────────────────────────────────────────────
+
+router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const year = parseInt(req.params.year as string, 10);
+  const month = parseInt(req.params.month as string, 10);
+
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+    res.status(400).json({ error: "Ano ou mês inválido" });
+    return;
+  }
+
+  const [row] = await db
+    .select()
+    .from(dashboardGoalsTable)
+    .where(
+      and(
+        eq(dashboardGoalsTable.year, year),
+        eq(dashboardGoalsTable.month, month)
+      )
+    )
+    .limit(1);
+
+  if (!row) {
+    res.json({
+      id: null,
+      year,
+      month,
+      revenueGoal: "0",
+      expenseGoal: "0",
+      salesOrdersGoal: 0,
+    });
+    return;
+  }
+
+  res.json({
+    id: row.id,
+    year: row.year,
+    month: row.month,
+    revenueGoal: row.revenueGoal,
+    expenseGoal: row.expenseGoal,
+    salesOrdersGoal: row.salesOrdersGoal,
+  });
+});
+
+// ─── Goals: PUT (admin only) ──────────────────────────────────────────────
+
+router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+
+  const year = parseInt(req.params.year as string, 10);
+  const month = parseInt(req.params.month as string, 10);
+
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+    res.status(400).json({ error: "Ano ou mês inválido" });
+    return;
+  }
+
+  const { revenueGoal, expenseGoal, salesOrdersGoal } = req.body as {
+    revenueGoal?: string;
+    expenseGoal?: string;
+    salesOrdersGoal?: number;
+  };
+
+  if (revenueGoal === undefined || expenseGoal === undefined || salesOrdersGoal === undefined) {
+    res.status(400).json({ error: "Campos obrigatórios: revenueGoal, expenseGoal, salesOrdersGoal" });
+    return;
+  }
+
+  const [upserted] = await db
+    .insert(dashboardGoalsTable)
+    .values({
+      year,
+      month,
+      revenueGoal: String(revenueGoal),
+      expenseGoal: String(expenseGoal),
+      salesOrdersGoal: Number(salesOrdersGoal),
+    })
+    .onConflictDoUpdate({
+      target: [dashboardGoalsTable.year, dashboardGoalsTable.month],
+      set: {
+        revenueGoal: String(revenueGoal),
+        expenseGoal: String(expenseGoal),
+        salesOrdersGoal: Number(salesOrdersGoal),
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+
+  res.json({
+    id: upserted.id,
+    year: upserted.year,
+    month: upserted.month,
+    revenueGoal: upserted.revenueGoal,
+    expenseGoal: upserted.expenseGoal,
+    salesOrdersGoal: upserted.salesOrdersGoal,
   });
 });
 

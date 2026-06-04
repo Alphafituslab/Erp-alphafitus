@@ -1903,6 +1903,7 @@ export interface RelatorioKpis {
   revenueLastPeriod: string;
   expenseLastPeriod: string;
   openSalesOrders: number;
+  newSalesOrders: number;
   lowStockProducts: number;
   pendingPurchaseOrders: number;
   activeEmployees: number;
@@ -1932,6 +1933,28 @@ export interface RelatorioTopProduct {
   netQuantity: number;
 }
 
+export interface DashboardGoal {
+  id?: number | null;
+  year: number;
+  month: number;
+  revenueGoal: string;
+  expenseGoal: string;
+  salesOrdersGoal: number;
+}
+
+export interface DashboardGoalInput {
+  revenueGoal: string;
+  expenseGoal: string;
+  salesOrdersGoal: number;
+}
+
+export interface DashboardGoalAlert {
+  kpi: string;
+  label: string;
+  progress: number;
+  daysRemaining: number;
+}
+
 export interface RelatorioDashboard {
   period: string;
   periodLabel: string;
@@ -1939,6 +1962,8 @@ export interface RelatorioDashboard {
   monthlyTrend: RelatorioMonthlyTrend[];
   topClients: RelatorioTopClient[];
   topProducts: RelatorioTopProduct[];
+  goals?: DashboardGoal | null;
+  alerts?: DashboardGoalAlert[];
 }
 
 export type FiscalDocumentType = typeof FiscalDocumentType[keyof typeof FiscalDocumentType];
