@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, like, lt, sql } from "drizzle-orm";
 import {
   db,
   formulasTable,
@@ -9,8 +9,28 @@ import {
   productionMaterialConsumptionsTable,
   productsTable,
   productLotsTable,
+  warehousesTable,
+  lotMovementsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
+
+async function generateLotNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `LOT-PA-${year}-`;
+  const [last] = await db
+    .select({ internalLot: productLotsTable.internalLot })
+    .from(productLotsTable)
+    .where(like(productLotsTable.internalLot, `${prefix}%`))
+    .orderBy(desc(productLotsTable.internalLot))
+    .limit(1);
+  let seq = 1;
+  if (last) {
+    const parts = last.internalLot.split("-");
+    const lastSeq = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(lastSeq)) seq = lastSeq + 1;
+  }
+  return `${prefix}${String(seq).padStart(3, "0")}`;
+}
 
 const router: IRouter = Router();
 
@@ -507,14 +527,68 @@ router.post("/producao/orders/:id/finish", async (req: Request, res: Response): 
   const [order] = await db.select().from(productionOrdersTable).where(eq(productionOrdersTable.id, id));
   if (!order) { res.status(404).json({ error: "OP não encontrada" }); return; }
   if (order.status !== "quality_check") { res.status(400).json({ error: "OP precisa estar em CQ para ser finalizada" }); return; }
-  const { actualQty, batchLot } = req.body;
-  const lot = batchLot || `PA-${order.number}-${Date.now().toString(36).toUpperCase()}`;
+
+  if (!order.productId) { res.status(400).json({ error: "OP sem produto vinculado. Vincule um produto antes de finalizar." }); return; }
+
+  const { actualQty } = req.body;
+  const finalQty = actualQty ? String(actualQty) : (order.actualQty ?? order.plannedQty);
+  const today = new Date().toISOString().split("T")[0];
+  const productId = order.productId;
+
+  // Generate sequential lot number LOT-PA-YYYY-NNN
+  const lotNumber = await generateLotNumber();
+
+  // Find PA warehouse (code ALM-PA) or first available
+  const [paWarehouse] = await db
+    .select({ id: warehousesTable.id })
+    .from(warehousesTable)
+    .where(eq(warehousesTable.code, "ALM-PA"))
+    .limit(1);
+  const [anyWarehouse] = await db.select({ id: warehousesTable.id }).from(warehousesTable).limit(1);
+  const warehouseId = paWarehouse?.id ?? anyWarehouse?.id ?? null;
+
+  // Create product lot — cqStatus "approved" because OP already went through quality_check
+  const [createdLot] = await db.insert(productLotsTable).values({
+    productId,
+    internalLot: lotNumber,
+    warehouseId,
+    manufacturingDate: today,
+    cqStatus: "approved",
+    totalQty: finalQty,
+    availableQty: finalQty,
+    reservedQty: "0",
+    blockedQty: "0",
+    notes: `Gerado automaticamente ao finalizar OP ${order.number}`,
+  }).returning();
+
+  // Create lot movement (input)
+  await db.insert(lotMovementsTable).values({
+    lotId: createdLot.id,
+    productId,
+    warehouseId,
+    type: "input",
+    quantity: finalQty,
+    reason: `Produção — OP ${order.number}`,
+    notes: `Lote gerado automaticamente ao finalizar OP ${order.number}`,
+    userId: req.session.userId ?? null,
+    referenceId: order.id,
+    referenceType: "production_order",
+  });
+
+  // Update product current stock
+  await db
+    .update(productsTable)
+    .set({ currentStock: sql`${productsTable.currentStock} + ${finalQty}::numeric` })
+    .where(eq(productsTable.id, productId));
+
+  // Finalize the production order
   const [row] = await db
     .update(productionOrdersTable)
-    .set({ status: "finished", actualQty: actualQty ? String(actualQty) : order.actualQty, batchLot: lot, actualEnd: new Date() })
+    .set({ status: "finished", actualQty: finalQty, batchLot: lotNumber, actualEnd: new Date() })
     .where(eq(productionOrdersTable.id, id))
     .returning();
-  res.json(row);
+
+  res.json({ order: row, createdLot });
 });
 
 router.post("/producao/orders/:id/cancel", async (req: Request, res: Response): Promise<void> => {

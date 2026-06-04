@@ -243,7 +243,6 @@ export default function ProducaoPage() {
   const [opDetailOpen, setOpDetailOpen] = useState(false);
   const [finishOpDialog, setFinishOpDialog] = useState(false);
   const [finishActualQty, setFinishActualQty] = useState("");
-  const [finishBatchLot, setFinishBatchLot] = useState("");
   const [qcActualQty, setQcActualQty] = useState("");
   const [qcDialog, setQcDialog] = useState(false);
   const [cancelOpDialog, setCancelOpDialog] = useState(false);
@@ -510,8 +509,13 @@ export default function ProducaoPage() {
 
   function finishOp() {
     if (!selectedOpId) return;
-    finishOpMut.mutate({ id: selectedOpId, data: { actualQty: finishActualQty || undefined, batchLot: finishBatchLot || undefined } }, {
-      onSuccess: () => { invalidateAll(); setFinishOpDialog(false); toast({ title: "OP finalizada com sucesso" }); },
+    finishOpMut.mutate({ id: selectedOpId, data: { actualQty: finishActualQty || undefined } }, {
+      onSuccess: (data: any) => {
+        invalidateAll();
+        setFinishOpDialog(false);
+        const lot = data?.createdLot?.internalLot ?? data?.order?.batchLot;
+        toast({ title: "OP finalizada com sucesso", description: lot ? `Lote PA criado: ${lot}` : undefined });
+      },
       onError: (e: any) => toast({ title: e?.response?.data?.error ?? "Erro", variant: "destructive" }),
     });
   }
@@ -871,7 +875,7 @@ export default function ProducaoPage() {
                       </Button>
                     )}
                     {opDetail.status === "quality_check" && (
-                      <Button size="sm" onClick={() => { setFinishActualQty(opDetail.actualQty ?? ""); setFinishBatchLot(""); setFinishOpDialog(true); }}>
+                      <Button size="sm" onClick={() => { setFinishActualQty(opDetail.actualQty ?? ""); setFinishOpDialog(true); }}>
                         <CheckCheck className="size-3.5 mr-1" />Finalizar OP
                       </Button>
                     )}
@@ -1401,7 +1405,7 @@ export default function ProducaoPage() {
                   </Button>
                 )}
                 {opDetail.status === "quality_check" && (
-                  <Button size="sm" onClick={() => { setFinishActualQty(opDetail.actualQty ?? ""); setFinishBatchLot(""); setFinishOpDialog(true); }}>
+                  <Button size="sm" onClick={() => { setFinishActualQty(opDetail.actualQty ?? ""); setFinishOpDialog(true); }}>
                     <CheckCheck className="size-3.5 mr-1" />Finalizar OP
                   </Button>
                 )}
@@ -1487,10 +1491,9 @@ export default function ProducaoPage() {
               <Label className="text-xs">Quantidade Real Produzida</Label>
               <Input className="h-8 text-sm mt-1" value={finishActualQty} onChange={(e) => setFinishActualQty(e.target.value)} placeholder="Opcional" />
             </div>
-            <div>
-              <Label className="text-xs">Lote PA (gerado automaticamente se vazio)</Label>
-              <Input className="h-8 text-sm mt-1 font-mono" value={finishBatchLot} onChange={(e) => setFinishBatchLot(e.target.value)} placeholder="Gerado automaticamente" />
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Um lote de produto acabado (LOT-PA-YYYY-NNN) será criado automaticamente e o estoque do produto será atualizado.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setFinishOpDialog(false)}>Cancelar</Button>
