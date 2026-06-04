@@ -2067,6 +2067,19 @@ export interface DashboardGoal {
   salesOrdersGoal: number;
 }
 
+export interface GoalsHistoryItem {
+  year: number;
+  month: number;
+  monthLabel: string;
+  revenueGoal: string;
+  revenueActual: string;
+  expenseGoal: string;
+  expenseActual: string;
+  salesOrdersGoal: number;
+  salesOrdersActual: number;
+  hasGoal: boolean;
+}
+
 export interface DashboardGoalInput {
   revenueGoal: string;
   expenseGoal: string;
@@ -3201,6 +3214,14 @@ export const GetExecutiveDashboardPeriod = {
   this_quarter: 'this_quarter',
   this_year: 'this_year',
 } as const;
+
+export type GetGoalsHistoryParams = {
+/**
+ * @minimum 1
+ * @maximum 24
+ */
+months?: number;
+};
 
 export type ListReportSendLogsParams = {
 limit?: number;

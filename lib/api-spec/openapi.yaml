@@ -4444,6 +4444,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/goals/history:
+    get:
+      operationId: getGoalsHistory
+      tags: [relatorios]
+      summary: Get goals history — actual vs planned for the last N months
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 12
+            minimum: 1
+            maximum: 24
+      responses:
+        "200":
+          description: Goals history array (oldest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalsHistoryItem"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /relatorios/goals/{year}/{month}:
     get:
       operationId: getDashboardGoals
@@ -10185,6 +10221,41 @@ components:
           type: string
         salesOrdersGoal:
           type: integer
+
+    GoalsHistoryItem:
+      type: object
+      required:
+        - year
+        - month
+        - monthLabel
+        - revenueGoal
+        - revenueActual
+        - expenseGoal
+        - expenseActual
+        - salesOrdersGoal
+        - salesOrdersActual
+        - hasGoal
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        monthLabel:
+          type: string
+        revenueGoal:
+          type: string
+        revenueActual:
+          type: string
+        expenseGoal:
+          type: string
+        expenseActual:
+          type: string
+        salesOrdersGoal:
+          type: integer
+        salesOrdersActual:
+          type: integer
+        hasGoal:
+          type: boolean
 
     DashboardGoalInput:
       type: object

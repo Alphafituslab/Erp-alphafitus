@@ -64,6 +64,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Cell,
+  LabelList,
 } from "recharts";
 import {
   useGetExecutiveDashboard,
@@ -76,6 +78,7 @@ import {
   useUpdateReportSchedule,
   useDeleteReportSchedule,
   useListReportSendLogs,
+  useGetGoalsHistory,
 } from "@workspace/api-client-react";
 import type { ReportSchedule } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -1314,6 +1317,270 @@ function SendHistory() {
   );
 }
 
+// ── Goals History Section ─────────────────────────────────────────────────────
+
+type GoalsMetric = "revenue" | "expense" | "salesOrders";
+
+const GOALS_METRIC_OPTIONS: { value: GoalsMetric; label: string; isCurrency: boolean }[] = [
+  { value: "revenue", label: "Receita", isCurrency: true },
+  { value: "expense", label: "Despesas", isCurrency: true },
+  { value: "salesOrders", label: "Pedidos de Venda", isCurrency: false },
+];
+
+function achievementColor(pct: number): string {
+  if (pct >= 100) return "#10b981"; // emerald-500
+  if (pct >= 70) return "#f59e0b"; // amber-400
+  return "#ef4444"; // red-500
+}
+
+function GoalsHistorySection() {
+  const [metric, setMetric] = useState<GoalsMetric>("revenue");
+  const { data: history, isLoading } = useGetGoalsHistory({ months: 12 });
+
+  const metricCfg = GOALS_METRIC_OPTIONS.find((o) => o.value === metric)!;
+
+  const chartData = (history ?? []).map((item) => {
+    let actual: number;
+    let goal: number;
+
+    if (metric === "revenue") {
+      actual = parseFloat(item.revenueActual);
+      goal = parseFloat(item.revenueGoal);
+    } else if (metric === "expense") {
+      actual = parseFloat(item.expenseActual);
+      goal = parseFloat(item.expenseGoal);
+    } else {
+      actual = item.salesOrdersActual;
+      goal = item.salesOrdersGoal;
+    }
+
+    const pct = goal > 0 ? Math.round((actual / goal) * 1000) / 10 : null;
+
+    return {
+      monthLabel: item.monthLabel,
+      actual,
+      goal,
+      pct,
+      hasGoal: item.hasGoal,
+    };
+  });
+
+  const fmtVal = (v: number) =>
+    metricCfg.isCurrency
+      ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+      : String(v);
+
+  const metMonths = chartData.filter((d) => d.pct != null && d.pct >= 100).length;
+  const totalWithGoal = chartData.filter((d) => d.hasGoal).length;
+  const avgPct =
+    totalWithGoal > 0
+      ? Math.round(
+          chartData.filter((d) => d.pct != null).reduce((s, d) => s + (d.pct ?? 0), 0) /
+            totalWithGoal
+        )
+      : null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Target className="h-4 w-4 text-muted-foreground" />
+            Histórico de Metas — Real vs. Planejado (12 meses)
+          </CardTitle>
+          <div className="flex items-center gap-1 rounded-lg border p-0.5 bg-muted/30 self-start sm:self-auto">
+            {GOALS_METRIC_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => setMetric(o.value)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  metric === o.value
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Summary pills */}
+        {!isLoading && totalWithGoal > 0 && (
+          <div className="flex flex-wrap gap-2 mt-1">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+              ✓ {metMonths}/{totalWithGoal} meses atingidos
+            </span>
+            {avgPct != null && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  avgPct >= 100
+                    ? "bg-emerald-100 text-emerald-700"
+                    : avgPct >= 70
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-red-100 text-red-600"
+                }`}
+              >
+                Média: {avgPct}%
+              </span>
+            )}
+          </div>
+        )}
+      </CardHeader>
+
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : totalWithGoal === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Target className="h-8 w-8 text-muted-foreground mb-2 opacity-40" />
+            <p className="text-sm text-muted-foreground">Nenhuma meta configurada nos últimos 12 meses.</p>
+            <p className="text-xs text-muted-foreground mt-1">Configure metas mensais clicando em "Configurar Metas".</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <ComposedChart data={chartData} margin={{ top: 16, right: 16, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis
+                dataKey="monthLabel"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v: string) => v.slice(0, 6)}
+              />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v: number) =>
+                  metricCfg.isCurrency
+                    ? v >= 1000
+                      ? `R$${(v / 1000).toFixed(0)}k`
+                      : `R$${v}`
+                    : String(v)
+                }
+                allowDecimals={false}
+              />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || payload.length === 0) return null;
+                  const d = payload[0]?.payload as (typeof chartData)[0];
+                  return (
+                    <div className="rounded-lg border bg-white shadow-md p-3 text-xs space-y-1 min-w-[160px]">
+                      <p className="font-semibold text-sm mb-2">{label}</p>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Real:</span>
+                        <span className="font-medium">{fmtVal(d.actual)}</span>
+                      </div>
+                      {d.hasGoal && (
+                        <>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">Meta:</span>
+                            <span className="font-medium">{fmtVal(d.goal)}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 pt-1 border-t mt-1">
+                            <span className="text-muted-foreground">Cumprimento:</span>
+                            <span
+                              className="font-bold"
+                              style={{ color: d.pct != null ? achievementColor(d.pct) : undefined }}
+                            >
+                              {d.pct != null ? `${d.pct.toFixed(1)}%` : "—"}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {!d.hasGoal && (
+                        <p className="text-muted-foreground italic">Sem meta definida</p>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              <Legend
+                formatter={(v: string) =>
+                  v === "actual" ? metricCfg.label + " (Real)" : "Meta"
+                }
+              />
+              <Bar dataKey="actual" name="actual" radius={[3, 3, 0, 0]} maxBarSize={40}>
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={
+                      !entry.hasGoal
+                        ? "#94a3b8"
+                        : entry.pct != null
+                        ? achievementColor(entry.pct)
+                        : "#94a3b8"
+                    }
+                  />
+                ))}
+                <LabelList
+                  dataKey="pct"
+                  position="top"
+                  content={(props) => {
+                    const { x, y, width, value } = props as {
+                      x?: number; y?: number; width?: number; value?: number | null;
+                    };
+                    if (x == null || y == null || width == null || value == null) return null;
+                    const label = `${value.toFixed(0)}%`;
+                    const cx = x + width / 2;
+                    const cy = (y as number) - 4;
+                    return (
+                      <text
+                        x={cx}
+                        y={cy}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fontWeight={600}
+                        fill={achievementColor(value)}
+                      >
+                        {label}
+                      </text>
+                    );
+                  }}
+                />
+              </Bar>
+              <Bar dataKey="goal" name="goal" fill="#cbd5e1" radius={[3, 3, 0, 0]} maxBarSize={40} opacity={0.6} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
+
+        {/* Achievement % table */}
+        {!isLoading && totalWithGoal > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">Mês</th>
+                  <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">Real</th>
+                  <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">Meta</th>
+                  <th className="text-right py-1.5 pl-2 text-muted-foreground font-medium">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chartData.map((row, i) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="py-1.5 pr-3 font-medium">{row.monthLabel}</td>
+                    <td className="text-right py-1.5 px-2 tabular-nums">{fmtVal(row.actual)}</td>
+                    <td className="text-right py-1.5 px-2 tabular-nums text-muted-foreground">
+                      {row.hasGoal ? fmtVal(row.goal) : <span className="italic">—</span>}
+                    </td>
+                    <td className="text-right py-1.5 pl-2 font-semibold tabular-nums">
+                      {row.pct != null ? (
+                        <span style={{ color: achievementColor(row.pct) }}>{row.pct.toFixed(1)}%</span>
+                      ) : (
+                        <span className="text-muted-foreground italic text-[10px]">sem meta</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Executive dashboard ───────────────────────────────────────────────────────
 
 type PeriodKey = "this_month" | "last_month" | "this_quarter" | "this_year";
@@ -1684,6 +1951,9 @@ function ExecutiveDashboard({ isAdmin }: { isAdmin: boolean }) {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+
+          {/* Goals History — real vs planned */}
+          <GoalsHistorySection />
 
           {/* Top clients + Top products */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

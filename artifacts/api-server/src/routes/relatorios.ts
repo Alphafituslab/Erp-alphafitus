@@ -491,6 +491,114 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
   });
 });
 
+// ─── Goals History ────────────────────────────────────────────────────────────
+
+router.get("/relatorios/goals/history", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const monthsParam = parseInt(String(req.query.months ?? "12"), 10);
+  const months = Math.min(Math.max(isNaN(monthsParam) ? 12 : monthsParam, 1), 24);
+
+  const now = new Date();
+  const historyStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+  // Fetch all goals rows for the window
+  const goalRows = await db
+    .select()
+    .from(dashboardGoalsTable)
+    .where(
+      sql`(${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) >= ${historyStart.getFullYear() * 100 + (historyStart.getMonth() + 1)} AND (${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) <= ${now.getFullYear() * 100 + (now.getMonth() + 1)}`
+    );
+
+  const goalsMap = new Map(goalRows.map((r) => [`${r.year}-${r.month}`, r]));
+
+  // Fetch actual revenue per month
+  const [revActual, expActual, soActual] = await Promise.all([
+    db
+      .select({
+        year: sql<number>`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})::int`,
+        month: sql<number>`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})::int`,
+        total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text`,
+      })
+      .from(financialEntriesTable)
+      .where(
+        and(
+          eq(financialEntriesTable.type, "income"),
+          eq(financialEntriesTable.status, "paid"),
+          gte(financialEntriesTable.paidAt, historyStart)
+        )
+      )
+      .groupBy(
+        sql`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})`,
+        sql`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})`
+      ),
+
+    db
+      .select({
+        year: sql<number>`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})::int`,
+        month: sql<number>`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})::int`,
+        total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text`,
+      })
+      .from(financialEntriesTable)
+      .where(
+        and(
+          eq(financialEntriesTable.type, "expense"),
+          eq(financialEntriesTable.status, "paid"),
+          gte(financialEntriesTable.paidAt, historyStart)
+        )
+      )
+      .groupBy(
+        sql`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})`,
+        sql`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})`
+      ),
+
+    db
+      .select({
+        year: sql<number>`EXTRACT(YEAR FROM ${salesOrdersTable.createdAt})::int`,
+        month: sql<number>`EXTRACT(MONTH FROM ${salesOrdersTable.createdAt})::int`,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(salesOrdersTable)
+      .where(
+        and(
+          sql`${salesOrdersTable.status} NOT IN ('cancelled')`,
+          gte(salesOrdersTable.createdAt, historyStart)
+        )
+      )
+      .groupBy(
+        sql`EXTRACT(YEAR FROM ${salesOrdersTable.createdAt})`,
+        sql`EXTRACT(MONTH FROM ${salesOrdersTable.createdAt})`
+      ),
+  ]);
+
+  const revMap = new Map(revActual.map((r) => [`${r.year}-${r.month}`, r.total]));
+  const expMap = new Map(expActual.map((r) => [`${r.year}-${r.month}`, r.total]));
+  const soMap = new Map(soActual.map((r) => [`${r.year}-${r.month}`, r.count]));
+
+  const history = Array.from({ length: months }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (months - 1) + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const key = `${y}-${m}`;
+    const goal = goalsMap.get(key);
+
+    return {
+      year: y,
+      month: m,
+      monthLabel: `${MONTH_LABELS[m - 1]}/${y}`,
+      revenueGoal: goal?.revenueGoal ?? "0",
+      revenueActual: revMap.get(key) ?? "0",
+      expenseGoal: goal?.expenseGoal ?? "0",
+      expenseActual: expMap.get(key) ?? "0",
+      salesOrdersGoal: goal?.salesOrdersGoal ?? 0,
+      salesOrdersActual: soMap.get(key) ?? 0,
+      hasGoal: goal != null,
+    };
+  });
+
+  res.json(history);
+});
+
 // ─── Goals: GET ────────────────────────────────────────────────────────────
 
 router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response): Promise<void> => {

@@ -3703,6 +3703,33 @@ export const GetExecutiveDashboardResponse = zod.object({
 
 
 /**
+ * @summary Get goals history — actual vs planned for the last N months
+ */
+export const getGoalsHistoryQueryMonthsDefault = 12;
+export const getGoalsHistoryQueryMonthsMax = 24;
+
+
+
+export const GetGoalsHistoryQueryParams = zod.object({
+  "months": zod.coerce.number().min(1).max(getGoalsHistoryQueryMonthsMax).default(getGoalsHistoryQueryMonthsDefault)
+})
+
+export const GetGoalsHistoryResponseItem = zod.object({
+  "year": zod.number(),
+  "month": zod.number(),
+  "monthLabel": zod.string(),
+  "revenueGoal": zod.string(),
+  "revenueActual": zod.string(),
+  "expenseGoal": zod.string(),
+  "expenseActual": zod.string(),
+  "salesOrdersGoal": zod.number(),
+  "salesOrdersActual": zod.number(),
+  "hasGoal": zod.boolean()
+})
+export const GetGoalsHistoryResponse = zod.array(GetGoalsHistoryResponseItem)
+
+
+/**
  * @summary Get monthly goals for the executive dashboard
  */
 export const GetDashboardGoalsParams = zod.object({

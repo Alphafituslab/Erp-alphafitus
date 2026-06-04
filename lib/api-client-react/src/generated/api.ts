@@ -75,12 +75,14 @@ import type {
   GetCashflowParams,
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
+  GetGoalsHistoryParams,
   GetPriceHistoryParams,
   GetTraceabilityBackwardParams,
   GetTraceabilityForwardParams,
   GetTraceabilityTraceParams,
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
+  GoalsHistoryItem,
   HealthStatus,
   ListApsScheduleParams,
   ListAttendanceLogsParams,
@@ -10444,6 +10446,90 @@ export function useGetExecutiveDashboard<TData = Awaited<ReturnType<typeof getEx
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetExecutiveDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetGoalsHistoryUrl = (params?: GetGoalsHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/relatorios/goals/history?${stringifiedParams}` : `/api/relatorios/goals/history`
+}
+
+/**
+ * @summary Get goals history — actual vs planned for the last N months
+ */
+export const getGoalsHistory = async (params?: GetGoalsHistoryParams, options?: RequestInit): Promise<GoalsHistoryItem[]> => {
+
+  return customFetch<GoalsHistoryItem[]>(getGetGoalsHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGoalsHistoryQueryKey = (params?: GetGoalsHistoryParams,) => {
+    return [
+    `/api/relatorios/goals/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetGoalsHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getGoalsHistory>>, TError = ErrorType<ErrorResponse>>(params?: GetGoalsHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalsHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGoalsHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoalsHistory>>> = ({ signal }) => getGoalsHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGoalsHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGoalsHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getGoalsHistory>>>
+export type GetGoalsHistoryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get goals history — actual vs planned for the last N months
+ */
+
+export function useGetGoalsHistory<TData = Awaited<ReturnType<typeof getGoalsHistory>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetGoalsHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoalsHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGoalsHistoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
