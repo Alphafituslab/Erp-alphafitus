@@ -13,11 +13,13 @@ import relatoriosRouter from "./relatorios";
 import producaoRouter from "./producao";
 import apsRouter from "./aps";
 import rastreabilidadeRouter from "./rastreabilidade";
+import usuariosRouter from "./usuarios";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(usuariosRouter);
 router.use(financeiroRouter);
 router.use(vendasRouter);
 router.use(estoqueRouter);

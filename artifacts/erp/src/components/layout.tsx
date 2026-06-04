@@ -27,11 +27,11 @@ import {
   LogOut,
   LayoutDashboard,
   ClipboardCheck,
-  FlaskConical,
   ChevronRight,
   Factory,
   CalendarClock,
   GitBranch,
+  UserCog,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
@@ -70,11 +70,13 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   iconColor?: string;
+  roles?: string[];
 }
 
 interface NavGroup {
   label: string;
   items: NavItem[];
+  roles?: string[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -104,6 +106,13 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/fiscal", label: "Fiscal", icon: FileText, iconColor: "text-orange-400" },
       { href: "/rh", label: "RH", icon: Users, iconColor: "text-pink-400" },
       { href: "/projetos", label: "Projetos", icon: FolderKanban, iconColor: "text-indigo-400" },
+    ],
+  },
+  {
+    label: "Administração",
+    roles: ["admin"],
+    items: [
+      { href: "/usuarios", label: "Usuários", icon: UserCog, iconColor: "text-rose-400", roles: ["admin"] },
     ],
   },
 ];
@@ -162,6 +171,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
     });
   };
 
+  const userRole = user?.role ?? "employee";
+
+  const visibleGroups = NAV_GROUPS
+    .filter((g) => !g.roles || g.roles.includes(userRole))
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(userRole)) }))
+    .filter((g) => g.items.length > 0);
+
   const currentLabel =
     NAV_GROUPS.flatMap((g) => g.items).find(
       (i) => location === i.href || location.startsWith(i.href + "/")
@@ -197,7 +213,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
           {/* Navigation */}
           <SidebarContent className="pt-2 pb-2">
-            {NAV_GROUPS.map((group) => (
+            {visibleGroups.map((group) => (
               <NavGroupSection key={group.label} group={group} location={location} />
             ))}
           </SidebarContent>

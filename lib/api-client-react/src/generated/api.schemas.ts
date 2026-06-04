@@ -5,6 +5,73 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface OkResponse {
+  ok: boolean;
+}
+
+export type UserItemRole = typeof UserItemRole[keyof typeof UserItemRole];
+
+
+export const UserItemRole = {
+  admin: 'admin',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export interface UserItem {
+  id: number;
+  name: string;
+  email: string;
+  role: UserItemRole;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface UsuariosListData {
+  users: UserItem[];
+}
+
+export type CreateUsuarioInputRole = typeof CreateUsuarioInputRole[keyof typeof CreateUsuarioInputRole];
+
+
+export const CreateUsuarioInputRole = {
+  admin: 'admin',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export interface CreateUsuarioInput {
+  /** @minLength 2 */
+  name: string;
+  email: string;
+  /** @minLength 6 */
+  password: string;
+  role?: CreateUsuarioInputRole;
+}
+
+export type UpdateUsuarioInputRole = typeof UpdateUsuarioInputRole[keyof typeof UpdateUsuarioInputRole];
+
+
+export const UpdateUsuarioInputRole = {
+  admin: 'admin',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export interface UpdateUsuarioInput {
+  /** @minLength 2 */
+  name?: string;
+  email?: string;
+  /** @minLength 6 */
+  password?: string;
+  role?: UpdateUsuarioInputRole;
+  active?: boolean;
+}
+
+export interface CreateUsuarioResponse {
+  user: UserItem;
+}
+
 export interface HealthStatus {
   status: string;
 }

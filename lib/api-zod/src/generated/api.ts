@@ -5649,3 +5649,80 @@ export const GetTraceabilityBackwardResponse = zod.object({
 })
 
 
+/**
+ * @summary List all users
+ */
+export const ListUsuariosResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a new user
+ */
+export const createUsuarioBodyNameMin = 2;
+
+export const createUsuarioBodyPasswordMin = 6;
+
+
+
+export const CreateUsuarioBody = zod.object({
+  "name": zod.string().min(createUsuarioBodyNameMin),
+  "email": zod.string().email(),
+  "password": zod.string().min(createUsuarioBodyPasswordMin),
+  "role": zod.enum(['admin', 'manager', 'employee']).optional()
+})
+
+
+/**
+ * @summary Update a user
+ */
+export const UpdateUsuarioParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateUsuarioBodyNameMin = 2;
+
+export const updateUsuarioBodyPasswordMin = 6;
+
+
+
+export const UpdateUsuarioBody = zod.object({
+  "name": zod.string().min(updateUsuarioBodyNameMin).optional(),
+  "email": zod.string().email().optional(),
+  "password": zod.string().min(updateUsuarioBodyPasswordMin).optional(),
+  "role": zod.enum(['admin', 'manager', 'employee']).optional(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdateUsuarioResponse = zod.object({
+  "user": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Delete a user
+ */
+export const DeleteUsuarioParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteUsuarioResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
