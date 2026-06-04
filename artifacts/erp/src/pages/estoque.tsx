@@ -45,7 +45,7 @@ import {
   Plus, Pencil, Trash2, Package, AlertTriangle,
   TrendingDown, TrendingUp, ArrowDown, ArrowUp, Boxes,
   FlaskConical, Warehouse as WarehouseIcon, CalendarX, ArrowRightLeft,
-  History, CheckCircle2, XCircle, Clock, Shield, Tag, Printer,
+  History, CheckCircle2, XCircle, Clock, Shield, Tag, Printer, FileCode,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1162,7 +1162,17 @@ export default function EstoquePage() {
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
-        <PageHeader title="Estoque" subtitle="Produtos, lotes, validade e movimentações" />
+        <PageHeader
+          title="Estoque"
+          subtitle="Produtos, lotes, validade e movimentações"
+          actions={
+            <Button variant="outline" size="sm" asChild>
+              <a href="/erp/fiscal">
+                <FileCode className="h-4 w-4 mr-1.5" /> Importar XML NF-e
+              </a>
+            </Button>
+          }
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>

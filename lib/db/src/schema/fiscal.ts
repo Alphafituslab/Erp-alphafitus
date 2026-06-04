@@ -21,6 +21,8 @@ export const fiscalDocumentsTable = pgTable("fiscal_documents", {
   status: text("status").notNull().default("issued"), // issued | cancelled
   referenceOrderId: text("reference_order_id"),
   notes: text("notes"),
+  accessKey: text("access_key"), // chave de acesso NF-e (44 dígitos)
+  xmlContent: text("xml_content"), // XML original da NF-e
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

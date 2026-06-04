@@ -5074,6 +5074,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /fiscal/import-xml/confirm:
+    post:
+      operationId: confirmNFeImport
+      tags: [fiscal]
+      summary: Confirm NF-e import — persist fiscal document, supplier upsert, products upsert, stock entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NFeImportConfirmInput"
+      responses:
+        "201":
+          description: Import confirmed, fiscal document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalDocument"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate access key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Produção ──────────────────────────────────────────────────────────────
 
   /producao/formulas:
@@ -11063,6 +11100,12 @@ components:
         notes:
           type: string
           nullable: true
+        accessKey:
+          type: string
+          nullable: true
+        xmlContent:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -11206,6 +11249,229 @@ components:
                 type: integer
               totalAmount:
                 type: string
+
+    NFeImportItem:
+      type: object
+      required:
+        - itemNumber
+        - supplierCode
+        - description
+        - ncm
+        - cfop
+        - unit
+        - quantity
+        - unitPrice
+        - totalPrice
+      properties:
+        itemNumber:
+          type: integer
+        supplierCode:
+          type: string
+        ean:
+          type: string
+          nullable: true
+        description:
+          type: string
+        ncm:
+          type: string
+        cfop:
+          type: string
+        unit:
+          type: string
+        quantity:
+          type: string
+        unitPrice:
+          type: string
+        totalPrice:
+          type: string
+        icmsValue:
+          type: string
+          nullable: true
+        icmsRate:
+          type: string
+          nullable: true
+        pisValue:
+          type: string
+          nullable: true
+        cofinsValue:
+          type: string
+          nullable: true
+        existingProductId:
+          type: integer
+          nullable: true
+        existingProductName:
+          type: string
+          nullable: true
+        importAs:
+          type: string
+          enum: [existing, create, skip]
+          description: "existing = link to existing product; create = create new product; skip = ignore item"
+
+    NFeParseResult:
+      type: object
+      required:
+        - accessKey
+        - issueDate
+        - number
+        - serie
+        - naturalOperation
+        - emitterName
+        - emitterDocument
+        - recipientName
+        - recipientDocument
+        - items
+        - totalNF
+        - totalICMS
+        - totalPIS
+        - totalCOFINS
+        - xmlContent
+        - existingSupplierId
+      properties:
+        accessKey:
+          type: string
+        issueDate:
+          type: string
+        number:
+          type: string
+        serie:
+          type: string
+        naturalOperation:
+          type: string
+        tpNF:
+          type: integer
+          description: "0 = entrada, 1 = saída"
+        emitterName:
+          type: string
+        emitterTradeName:
+          type: string
+          nullable: true
+        emitterDocument:
+          type: string
+        emitterStreet:
+          type: string
+          nullable: true
+        emitterNumber:
+          type: string
+          nullable: true
+        emitterCity:
+          type: string
+          nullable: true
+        emitterState:
+          type: string
+          nullable: true
+        emitterZip:
+          type: string
+          nullable: true
+        recipientName:
+          type: string
+        recipientDocument:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NFeImportItem"
+        totalNF:
+          type: string
+        totalICMS:
+          type: string
+        totalPIS:
+          type: string
+        totalCOFINS:
+          type: string
+        xmlContent:
+          type: string
+        existingSupplierId:
+          type: integer
+          nullable: true
+        duplicateAccessKey:
+          type: boolean
+          nullable: true
+
+    NFeImportConfirmInput:
+      type: object
+      required:
+        - accessKey
+        - issueDate
+        - number
+        - emitterName
+        - emitterDocument
+        - recipientName
+        - recipientDocument
+        - totalNF
+        - totalICMS
+        - totalPIS
+        - totalCOFINS
+        - xmlContent
+        - items
+        - createSupplier
+      properties:
+        accessKey:
+          type: string
+        issueDate:
+          type: string
+        number:
+          type: string
+        serie:
+          type: string
+          nullable: true
+        naturalOperation:
+          type: string
+          nullable: true
+        cfop:
+          type: string
+          nullable: true
+        tpNF:
+          type: integer
+          nullable: true
+        emitterName:
+          type: string
+        emitterDocument:
+          type: string
+        emitterTradeName:
+          type: string
+          nullable: true
+        emitterStreet:
+          type: string
+          nullable: true
+        emitterNumber:
+          type: string
+          nullable: true
+        emitterCity:
+          type: string
+          nullable: true
+        emitterState:
+          type: string
+          nullable: true
+        emitterZip:
+          type: string
+          nullable: true
+        recipientName:
+          type: string
+        recipientDocument:
+          type: string
+        totalNF:
+          type: string
+        totalICMS:
+          type: string
+        totalPIS:
+          type: string
+        totalCOFINS:
+          type: string
+        xmlContent:
+          type: string
+        existingSupplierId:
+          type: integer
+          nullable: true
+        createSupplier:
+          type: boolean
+          description: "If true and existingSupplierId is null, create supplier from emitter data"
+        notes:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NFeImportItem"
 
     # ─── Produção Schemas ──────────────────────────────────────────────────────
 

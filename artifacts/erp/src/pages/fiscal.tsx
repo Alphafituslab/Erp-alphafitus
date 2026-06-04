@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -37,6 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText,
   Plus,
@@ -49,6 +50,12 @@ import {
   TrendingUp,
   X,
   CheckCircle2,
+  Upload,
+  AlertTriangle,
+  FileCode,
+  PackagePlus,
+  Link,
+  Minus,
 } from "lucide-react";
 import {
   BarChart,
@@ -72,11 +79,12 @@ import {
   useDeleteFiscalDocument,
   useGetFiscalTaxSummary,
   useGetFiscalDashboard,
+  useConfirmNFeImport,
   getListFiscalDocumentsQueryKey,
   getGetFiscalTaxSummaryQueryKey,
   getGetFiscalDashboardQueryKey,
 } from "@workspace/api-client-react";
-import type { FiscalDocument } from "@workspace/api-client-react";
+import type { FiscalDocument, NFeParseResult, NFeImportItem } from "@workspace/api-client-react";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
 
@@ -101,6 +109,385 @@ const fmtCurrency = (v: string | null | undefined) =>
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("pt-BR");
+
+// ── NF-e Import Dialog ────────────────────────────────────────────────────────
+
+const fmtCnpj = (v: string) => {
+  const d = v.replace(/\D/g, "");
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  return v;
+};
+
+type ItemDraft = NFeImportItem & { descriptionEdited: string };
+
+const IMPORT_AS_LABELS: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  create: { label: "Criar produto", icon: <PackagePlus className="h-3 w-3" />, className: "text-blue-700" },
+  existing: { label: "Vincular existente", icon: <Link className="h-3 w-3" />, className: "text-green-700" },
+  skip: { label: "Ignorar", icon: <Minus className="h-3 w-3" />, className: "text-gray-500" },
+};
+
+function NFeImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [step, setStep] = useState<"upload" | "review">("upload");
+  const [parsing, setParsing] = useState(false);
+  const [parsed, setParsed] = useState<NFeParseResult | null>(null);
+  const [items, setItems] = useState<ItemDraft[]>([]);
+  const [createSupplier, setCreateSupplier] = useState(true);
+  const [dragging, setDragging] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  const confirmMut = useConfirmNFeImport();
+
+  const reset = useCallback(() => {
+    setStep("upload");
+    setParsed(null);
+    setItems([]);
+    setParsing(false);
+    setCreateSupplier(true);
+    setNotes("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  useEffect(() => { if (!open) reset(); }, [open, reset]);
+
+  const parseFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".xml")) {
+      toast({ title: "Selecione um arquivo .xml", variant: "destructive" }); return;
+    }
+    setParsing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const resp = await fetch("/api/fiscal/import-xml", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
+        toast({ title: err.error ?? "Erro ao processar XML", variant: "destructive" });
+        return;
+      }
+      const data: NFeParseResult = await resp.json();
+      setParsed(data);
+      setItems(data.items.map((it) => ({ ...it, descriptionEdited: it.description })));
+      setCreateSupplier(!data.existingSupplierId);
+      setStep("review");
+    } catch {
+      toast({ title: "Erro ao enviar arquivo", variant: "destructive" });
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) parseFile(f);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) parseFile(f);
+  };
+
+  const setItemField = (idx: number, field: keyof ItemDraft, value: string) => {
+    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  };
+
+  const handleConfirm = async () => {
+    if (!parsed) return;
+    const firstCfop = items.find((it) => it.cfop)?.cfop ?? null;
+    const payload = {
+      accessKey: parsed.accessKey,
+      issueDate: parsed.issueDate,
+      number: parsed.number,
+      serie: parsed.serie,
+      naturalOperation: parsed.naturalOperation,
+      cfop: firstCfop,
+      tpNF: parsed.tpNF ?? 0,
+      emitterName: parsed.emitterName,
+      emitterDocument: parsed.emitterDocument,
+      emitterTradeName: parsed.emitterTradeName ?? null,
+      emitterStreet: parsed.emitterStreet ?? null,
+      emitterNumber: parsed.emitterNumber ?? null,
+      emitterCity: parsed.emitterCity ?? null,
+      emitterState: parsed.emitterState ?? null,
+      emitterZip: parsed.emitterZip ?? null,
+      recipientName: parsed.recipientName,
+      recipientDocument: parsed.recipientDocument,
+      totalNF: parsed.totalNF,
+      totalICMS: parsed.totalICMS,
+      totalPIS: parsed.totalPIS,
+      totalCOFINS: parsed.totalCOFINS,
+      xmlContent: parsed.xmlContent,
+      existingSupplierId: parsed.existingSupplierId ?? null,
+      createSupplier,
+      notes: notes || null,
+      items: items.map((it) => ({ ...it, description: it.descriptionEdited })),
+    };
+
+    try {
+      await confirmMut.mutateAsync({ data: payload });
+      qc.invalidateQueries({ queryKey: getListFiscalDocumentsQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetFiscalDashboardQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetFiscalTaxSummaryQueryKey() });
+      toast({ title: "NF-e importada com sucesso!" });
+      onClose();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao confirmar importação";
+      toast({ title: msg, variant: "destructive" });
+    }
+  };
+
+  const fmtNum = (v: string | null | undefined) =>
+    parseFloat(v ?? "0").toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileCode className="h-5 w-5 text-blue-600" />
+            {step === "upload" ? "Importar XML NF-e" : "Revisar Dados da NF-e"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* ── Step 1: Upload ── */}
+        {step === "upload" && (
+          <div className="py-4 space-y-4">
+            <div
+              className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+                dragging ? "border-blue-400 bg-blue-50" : "border-muted-foreground/30 hover:border-blue-300 hover:bg-muted/30"
+              }`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+            >
+              {parsing ? (
+                <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-3" />
+              ) : (
+                <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              )}
+              <p className="text-sm font-medium">
+                {parsing ? "Processando XML…" : "Arraste o arquivo XML aqui ou clique para selecionar"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Suporte para NF-e v4.00 (.xml)</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xml"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+        )}
+
+        {/* ── Step 2: Review ── */}
+        {step === "review" && parsed && (
+          <div className="space-y-5 py-2">
+            {/* Duplicate warning */}
+            {parsed.duplicateAccessKey && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Esta NF-e já foi importada anteriormente (chave de acesso duplicada). Confirmar criará um registro duplicado.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Header info */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="bg-muted/40 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Número / Série</p>
+                <p className="font-semibold">{parsed.number} / {parsed.serie}</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Data de Emissão</p>
+                <p className="font-semibold">{parsed.issueDate ? new Date(parsed.issueDate).toLocaleDateString("pt-BR") : "—"}</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Valor Total NF</p>
+                <p className="font-semibold text-green-700">{fmtNum(parsed.totalNF)}</p>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Natureza da Operação</p>
+                <p className="font-semibold text-xs">{parsed.naturalOperation || "—"}</p>
+              </div>
+            </div>
+
+            {/* Emitter + Recipient */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="border rounded-lg p-3 space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Emitente</p>
+                <p className="font-medium">{parsed.emitterName}</p>
+                {parsed.emitterTradeName && <p className="text-xs text-muted-foreground">{parsed.emitterTradeName}</p>}
+                <p className="font-mono text-xs">{fmtCnpj(parsed.emitterDocument)}</p>
+                {parsed.emitterCity && <p className="text-xs text-muted-foreground">{parsed.emitterCity}/{parsed.emitterState}</p>}
+              </div>
+              <div className="border rounded-lg p-3 space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Destinatário</p>
+                <p className="font-medium">{parsed.recipientName}</p>
+                <p className="font-mono text-xs">{fmtCnpj(parsed.recipientDocument)}</p>
+              </div>
+            </div>
+
+            {/* Supplier */}
+            <div className="border rounded-lg p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fornecedor</p>
+              {parsed.existingSupplierId ? (
+                <div className="flex items-center gap-2 text-sm text-green-700">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Fornecedor já cadastrado (ID #{parsed.existingSupplierId})
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={createSupplier}
+                    onChange={(e) => setCreateSupplier(e.target.checked)}
+                    className="h-4 w-4 rounded border-input accent-primary"
+                  />
+                  Criar novo fornecedor <span className="font-medium text-blue-700">{parsed.emitterName}</span> ({fmtCnpj(parsed.emitterDocument)}) automaticamente
+                </label>
+              )}
+            </div>
+
+            {/* Items */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Itens da NF-e ({items.length})
+              </p>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="text-xs w-8">#</TableHead>
+                      <TableHead className="text-xs">Código</TableHead>
+                      <TableHead className="text-xs min-w-[180px]">Descrição (editável)</TableHead>
+                      <TableHead className="text-xs">NCM</TableHead>
+                      <TableHead className="text-xs">CFOP</TableHead>
+                      <TableHead className="text-xs text-right">Qtd</TableHead>
+                      <TableHead className="text-xs text-right">Un</TableHead>
+                      <TableHead className="text-xs text-right">Valor</TableHead>
+                      <TableHead className="text-xs">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item, idx) => (
+                      <TableRow key={idx} className={item.importAs === "skip" ? "opacity-40" : ""}>
+                        <TableCell className="text-xs text-muted-foreground">{item.itemNumber}</TableCell>
+                        <TableCell className="text-xs font-mono">{item.supplierCode}</TableCell>
+                        <TableCell>
+                          <Input
+                            value={item.descriptionEdited}
+                            onChange={(e) => setItemField(idx, "descriptionEdited", e.target.value)}
+                            className="h-7 text-xs"
+                            disabled={item.importAs === "skip"}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs font-mono">{item.ncm}</TableCell>
+                        <TableCell className="text-xs">{item.cfop}</TableCell>
+                        <TableCell className="text-xs text-right">{parseFloat(item.quantity).toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-xs text-right">{item.unit}</TableCell>
+                        <TableCell className="text-xs text-right font-medium">{fmtNum(item.totalPrice)}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.importAs}
+                            onValueChange={(v) => setItemField(idx, "importAs", v)}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(IMPORT_AS_LABELS).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>
+                                  <span className={`flex items-center gap-1 ${v.className}`}>
+                                    {v.icon} {v.label}
+                                    {k === "existing" && item.existingProductName && (
+                                      <span className="text-muted-foreground ml-1">({item.existingProductName})</span>
+                                    )}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Totals */}
+            <div className="grid grid-cols-4 gap-3 text-sm border rounded-lg p-3 bg-muted/20">
+              <div>
+                <p className="text-xs text-muted-foreground">Total NF</p>
+                <p className="font-semibold text-green-700">{fmtNum(parsed.totalNF)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">ICMS</p>
+                <p className="font-medium">{fmtNum(parsed.totalICMS)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">PIS</p>
+                <p className="font-medium">{fmtNum(parsed.totalPIS)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">COFINS</p>
+                <p className="font-medium">{fmtNum(parsed.totalCOFINS)}</p>
+              </div>
+            </div>
+
+            {/* Access key */}
+            {parsed.accessKey && (
+              <div className="text-xs text-muted-foreground font-mono bg-muted/30 rounded px-3 py-2 break-all">
+                Chave de acesso: {parsed.accessKey}
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-1">
+              <Label className="text-xs">Observações (opcional)</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                placeholder="Observações sobre esta importação..."
+              />
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
+          {step === "review" && (
+            <Button variant="outline" onClick={() => setStep("upload")}>
+              Voltar
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          {step === "review" && (
+            <Button onClick={handleConfirm} disabled={confirmMut.isPending}>
+              {confirmMut.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Confirmar Importação
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ── Form schema ───────────────────────────────────────────────────────────────
 
@@ -455,6 +842,7 @@ export default function FiscalPage() {
   // Dialog state
   const [docDialogOpen, setDocDialogOpen] = useState(false);
   const [editDoc, setEditDoc] = useState<FiscalDocument | null>(null);
+  const [xmlImportOpen, setXmlImportOpen] = useState(false);
 
   const deleteMut = useDeleteFiscalDocument();
 
@@ -545,9 +933,14 @@ export default function FiscalPage() {
           title="Fiscal"
           subtitle="Registro de documentos fiscais e apuração de impostos"
           actions={
-            <Button onClick={openNew} size="sm">
-              <Plus className="h-4 w-4 mr-1.5" /> Novo Documento
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setXmlImportOpen(true)}>
+                <FileCode className="h-4 w-4 mr-1.5" /> Importar XML NF-e
+              </Button>
+              <Button onClick={openNew} size="sm">
+                <Plus className="h-4 w-4 mr-1.5" /> Novo Documento
+              </Button>
+            </div>
           }
         />
 
@@ -868,6 +1261,11 @@ export default function FiscalPage() {
         open={docDialogOpen}
         onClose={() => setDocDialogOpen(false)}
         editDoc={editDoc}
+      />
+
+      <NFeImportDialog
+        open={xmlImportOpen}
+        onClose={() => setXmlImportOpen(false)}
       />
     </AppLayout>
   );

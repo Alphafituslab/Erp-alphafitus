@@ -121,6 +121,7 @@ import type {
   LotTransferInput,
   MarkPaidInput,
   MaterialNeeds,
+  NFeImportConfirmInput,
   NcrDetail,
   OkResponse,
   PriceHistoryPoint,
@@ -11839,6 +11840,77 @@ export function useExportFiscalDocumentsCsv<TData = Awaited<ReturnType<typeof ex
 
 
 
+
+export const getConfirmNFeImportUrl = () => {
+
+
+
+
+  return `/api/fiscal/import-xml/confirm`
+}
+
+/**
+ * @summary Confirm NF-e import — persist fiscal document, supplier upsert, products upsert, stock entry
+ */
+export const confirmNFeImport = async (nFeImportConfirmInput: NFeImportConfirmInput, options?: RequestInit): Promise<FiscalDocument> => {
+
+  return customFetch<FiscalDocument>(getConfirmNFeImportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      nFeImportConfirmInput,)
+  }
+);}
+
+
+
+
+export const getConfirmNFeImportMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmNFeImport>>, TError,{data: BodyType<NFeImportConfirmInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmNFeImport>>, TError,{data: BodyType<NFeImportConfirmInput>}, TContext> => {
+
+const mutationKey = ['confirmNFeImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmNFeImport>>, {data: BodyType<NFeImportConfirmInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  confirmNFeImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmNFeImportMutationResult = NonNullable<Awaited<ReturnType<typeof confirmNFeImport>>>
+    export type ConfirmNFeImportMutationBody = BodyType<NFeImportConfirmInput>
+    export type ConfirmNFeImportMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Confirm NF-e import — persist fiscal document, supplier upsert, products upsert, stock entry
+ */
+export const useConfirmNFeImport = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmNFeImport>>, TError,{data: BodyType<NFeImportConfirmInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmNFeImport>>,
+        TError,
+        {data: BodyType<NFeImportConfirmInput>},
+        TContext
+      > => {
+      return useMutation(getConfirmNFeImportMutationOptions(options));
+    }
 
 export const getListFormulasUrl = (params?: ListFormulasParams,) => {
   const normalizedParams = new URLSearchParams();

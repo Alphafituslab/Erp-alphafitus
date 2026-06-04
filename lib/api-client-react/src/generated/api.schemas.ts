@@ -2381,6 +2381,8 @@ export interface FiscalDocument {
   status: FiscalDocumentStatus;
   referenceOrderId?: string | null;
   notes?: string | null;
+  accessKey?: string | null;
+  xmlContent?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -2458,6 +2460,97 @@ export interface FiscalDashboard {
   totalCofins: string;
   totalIss: string;
   byType: FiscalDashboardByTypeItem[];
+}
+
+/**
+ * existing = link to existing product; create = create new product; skip = ignore item
+ */
+export type NFeImportItemImportAs = typeof NFeImportItemImportAs[keyof typeof NFeImportItemImportAs];
+
+
+export const NFeImportItemImportAs = {
+  existing: 'existing',
+  create: 'create',
+  skip: 'skip',
+} as const;
+
+export interface NFeImportItem {
+  itemNumber: number;
+  supplierCode: string;
+  ean?: string | null;
+  description: string;
+  ncm: string;
+  cfop: string;
+  unit: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+  icmsValue?: string | null;
+  icmsRate?: string | null;
+  pisValue?: string | null;
+  cofinsValue?: string | null;
+  existingProductId?: number | null;
+  existingProductName?: string | null;
+  /** existing = link to existing product; create = create new product; skip = ignore item */
+  importAs?: NFeImportItemImportAs;
+}
+
+export interface NFeParseResult {
+  accessKey: string;
+  issueDate: string;
+  number: string;
+  serie: string;
+  naturalOperation: string;
+  /** 0 = entrada, 1 = saída */
+  tpNF?: number;
+  emitterName: string;
+  emitterTradeName?: string | null;
+  emitterDocument: string;
+  emitterStreet?: string | null;
+  emitterNumber?: string | null;
+  emitterCity?: string | null;
+  emitterState?: string | null;
+  emitterZip?: string | null;
+  recipientName: string;
+  recipientDocument: string;
+  items: NFeImportItem[];
+  totalNF: string;
+  totalICMS: string;
+  totalPIS: string;
+  totalCOFINS: string;
+  xmlContent: string;
+  existingSupplierId: number | null;
+  duplicateAccessKey?: boolean | null;
+}
+
+export interface NFeImportConfirmInput {
+  accessKey: string;
+  issueDate: string;
+  number: string;
+  serie?: string | null;
+  naturalOperation?: string | null;
+  cfop?: string | null;
+  tpNF?: number | null;
+  emitterName: string;
+  emitterDocument: string;
+  emitterTradeName?: string | null;
+  emitterStreet?: string | null;
+  emitterNumber?: string | null;
+  emitterCity?: string | null;
+  emitterState?: string | null;
+  emitterZip?: string | null;
+  recipientName: string;
+  recipientDocument: string;
+  totalNF: string;
+  totalICMS: string;
+  totalPIS: string;
+  totalCOFINS: string;
+  xmlContent: string;
+  existingSupplierId?: number | null;
+  /** If true and existingSupplierId is null, create supplier from emitter data */
+  createSupplier: boolean;
+  notes?: string | null;
+  items: NFeImportItem[];
 }
 
 export type FormulaStatus = typeof FormulaStatus[keyof typeof FormulaStatus];

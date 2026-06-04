@@ -28,6 +28,8 @@ export interface FiscalDocument {
   status: FiscalDocumentStatus;
   referenceOrderId?: string | null;
   notes?: string | null;
+  accessKey?: string | null;
+  xmlContent?: string | null;
   createdAt: Date;
   updatedAt?: Date;
 }

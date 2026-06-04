@@ -1,9 +1,418 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
-import { db, fiscalDocumentsTable } from "@workspace/db";
+import { db, fiscalDocumentsTable, suppliersTable, productsTable, stockMovementsTable } from "@workspace/db";
 import type { Request, Response } from "express";
+import multer from "multer";
+import { XMLParser } from "fast-xml-parser";
 
 const router: IRouter = Router();
+
+// ─── Multer (memory storage — XML files are small) ────────────────────────────
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// ─── NF-e XML Parser ──────────────────────────────────────────────────────────
+
+interface NFeItem {
+  itemNumber: number;
+  supplierCode: string;
+  ean: string | null;
+  description: string;
+  ncm: string;
+  cfop: string;
+  unit: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+  icmsValue: string | null;
+  icmsRate: string | null;
+  pisValue: string | null;
+  cofinsValue: string | null;
+  existingProductId: number | null;
+  existingProductName: string | null;
+  importAs: "existing" | "create" | "skip";
+}
+
+function str(v: unknown): string {
+  if (v == null) return "";
+  return String(v).trim();
+}
+
+function parseNFeXmlContent(xmlStr: string): {
+  accessKey: string;
+  issueDate: string;
+  number: string;
+  serie: string;
+  naturalOperation: string;
+  tpNF: number;
+  emitterName: string;
+  emitterTradeName: string | null;
+  emitterDocument: string;
+  emitterStreet: string | null;
+  emitterNumber: string | null;
+  emitterCity: string | null;
+  emitterState: string | null;
+  emitterZip: string | null;
+  recipientName: string;
+  recipientDocument: string;
+  items: NFeItem[];
+  totalNF: string;
+  totalICMS: string;
+  totalPIS: string;
+  totalCOFINS: string;
+} {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_",
+    isArray: (name) => name === "det",
+    ignoreDeclaration: true,
+    ignorePiTags: true,
+    trimValues: true,
+    numberParseOptions: { leadingZeros: false, hex: false, skipLike: /.*/ },
+    parseTagValue: false,
+  });
+
+  const doc = parser.parse(xmlStr);
+
+  // Support nfeProc wrapper or bare NFe
+  const proc = doc.nfeProc ?? doc;
+  const nfeNode = proc.NFe ?? proc;
+  const infNFe = nfeNode.infNFe;
+
+  if (!infNFe) {
+    throw new Error("Estrutura XML inválida: elemento infNFe não encontrado");
+  }
+
+  // Access key: prefer protNFe, fallback to @Id attribute (remove "NFe" prefix)
+  let accessKey = str(proc.protNFe?.infProt?.chNFe);
+  if (!accessKey) {
+    const attrId = str(infNFe["@_Id"]);
+    accessKey = attrId.startsWith("NFe") ? attrId.slice(3) : attrId;
+  }
+
+  const ide = infNFe.ide ?? {};
+  const emit = infNFe.emit ?? {};
+  const dest = infNFe.dest ?? {};
+  const total = infNFe.total?.ICMSTot ?? {};
+
+  const emitterCNPJ = str(emit.CNPJ || emit.CPF);
+  const recipientCNPJ = str(dest.CNPJ || dest.CPF);
+
+  const ender = emit.enderEmit ?? {};
+
+  // Parse items
+  const detList: unknown[] = Array.isArray(infNFe.det) ? infNFe.det : infNFe.det ? [infNFe.det] : [];
+
+  const items: NFeItem[] = detList.map((det: unknown) => {
+    const d = det as Record<string, unknown>;
+    const prod = (d.prod ?? {}) as Record<string, unknown>;
+    const imposto = (d.imposto ?? {}) as Record<string, unknown>;
+
+    // Extract ICMS value — can be nested under ICMS00, ICMS10, ICMS20, etc.
+    const icmsGroup = (imposto.ICMS ?? {}) as Record<string, unknown>;
+    let icmsValue: string | null = null;
+    let icmsRate: string | null = null;
+    for (const key of Object.keys(icmsGroup)) {
+      const g = icmsGroup[key] as Record<string, unknown>;
+      if (g && typeof g === "object") {
+        if (g.vICMS != null) icmsValue = str(g.vICMS);
+        if (g.pICMS != null) icmsRate = str(g.pICMS);
+        break;
+      }
+    }
+
+    const pisGroup = (imposto.PIS ?? {}) as Record<string, unknown>;
+    let pisValue: string | null = null;
+    for (const key of Object.keys(pisGroup)) {
+      const g = pisGroup[key] as Record<string, unknown>;
+      if (g && typeof g === "object" && g.vPIS != null) { pisValue = str(g.vPIS); break; }
+    }
+
+    const cofinsGroup = (imposto.COFINS ?? {}) as Record<string, unknown>;
+    let cofinsValue: string | null = null;
+    for (const key of Object.keys(cofinsGroup)) {
+      const g = cofinsGroup[key] as Record<string, unknown>;
+      if (g && typeof g === "object" && g.vCOFINS != null) { cofinsValue = str(g.vCOFINS); break; }
+    }
+
+    const ean = str(prod.cEAN);
+
+    return {
+      itemNumber: parseInt(str(d["@_nItem"] ?? "0"), 10),
+      supplierCode: str(prod.cProd),
+      ean: ean && ean !== "SEM GTIN" && ean !== "SEM GTIN " ? ean : null,
+      description: str(prod.xProd),
+      ncm: str(prod.NCM),
+      cfop: str(prod.CFOP),
+      unit: str(prod.uCom),
+      quantity: str(prod.qCom),
+      unitPrice: str(prod.vUnCom),
+      totalPrice: str(prod.vProd),
+      icmsValue,
+      icmsRate,
+      pisValue,
+      cofinsValue,
+      existingProductId: null,
+      existingProductName: null,
+      importAs: "create" as const,
+    };
+  });
+
+  // Parse issue date from dEmi (format: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+  const dEmi = str(ide.dEmi || ide.dhEmi);
+
+  return {
+    accessKey,
+    issueDate: dEmi,
+    number: str(ide.nNF),
+    serie: str(ide.serie),
+    naturalOperation: str(ide.natOp),
+    tpNF: parseInt(str(ide.tpNF || "0"), 10),
+    emitterName: str(emit.xNome),
+    emitterTradeName: str(emit.xFant) || null,
+    emitterDocument: emitterCNPJ,
+    emitterStreet: str(ender.xLgr) || null,
+    emitterNumber: str(ender.nro) || null,
+    emitterCity: str(ender.xMun) || null,
+    emitterState: str(ender.UF) || null,
+    emitterZip: str(ender.CEP) || null,
+    recipientName: str(dest.xNome),
+    recipientDocument: recipientCNPJ,
+    items,
+    totalNF: str(total.vNF || "0"),
+    totalICMS: str(total.vICMS || "0"),
+    totalPIS: str(total.vPIS || "0"),
+    totalCOFINS: str(total.vCOFINS || "0"),
+  };
+}
+
+// ─── POST /fiscal/import-xml ──────────────────────────────────────────────────
+
+router.post(
+  "/fiscal/import-xml",
+  upload.single("file"),
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
+
+    if (!req.file) { res.status(400).json({ error: "Arquivo XML não enviado" }); return; }
+
+    const xmlStr = req.file.buffer.toString("utf-8");
+
+    let parsed;
+    try {
+      parsed = parseNFeXmlContent(xmlStr);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao processar XML";
+      res.status(400).json({ error: msg }); return;
+    }
+
+    // Check for duplicate access key
+    let duplicateAccessKey = false;
+    if (parsed.accessKey) {
+      const [existing] = await db
+        .select({ id: fiscalDocumentsTable.id })
+        .from(fiscalDocumentsTable)
+        .where(eq(fiscalDocumentsTable.accessKey, parsed.accessKey));
+      duplicateAccessKey = !!existing;
+    }
+
+    // Lookup existing supplier by CNPJ
+    let existingSupplierId: number | null = null;
+    if (parsed.emitterDocument) {
+      const cnpjClean = parsed.emitterDocument.replace(/\D/g, "");
+      const [supplier] = await db
+        .select({ id: suppliersTable.id })
+        .from(suppliersTable)
+        .where(
+          or(
+            eq(suppliersTable.document, parsed.emitterDocument),
+            eq(suppliersTable.document, cnpjClean)
+          ) ?? eq(suppliersTable.document, parsed.emitterDocument)
+        );
+      existingSupplierId = supplier?.id ?? null;
+    }
+
+    // Lookup existing products by EAN or supplierCode
+    const itemsWithLookup = await Promise.all(
+      parsed.items.map(async (item) => {
+        // Try EAN first, then name similarity (by NCM+description)
+        let existingProductId: number | null = null;
+        let existingProductName: string | null = null;
+
+        if (item.ean) {
+          const [prod] = await db
+            .select({ id: productsTable.id, name: productsTable.name })
+            .from(productsTable)
+            .where(eq(productsTable.sku, item.ean));
+          if (prod) { existingProductId = prod.id; existingProductName = prod.name; }
+        }
+
+        return {
+          ...item,
+          existingProductId,
+          existingProductName,
+          importAs: existingProductId ? ("existing" as const) : ("create" as const),
+        };
+      })
+    );
+
+    res.json({
+      ...parsed,
+      items: itemsWithLookup,
+      xmlContent: xmlStr,
+      existingSupplierId,
+      duplicateAccessKey,
+    });
+  }
+);
+
+// ─── POST /fiscal/import-xml/confirm ─────────────────────────────────────────
+
+router.post("/fiscal/import-xml/confirm", async (req: Request, res: Response): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Não autenticado" }); return; }
+
+  const {
+    accessKey, issueDate, number, cfop, tpNF,
+    emitterName, emitterDocument, emitterTradeName,
+    emitterStreet, emitterNumber: emitterNum, emitterCity, emitterState, emitterZip,
+    recipientName, recipientDocument,
+    totalNF, totalICMS, totalPIS, totalCOFINS,
+    xmlContent, existingSupplierId, createSupplier,
+    notes, items,
+  } = req.body;
+
+  if (!emitterName || !recipientName || !issueDate || !totalNF || !xmlContent) {
+    res.status(400).json({ error: "Dados obrigatórios ausentes" }); return;
+  }
+
+  // Duplicate key check
+  if (accessKey) {
+    const [dup] = await db
+      .select({ id: fiscalDocumentsTable.id })
+      .from(fiscalDocumentsTable)
+      .where(eq(fiscalDocumentsTable.accessKey, accessKey));
+    if (dup) { res.status(409).json({ error: "Chave de acesso já importada (NF-e duplicada)" }); return; }
+  }
+
+  // Determine direction from tpNF (0=entrada, 1=saída)
+  const direction = tpNF === 0 ? "entrada" : "saida";
+
+  // Compute primary CFOP from first item if not set
+  const firstCfop = cfop || (Array.isArray(items) && items.length > 0 ? items[0].cfop : null) || null;
+
+  const result = await db.transaction(async (tx) => {
+    // 1. Supplier upsert
+    let supplierId: number | null = existingSupplierId ?? null;
+    if (!supplierId && createSupplier && emitterDocument) {
+      const cnpj = emitterDocument;
+      const [existingSup] = await tx
+        .select({ id: suppliersTable.id })
+        .from(suppliersTable)
+        .where(eq(suppliersTable.document, cnpj));
+
+      if (existingSup) {
+        supplierId = existingSup.id;
+      } else {
+        const [newSup] = await tx
+          .insert(suppliersTable)
+          .values({
+            name: emitterName,
+            tradeName: emitterTradeName || null,
+            document: cnpj,
+            street: emitterStreet || null,
+            addressNumber: emitterNum || null,
+            city: emitterCity || null,
+            state: emitterState || null,
+            zipCode: emitterZip || null,
+            active: "true",
+          })
+          .returning({ id: suppliersTable.id });
+        supplierId = newSup.id;
+      }
+    }
+
+    // 2. Products upsert + stock movements
+    const itemArray: Array<{
+      importAs: string; existingProductId: number | null;
+      description: string; ncm: string; unit: string; supplierCode: string;
+      quantity: string; totalPrice: string;
+    }> = Array.isArray(items) ? items : [];
+
+    for (const item of itemArray) {
+      if (item.importAs === "skip") continue;
+
+      let productId: number | null = item.existingProductId ?? null;
+
+      if (item.importAs === "create") {
+        const [newProd] = await tx
+          .insert(productsTable)
+          .values({
+            name: item.description,
+            sku: item.supplierCode || null,
+            unit: item.unit || "un",
+            ncm: item.ncm || null,
+            defaultSupplierId: supplierId,
+            currentStock: "0",
+            minStock: 0,
+          })
+          .returning({ id: productsTable.id });
+        productId = newProd.id;
+      }
+
+      if (productId && parseFloat(item.quantity) > 0) {
+        // Create stock input movement
+        const qty = parseFloat(item.quantity);
+        const unitCost = parseFloat(item.totalPrice) / qty;
+
+        await tx.insert(stockMovementsTable).values({
+          productId,
+          type: "input",
+          quantity: String(qty),
+          reason: `NF-e ${number || ""} - ${emitterName}`,
+          notes: accessKey ? `Chave: ${accessKey}` : null,
+          referenceType: "nfe_import",
+        });
+
+        // Update product stock
+        await tx
+          .update(productsTable)
+          .set({
+            currentStock: sql`${productsTable.currentStock} + ${qty}`,
+            costPrice: String(unitCost.toFixed(2)),
+          })
+          .where(eq(productsTable.id, productId));
+      }
+    }
+
+    // 3. Fiscal document
+    const [doc] = await tx
+      .insert(fiscalDocumentsTable)
+      .values({
+        type: direction === "entrada" ? "nf_entrada" : "nfe",
+        direction,
+        number: number || null,
+        emitter: emitterName,
+        recipient: recipientName,
+        emitterDocument: emitterDocument || null,
+        recipientDocument: recipientDocument || null,
+        issueDate: new Date(issueDate),
+        totalAmount: String(totalNF),
+        cfop: firstCfop,
+        icmsAmount: String(totalICMS || "0"),
+        pisAmount: String(totalPIS || "0"),
+        cofinsAmount: String(totalCOFINS || "0"),
+        issAmount: "0",
+        status: "issued",
+        notes: notes || null,
+        accessKey: accessKey || null,
+        xmlContent: xmlContent || null,
+      })
+      .returning();
+
+    return doc;
+  });
+
+  res.status(201).json(result);
+});
 
 function requireAuth(req: Request, res: Response): boolean {
   if (!req.session.userId) {

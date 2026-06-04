@@ -4266,6 +4266,8 @@ export const ListFiscalDocumentsResponseItem = zod.object({
   "status": zod.enum(['issued', 'cancelled']),
   "referenceOrderId": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "accessKey": zod.string().nullish(),
+  "xmlContent": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date().optional()
 })
@@ -4342,6 +4344,8 @@ export const UpdateFiscalDocumentResponse = zod.object({
   "status": zod.enum(['issued', 'cancelled']),
   "referenceOrderId": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "accessKey": zod.string().nullish(),
+  "xmlContent": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date().optional()
 })
@@ -4410,6 +4414,57 @@ export const ExportFiscalDocumentsCsvQueryParams = zod.object({
   "startDate": zod.date().optional(),
   "endDate": zod.date().optional(),
   "search": zod.coerce.string().optional()
+})
+
+
+/**
+ * @summary Confirm NF-e import — persist fiscal document, supplier upsert, products upsert, stock entry
+ */
+export const ConfirmNFeImportBody = zod.object({
+  "accessKey": zod.string(),
+  "issueDate": zod.string(),
+  "number": zod.string(),
+  "serie": zod.string().nullish(),
+  "naturalOperation": zod.string().nullish(),
+  "cfop": zod.string().nullish(),
+  "tpNF": zod.number().nullish(),
+  "emitterName": zod.string(),
+  "emitterDocument": zod.string(),
+  "emitterTradeName": zod.string().nullish(),
+  "emitterStreet": zod.string().nullish(),
+  "emitterNumber": zod.string().nullish(),
+  "emitterCity": zod.string().nullish(),
+  "emitterState": zod.string().nullish(),
+  "emitterZip": zod.string().nullish(),
+  "recipientName": zod.string(),
+  "recipientDocument": zod.string(),
+  "totalNF": zod.string(),
+  "totalICMS": zod.string(),
+  "totalPIS": zod.string(),
+  "totalCOFINS": zod.string(),
+  "xmlContent": zod.string(),
+  "existingSupplierId": zod.number().nullish(),
+  "createSupplier": zod.boolean().describe('If true and existingSupplierId is null, create supplier from emitter data'),
+  "notes": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "itemNumber": zod.number(),
+  "supplierCode": zod.string(),
+  "ean": zod.string().nullish(),
+  "description": zod.string(),
+  "ncm": zod.string(),
+  "cfop": zod.string(),
+  "unit": zod.string(),
+  "quantity": zod.string(),
+  "unitPrice": zod.string(),
+  "totalPrice": zod.string(),
+  "icmsValue": zod.string().nullish(),
+  "icmsRate": zod.string().nullish(),
+  "pisValue": zod.string().nullish(),
+  "cofinsValue": zod.string().nullish(),
+  "existingProductId": zod.number().nullish(),
+  "existingProductName": zod.string().nullish(),
+  "importAs": zod.enum(['existing', 'create', 'skip']).optional().describe('existing = link to existing product; create = create new product; skip = ignore item')
+}))
 })
 
 
