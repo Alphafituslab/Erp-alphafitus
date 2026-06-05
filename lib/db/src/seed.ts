@@ -8,6 +8,7 @@
  * Seguro para re-executar: apaga dados anteriores antes de re-inserir.
  */
 
+import { fileURLToPath } from "url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import bcrypt from "bcryptjs";
@@ -19,8 +20,8 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set.");
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle(pool, { schema });
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const db = drizzle(pool, { schema });
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ async function cleanup() {
 
 // ─── main ─────────────────────────────────────────────────────────────────────
 
-async function seed() {
+export async function seed() {
   console.log("🌱  Iniciando seed do banco de dados...\n");
 
   await cleanup();
@@ -2009,9 +2010,17 @@ async function seed() {
   console.log("🔗  Rastreabilidade: LOT-AA-2024-001 → OP-2024-001 → LOT-VCA-2024-001 → PV-2024-001 → NF 000001");
 }
 
-seed()
-  .catch((err) => {
-    console.error("❌  Seed falhou:", err);
-    process.exit(1);
-  })
-  .finally(() => pool.end());
+// Run automatically only when executed directly (standalone script)
+const isMain =
+  typeof process !== "undefined" &&
+  process.argv[1] != null &&
+  process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  seed()
+    .catch((err) => {
+      console.error("❌  Seed falhou:", err);
+      process.exit(1);
+    })
+    .finally(() => pool.end());
+}

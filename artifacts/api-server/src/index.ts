@@ -3,6 +3,8 @@ import { logger } from "./lib/logger";
 import { seedUsers } from "./seed";
 import { startReportScheduler } from "./lib/report-scheduler";
 import { startGoalAlertScheduler } from "./lib/goal-alert-scheduler";
+import { db, usersTable } from "@workspace/db";
+import { count } from "drizzle-orm";
 
 const rawPort = process.env["PORT"];
 
@@ -18,18 +20,39 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-seedUsers().catch((err) => {
-  logger.error({ err }, "Failed to seed users");
-});
+async function autoSeedIfEmpty(): Promise<void> {
+  if (process.env["NODE_ENV"] === "production") return;
 
-startReportScheduler();
-startGoalAlertScheduler();
+  const [row] = await db.select({ total: count() }).from(usersTable);
+  if ((row?.total ?? 0) > 0) return;
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+  logger.info("Banco de dados vazio — executando seed automático...");
+  // Dynamic import so the extra pool in seed.ts is only created when needed
+  const { seed } = await import("@workspace/db/seed");
+  await seed();
+  logger.info("Seed automático concluído com sucesso.");
+}
 
-  logger.info({ port }, "Server listening");
+async function bootstrap(): Promise<void> {
+  await autoSeedIfEmpty();
+  await seedUsers();
+
+  startReportScheduler();
+  startGoalAlertScheduler();
+
+  await new Promise<void>((resolve, reject) => {
+    app.listen(port, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        logger.info({ port }, "Server listening");
+        resolve();
+      }
+    });
+  });
+}
+
+bootstrap().catch((err) => {
+  logger.error({ err }, "Fatal error during server bootstrap");
+  process.exit(1);
 });
