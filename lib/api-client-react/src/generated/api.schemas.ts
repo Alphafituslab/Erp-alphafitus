@@ -2361,6 +2361,8 @@ export interface DashboardGoal {
   id?: number | null;
   year: number;
   month: number;
+  /** Segment/department for this goal. Empty string means company-wide (global). */
+  segment: string;
   revenueGoal: string;
   expenseGoal: string;
   salesOrdersGoal: number;
@@ -2435,6 +2437,7 @@ export interface CompanySettingsInput {
 export interface GoalsHistoryItem {
   year: number;
   month: number;
+  segment: string;
   monthLabel: string;
   revenueGoal: string;
   revenueActual: string;
@@ -2449,6 +2452,8 @@ export interface GoalsHistoryItem {
 }
 
 export interface DashboardGoalInput {
+  /** Segment/department for this goal. Empty string or omitted means company-wide (global). */
+  segment?: string;
   revenueGoal: string;
   expenseGoal: string;
   salesOrdersGoal: number;
@@ -2460,6 +2465,7 @@ export interface YearGoalMonthItem {
      * @maximum 12
      */
   month: number;
+  segment: string;
   hasGoal: boolean;
   revenueGoal: string;
   expenseGoal: string;
@@ -2477,12 +2483,16 @@ export interface BulkGoalMonthInput {
      * @maximum 12
      */
   month: number;
+  /** Segment/department for this goal. Empty string or omitted means company-wide (global). */
+  segment?: string;
   revenueGoal: string;
   expenseGoal: string;
   salesOrdersGoal: number;
 }
 
 export interface BulkGoalsInput {
+  /** Segment/department for this bulk goal. Empty string or omitted means company-wide (global). Applies to all months unless overridden per-month. */
+  segment?: string;
   /**
      * @minItems 1
      * @maxItems 12
@@ -3829,6 +3839,10 @@ export const ListProjectTasksPriority = {
 
 export type GetExecutiveDashboardParams = {
 period?: GetExecutiveDashboardPeriod;
+/**
+ * Filter goals by segment. Empty or omitted returns global (company-wide) goals.
+ */
+segment?: string;
 };
 
 export type GetExecutiveDashboardPeriod = typeof GetExecutiveDashboardPeriod[keyof typeof GetExecutiveDashboardPeriod];
@@ -3847,6 +3861,24 @@ export type GetGoalsHistoryParams = {
  * @maximum 24
  */
 months?: number;
+/**
+ * Filter history by segment. Empty or omitted returns the global (company-wide) goals.
+ */
+segment?: string;
+};
+
+export type GetYearGoalsParams = {
+/**
+ * Filter by segment. Empty or omitted returns the global (company-wide) goals.
+ */
+segment?: string;
+};
+
+export type GetDashboardGoalsParams = {
+/**
+ * Filter by segment. Empty or omitted returns global (company-wide) goal.
+ */
+segment?: string;
 };
 
 export type ListReportSendLogsParams = {

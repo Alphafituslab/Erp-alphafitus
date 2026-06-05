@@ -7,7 +7,6 @@
  */
 import * as zod from 'zod';
 
-
 /**
  * @summary Get company settings (logo and name for PDF header)
  */
@@ -4018,7 +4017,8 @@ export const GetProjectsDashboardResponse = zod.object({
 export const getExecutiveDashboardQueryPeriodDefault = `this_month`;
 
 export const GetExecutiveDashboardQueryParams = zod.object({
-  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']).default(getExecutiveDashboardQueryPeriodDefault)
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']).default(getExecutiveDashboardQueryPeriodDefault),
+  "segment": zod.coerce.string().optional().describe('Filter goals by segment. Empty or omitted returns global (company-wide) goals.')
 })
 
 export const GetExecutiveDashboardResponse = zod.object({
@@ -4061,6 +4061,7 @@ export const GetExecutiveDashboardResponse = zod.object({
   "id": zod.number().nullish(),
   "year": zod.number(),
   "month": zod.number(),
+  "segment": zod.string().describe('Segment\/department for this goal. Empty string means company-wide (global).'),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
   "salesOrdersGoal": zod.number(),
@@ -4086,12 +4087,14 @@ export const getGoalsHistoryQueryMonthsMax = 24;
 
 
 export const GetGoalsHistoryQueryParams = zod.object({
-  "months": zod.coerce.number().min(1).max(getGoalsHistoryQueryMonthsMax).default(getGoalsHistoryQueryMonthsDefault)
+  "months": zod.coerce.number().min(1).max(getGoalsHistoryQueryMonthsMax).default(getGoalsHistoryQueryMonthsDefault),
+  "segment": zod.coerce.string().optional().describe('Filter history by segment. Empty or omitted returns the global (company-wide) goals.')
 })
 
 export const GetGoalsHistoryResponseItem = zod.object({
   "year": zod.number(),
   "month": zod.number(),
+  "segment": zod.string(),
   "monthLabel": zod.string(),
   "revenueGoal": zod.string(),
   "revenueActual": zod.string(),
@@ -4114,6 +4117,10 @@ export const GetYearGoalsParams = zod.object({
   "year": zod.coerce.number()
 })
 
+export const GetYearGoalsQueryParams = zod.object({
+  "segment": zod.coerce.string().optional().describe('Filter by segment. Empty or omitted returns the global (company-wide) goals.')
+})
+
 export const getYearGoalsResponseMonthsItemMonthMax = 12;
 
 
@@ -4122,6 +4129,7 @@ export const GetYearGoalsResponse = zod.object({
   "year": zod.number(),
   "months": zod.array(zod.object({
   "month": zod.number().min(1).max(getYearGoalsResponseMonthsItemMonthMax),
+  "segment": zod.string(),
   "hasGoal": zod.boolean(),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
@@ -4144,8 +4152,10 @@ export const bulkUpsertDashboardGoalsBodyMonthsMax = 12;
 
 
 export const BulkUpsertDashboardGoalsBody = zod.object({
+  "segment": zod.string().optional().describe('Segment\/department for this bulk goal. Empty string or omitted means company-wide (global). Applies to all months unless overridden per-month.'),
   "months": zod.array(zod.object({
   "month": zod.number().min(1).max(bulkUpsertDashboardGoalsBodyMonthsItemMonthMax),
+  "segment": zod.string().optional().describe('Segment\/department for this goal. Empty string or omitted means company-wide (global).'),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
   "salesOrdersGoal": zod.number()
@@ -4158,6 +4168,7 @@ export const BulkUpsertDashboardGoalsResponse = zod.object({
   "id": zod.number().nullish(),
   "year": zod.number(),
   "month": zod.number(),
+  "segment": zod.string().describe('Segment\/department for this goal. Empty string means company-wide (global).'),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
   "salesOrdersGoal": zod.number(),
@@ -4176,10 +4187,15 @@ export const GetDashboardGoalsParams = zod.object({
   "month": zod.coerce.number()
 })
 
+export const GetDashboardGoalsQueryParams = zod.object({
+  "segment": zod.coerce.string().optional().describe('Filter by segment. Empty or omitted returns global (company-wide) goal.')
+})
+
 export const GetDashboardGoalsResponse = zod.object({
   "id": zod.number().nullish(),
   "year": zod.number(),
   "month": zod.number(),
+  "segment": zod.string().describe('Segment\/department for this goal. Empty string means company-wide (global).'),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
   "salesOrdersGoal": zod.number(),
@@ -4198,6 +4214,7 @@ export const UpsertDashboardGoalsParams = zod.object({
 })
 
 export const UpsertDashboardGoalsBody = zod.object({
+  "segment": zod.string().optional().describe('Segment\/department for this goal. Empty string or omitted means company-wide (global).'),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
   "salesOrdersGoal": zod.number()
@@ -4207,6 +4224,7 @@ export const UpsertDashboardGoalsResponse = zod.object({
   "id": zod.number().nullish(),
   "year": zod.number(),
   "month": zod.number(),
+  "segment": zod.string().describe('Segment\/department for this goal. Empty string means company-wide (global).'),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
   "salesOrdersGoal": zod.number(),
@@ -6337,5 +6355,3 @@ export const ListBackupLogsResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListBackupLogsResponse = zod.array(ListBackupLogsResponseItem)
-
-

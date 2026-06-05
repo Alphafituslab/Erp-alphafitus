@@ -220,6 +220,18 @@ const MONTH_NAMES = [
 
 const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+const SEGMENT_OPTIONS = [
+  { value: "",         label: "Geral (toda empresa)" },
+  { value: "Vendas",   label: "Vendas" },
+  { value: "Financeiro", label: "Financeiro" },
+  { value: "Operações",  label: "Operações" },
+  { value: "Produção",   label: "Produção" },
+  { value: "Compras",    label: "Compras" },
+  { value: "Qualidade",  label: "Qualidade" },
+  { value: "RH",         label: "RH" },
+  { value: "TI",         label: "TI" },
+];
+
 type GoalsMode = "single" | "annual";
 
 interface AnnualMonthRow {
@@ -239,12 +251,14 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   // ── Single-month state ──────────────────────────────────────────────────────
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
+  const [segment, setSegment] = useState("");
   const [revenueGoal, setRevenueGoal] = useState("");
   const [expenseGoal, setExpenseGoal] = useState("");
   const [salesOrdersGoal, setSalesOrdersGoal] = useState("");
 
   // ── Annual state ────────────────────────────────────────────────────────────
   const [annualYear, setAnnualYear] = useState(currentYear);
+  const [annualSegment, setAnnualSegment] = useState("");
   const [annualRows, setAnnualRows] = useState<AnnualMonthRow[]>(makeEmptyAnnualRows);
 
   const { toast } = useToast();
@@ -256,6 +270,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   const { data: existingGoals, isLoading: goalsLoading } = useGetDashboardGoals(
     open && mode === "single" ? year : 0,
     open && mode === "single" ? month : 0,
+    { segment },
   );
 
   useEffect(() => {
@@ -267,7 +282,10 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   }, [existingGoals, mode]);
 
   // ── Load all 12 months of goals for the selected year (annual pre-population) ─
-  const { data: yearGoals } = useGetYearGoals(open && mode === "annual" ? annualYear : 0);
+  const { data: yearGoals } = useGetYearGoals(
+    open && mode === "annual" ? annualYear : 0,
+    { segment: annualSegment },
+  );
 
   useEffect(() => {
     if (mode !== "annual" || !yearGoals) return;
@@ -282,7 +300,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
           : { revenueGoal: "", expenseGoal: "", salesOrdersGoal: "" }
       )
     );
-  }, [yearGoals, mode]);
+  }, [yearGoals, mode, annualSegment]);
 
   // ── Mutations ───────────────────────────────────────────────────────────────
   const { mutate: upsertGoals, isPending: isSinglePending } = useUpsertDashboardGoals({
@@ -321,10 +339,12 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
     if (isOpen) {
       setYear(currentYear);
       setMonth(currentMonth);
+      setSegment("");
       setRevenueGoal("");
       setExpenseGoal("");
       setSalesOrdersGoal("");
       setAnnualYear(currentYear);
+      setAnnualSegment("");
       setAnnualRows(makeEmptyAnnualRows());
     }
   }
@@ -359,6 +379,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
       year,
       month,
       data: {
+        segment,
         revenueGoal: String(parseFloat(revenueGoal) || 0),
         expenseGoal: String(parseFloat(expenseGoal) || 0),
         salesOrdersGoal: parseInt(salesOrdersGoal) || 0,
@@ -389,7 +410,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
       return;
     }
 
-    bulkUpsert({ year: annualYear, data: { months } });
+    bulkUpsert({ year: annualYear, data: { segment: annualSegment, months } });
   }
 
   const isPending = isSinglePending || isBulkPending;
@@ -474,6 +495,23 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
               </div>
             </div>
 
+            <div className="space-y-1">
+              <Label>Segmento / Área</Label>
+              <Select value={segment} onValueChange={(v) => { setSegment(v); setRevenueGoal(""); setExpenseGoal(""); setSalesOrdersGoal(""); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SEGMENT_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {segment && (
+                <p className="text-xs text-muted-foreground">Meta específica para o setor <span className="font-medium text-foreground">{segment}</span></p>
+              )}
+            </div>
+
             {goalsLoading ? (
               <div className="flex justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -541,7 +579,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
         {/* ── Annual planning form ──────────────────────────────────────── */}
         {mode === "annual" && (
           <form onSubmit={handleSubmitAnnual} className="space-y-4 mt-2">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
                 <Label>Ano</Label>
                 <Select
@@ -561,8 +599,24 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-xs text-muted-foreground mt-5">
-                Preencha as metas para os meses desejados. Meses deixados em branco não serão alterados — suas metas atuais serão preservadas.
+              <div className="space-y-1">
+                <Label>Segmento / Área</Label>
+                <Select
+                  value={annualSegment}
+                  onValueChange={(v) => { setAnnualSegment(v); setAnnualRows(makeEmptyAnnualRows()); }}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEGMENT_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground pb-0.5 flex-1 min-w-[140px]">
+                Preencha as metas para os meses desejados. Meses em branco não serão alterados.
               </p>
             </div>
 
@@ -1734,7 +1788,8 @@ function achievementColor(pct: number): string {
 
 function GoalsHistorySection() {
   const [metric, setMetric] = useState<GoalsMetric>("revenue");
-  const { data: history, isLoading } = useGetGoalsHistory({ months: 12 });
+  const [histSegment, setHistSegment] = useState("");
+  const { data: history, isLoading } = useGetGoalsHistory({ months: 12, segment: histSegment || undefined });
 
   const metricCfg = GOALS_METRIC_OPTIONS.find((o) => o.value === metric)!;
 
@@ -1793,20 +1848,32 @@ function GoalsHistorySection() {
             <Target className="h-4 w-4 text-muted-foreground" />
             Histórico de Metas — Real vs. Planejado (12 meses)
           </CardTitle>
-          <div className="flex items-center gap-1 rounded-lg border p-0.5 bg-muted/30 self-start sm:self-auto">
-            {GOALS_METRIC_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => setMetric(o.value)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  metric === o.value
-                    ? "bg-white text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={histSegment} onValueChange={setHistSegment}>
+              <SelectTrigger className="h-7 text-xs w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEGMENT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1 rounded-lg border p-0.5 bg-muted/30 self-start sm:self-auto">
+              {GOALS_METRIC_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => setMetric(o.value)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    metric === o.value
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -2040,10 +2107,11 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 
 function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManager: boolean }) {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
+  const [dashSegment, setDashSegment] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { data, isLoading } = useGetExecutiveDashboard({ period });
+  const { data, isLoading } = useGetExecutiveDashboard({ period, segment: dashSegment || undefined });
 
   const kpis = data?.kpis;
   const trend = data?.monthlyTrend ?? [];
@@ -2126,7 +2194,7 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
 
   return (
     <div className="space-y-6">
-      {/* Period selector + Export + Goals buttons */}
+      {/* Period selector + Segment selector + Export + Goals buttons */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm text-muted-foreground">Período:</span>
         <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
@@ -2136,6 +2204,16 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
           <SelectContent>
             {(Object.entries(PERIOD_LABELS) as [PeriodKey, string][]).map(([k, label]) => (
               <SelectItem key={k} value={k}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={dashSegment} onValueChange={setDashSegment}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Segmento" />
+          </SelectTrigger>
+          <SelectContent>
+            {SEGMENT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>

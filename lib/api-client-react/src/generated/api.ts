@@ -82,6 +82,7 @@ import type {
   ForwardTraceResult,
   GetAttendanceSummaryParams,
   GetCashflowParams,
+  GetDashboardGoalsParams,
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
   GetGoalsHistoryParams,
@@ -91,6 +92,7 @@ import type {
   GetTraceabilityTraceParams,
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
+  GetYearGoalsParams,
   GoalAlertSettings,
   GoalAlertSettingsInput,
   GoalsHistoryItem,
@@ -10714,20 +10716,29 @@ export function useGetGoalsHistory<TData = Awaited<ReturnType<typeof getGoalsHis
 
 
 
-export const getGetYearGoalsUrl = (year: number,) => {
+export const getGetYearGoalsUrl = (year: number,
+    params?: GetYearGoalsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/relatorios/goals/year/${year}`
+  return stringifiedParams.length > 0 ? `/api/relatorios/goals/year/${year}?${stringifiedParams}` : `/api/relatorios/goals/year/${year}`
 }
 
 /**
  * @summary Get goals for all 12 months of a given year
  */
-export const getYearGoals = async (year: number, options?: RequestInit): Promise<YearGoals> => {
+export const getYearGoals = async (year: number,
+    params?: GetYearGoalsParams, options?: RequestInit): Promise<YearGoals> => {
 
-  return customFetch<YearGoals>(getGetYearGoalsUrl(year),
+  return customFetch<YearGoals>(getGetYearGoalsUrl(year,params),
   {
     ...options,
     method: 'GET'
@@ -10740,23 +10751,25 @@ export const getYearGoals = async (year: number, options?: RequestInit): Promise
 
 
 
-export const getGetYearGoalsQueryKey = (year: number,) => {
+export const getGetYearGoalsQueryKey = (year: number,
+    params?: GetYearGoalsParams,) => {
     return [
-    `/api/relatorios/goals/year/${year}`
+    `/api/relatorios/goals/year/${year}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetYearGoalsQueryOptions = <TData = Awaited<ReturnType<typeof getYearGoals>>, TError = ErrorType<ErrorResponse>>(year: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetYearGoalsQueryOptions = <TData = Awaited<ReturnType<typeof getYearGoals>>, TError = ErrorType<ErrorResponse>>(year: number,
+    params?: GetYearGoalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetYearGoalsQueryKey(year);
+  const queryKey =  queryOptions?.queryKey ?? getGetYearGoalsQueryKey(year,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getYearGoals>>> = ({ signal }) => getYearGoals(year, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getYearGoals>>> = ({ signal }) => getYearGoals(year,params, { signal, ...requestOptions });
 
 
 
@@ -10774,11 +10787,12 @@ export type GetYearGoalsQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetYearGoals<TData = Awaited<ReturnType<typeof getYearGoals>>, TError = ErrorType<ErrorResponse>>(
- year: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ year: number,
+    params?: GetYearGoalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetYearGoalsQueryOptions(year,options)
+  const queryOptions = getGetYearGoalsQueryOptions(year,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -10864,21 +10878,30 @@ export const useBulkUpsertDashboardGoals = <TError = ErrorType<ErrorResponse>,
     }
 
 export const getGetDashboardGoalsUrl = (year: number,
-    month: number,) => {
+    month: number,
+    params?: GetDashboardGoalsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/relatorios/goals/${year}/${month}`
+  return stringifiedParams.length > 0 ? `/api/relatorios/goals/${year}/${month}?${stringifiedParams}` : `/api/relatorios/goals/${year}/${month}`
 }
 
 /**
  * @summary Get monthly goals for the executive dashboard
  */
 export const getDashboardGoals = async (year: number,
-    month: number, options?: RequestInit): Promise<DashboardGoal> => {
+    month: number,
+    params?: GetDashboardGoalsParams, options?: RequestInit): Promise<DashboardGoal> => {
 
-  return customFetch<DashboardGoal>(getGetDashboardGoalsUrl(year,month),
+  return customFetch<DashboardGoal>(getGetDashboardGoalsUrl(year,month,params),
   {
     ...options,
     method: 'GET'
@@ -10892,24 +10915,26 @@ export const getDashboardGoals = async (year: number,
 
 
 export const getGetDashboardGoalsQueryKey = (year: number,
-    month: number,) => {
+    month: number,
+    params?: GetDashboardGoalsParams,) => {
     return [
-    `/api/relatorios/goals/${year}/${month}`
+    `/api/relatorios/goals/${year}/${month}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
 export const getGetDashboardGoalsQueryOptions = <TData = Awaited<ReturnType<typeof getDashboardGoals>>, TError = ErrorType<ErrorResponse>>(year: number,
-    month: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    month: number,
+    params?: GetDashboardGoalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetDashboardGoalsQueryKey(year,month);
+  const queryKey =  queryOptions?.queryKey ?? getGetDashboardGoalsQueryKey(year,month,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboardGoals>>> = ({ signal }) => getDashboardGoals(year,month, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboardGoals>>> = ({ signal }) => getDashboardGoals(year,month,params, { signal, ...requestOptions });
 
 
 
@@ -10928,11 +10953,12 @@ export type GetDashboardGoalsQueryError = ErrorType<ErrorResponse>
 
 export function useGetDashboardGoals<TData = Awaited<ReturnType<typeof getDashboardGoals>>, TError = ErrorType<ErrorResponse>>(
  year: number,
-    month: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    month: number,
+    params?: GetDashboardGoalsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetDashboardGoalsQueryOptions(year,month,options)
+  const queryOptions = getGetDashboardGoalsQueryOptions(year,month,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

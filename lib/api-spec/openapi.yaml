@@ -4551,6 +4551,12 @@ paths:
             type: string
             enum: [this_month, last_month, this_quarter, this_year]
             default: this_month
+        - name: segment
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter goals by segment. Empty or omitted returns global (company-wide) goals.
       responses:
         "200":
           description: Executive dashboard data
@@ -4585,6 +4591,12 @@ paths:
             default: 12
             minimum: 1
             maximum: 24
+        - name: segment
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter history by segment. Empty or omitted returns the global (company-wide) goals.
       responses:
         "200":
           description: Goals history array (oldest first)
@@ -4618,6 +4630,12 @@ paths:
           required: true
           schema:
             type: integer
+        - name: segment
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by segment. Empty or omitted returns the global (company-wide) goals.
       responses:
         "200":
           description: All 12 months of goals for the year (hasGoal=false for months without a row)
@@ -4697,6 +4715,12 @@ paths:
           required: true
           schema:
             type: integer
+        - name: segment
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by segment. Empty or omitted returns global (company-wide) goal.
       responses:
         "200":
           description: Monthly goals (null fields when not yet set)
@@ -11342,6 +11366,7 @@ components:
       required:
         - year
         - month
+        - segment
         - revenueGoal
         - expenseGoal
         - salesOrdersGoal
@@ -11353,6 +11378,9 @@ components:
           type: integer
         month:
           type: integer
+        segment:
+          type: string
+          description: Segment/department for this goal. Empty string means company-wide (global).
         revenueGoal:
           type: string
         expenseGoal:
@@ -11462,6 +11490,7 @@ components:
       required:
         - year
         - month
+        - segment
         - monthLabel
         - revenueGoal
         - revenueActual
@@ -11475,6 +11504,8 @@ components:
           type: integer
         month:
           type: integer
+        segment:
+          type: string
         monthLabel:
           type: string
         revenueGoal:
@@ -11509,6 +11540,9 @@ components:
         - expenseGoal
         - salesOrdersGoal
       properties:
+        segment:
+          type: string
+          description: Segment/department for this goal. Empty string or omitted means company-wide (global).
         revenueGoal:
           type: string
         expenseGoal:
@@ -11520,6 +11554,7 @@ components:
       type: object
       required:
         - month
+        - segment
         - hasGoal
         - revenueGoal
         - expenseGoal
@@ -11529,6 +11564,8 @@ components:
           type: integer
           minimum: 1
           maximum: 12
+        segment:
+          type: string
         hasGoal:
           type: boolean
         revenueGoal:
@@ -11563,6 +11600,9 @@ components:
           type: integer
           minimum: 1
           maximum: 12
+        segment:
+          type: string
+          description: Segment/department for this goal. Empty string or omitted means company-wide (global).
         revenueGoal:
           type: string
         expenseGoal:
@@ -11575,6 +11615,9 @@ components:
       required:
         - months
       properties:
+        segment:
+          type: string
+          description: Segment/department for this bulk goal. Empty string or omitted means company-wide (global). Applies to all months unless overridden per-month.
         months:
           type: array
           items:

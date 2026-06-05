@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, numeric, integer, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, numeric, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -8,6 +8,7 @@ export const dashboardGoalsTable = pgTable(
     id: serial("id").primaryKey(),
     year: integer("year").notNull(),
     month: integer("month").notNull(),
+    segment: text("segment").notNull().default(""),
     revenueGoal: numeric("revenue_goal", { precision: 15, scale: 2 }).notNull().default("0"),
     expenseGoal: numeric("expense_goal", { precision: 15, scale: 2 }).notNull().default("0"),
     salesOrdersGoal: integer("sales_orders_goal").notNull().default(0),
@@ -15,7 +16,7 @@ export const dashboardGoalsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
-  (t) => [unique("dashboard_goals_year_month_unique").on(t.year, t.month)]
+  (t) => [unique("dashboard_goals_year_month_segment_unique").on(t.year, t.month, t.segment)]
 );
 
 export const insertDashboardGoalSchema = createInsertSchema(dashboardGoalsTable).omit({

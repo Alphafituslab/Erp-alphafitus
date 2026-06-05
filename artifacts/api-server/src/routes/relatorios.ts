@@ -394,6 +394,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
     id: number | null;
     year: number;
     month: number;
+    segment: string;
     revenueGoal: string;
     expenseGoal: string;
     salesOrdersGoal: number;
@@ -409,6 +410,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
   if (period === "this_month") {
     const y = now.getFullYear();
     const m = now.getMonth() + 1; // 1-indexed
+    const segmentFilter = String(req.query.segment ?? "");
 
     const [goalRow] = await db
       .select()
@@ -416,7 +418,8 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
       .where(
         and(
           eq(dashboardGoalsTable.year, y),
-          eq(dashboardGoalsTable.month, m)
+          eq(dashboardGoalsTable.month, m),
+          eq(dashboardGoalsTable.segment, segmentFilter)
         )
       )
       .limit(1);
@@ -426,6 +429,7 @@ router.get("/relatorios/dashboard", async (req: Request, res: Response): Promise
         id: goalRow.id,
         year: goalRow.year,
         month: goalRow.month,
+        segment: goalRow.segment,
         revenueGoal: goalRow.revenueGoal,
         expenseGoal: goalRow.expenseGoal,
         salesOrdersGoal: goalRow.salesOrdersGoal,
@@ -499,6 +503,7 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
 
   const monthsParam = parseInt(String(req.query.months ?? "12"), 10);
   const months = Math.min(Math.max(isNaN(monthsParam) ? 12 : monthsParam, 1), 24);
+  const segment = String(req.query.segment ?? "");
 
   const now = new Date();
   const historyStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
@@ -509,6 +514,7 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
       id: dashboardGoalsTable.id,
       year: dashboardGoalsTable.year,
       month: dashboardGoalsTable.month,
+      segment: dashboardGoalsTable.segment,
       revenueGoal: dashboardGoalsTable.revenueGoal,
       expenseGoal: dashboardGoalsTable.expenseGoal,
       salesOrdersGoal: dashboardGoalsTable.salesOrdersGoal,
@@ -519,7 +525,10 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
     .from(dashboardGoalsTable)
     .leftJoin(usersTable, eq(dashboardGoalsTable.updatedBy, usersTable.id))
     .where(
-      sql`(${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) >= ${historyStart.getFullYear() * 100 + (historyStart.getMonth() + 1)} AND (${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) <= ${now.getFullYear() * 100 + (now.getMonth() + 1)}`
+      and(
+        eq(dashboardGoalsTable.segment, segment),
+        sql`(${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) >= ${historyStart.getFullYear() * 100 + (historyStart.getMonth() + 1)} AND (${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) <= ${now.getFullYear() * 100 + (now.getMonth() + 1)}`
+      )
     );
 
   const goalsMap = new Map(goalRows.map((r) => [`${r.year}-${r.month}`, r]));
@@ -597,6 +606,7 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
     return {
       year: y,
       month: m,
+      segment,
       monthLabel: `${MONTH_LABELS[m - 1]}/${y}`,
       revenueGoal: goal?.revenueGoal ?? "0",
       revenueActual: revMap.get(key) ?? "0",
@@ -625,10 +635,17 @@ router.get("/relatorios/goals/year/:year", async (req: Request, res: Response): 
     return;
   }
 
+  const segment = String(req.query.segment ?? "");
+
   const rows = await db
     .select()
     .from(dashboardGoalsTable)
-    .where(eq(dashboardGoalsTable.year, year));
+    .where(
+      and(
+        eq(dashboardGoalsTable.year, year),
+        eq(dashboardGoalsTable.segment, segment)
+      )
+    );
 
   // Return one entry per month (1–12); months without a row return null
   const goalsByMonth: (typeof rows[number] | null)[] = Array.from({ length: 12 }, (_, i) => {
@@ -638,6 +655,7 @@ router.get("/relatorios/goals/year/:year", async (req: Request, res: Response): 
 
   const result = goalsByMonth.map((row, i) => ({
     month: i + 1,
+    segment,
     hasGoal: row != null,
     revenueGoal: row?.revenueGoal ?? "0",
     expenseGoal: row?.expenseGoal ?? "0",
@@ -658,14 +676,17 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
     return;
   }
 
-  const { months } = req.body as {
-    months?: { month: number; revenueGoal: string; expenseGoal: string; salesOrdersGoal: number }[];
+  const { months, segment: bodySegment } = req.body as {
+    months?: { month: number; revenueGoal: string; expenseGoal: string; salesOrdersGoal: number; segment?: string }[];
+    segment?: string;
   };
 
   if (!Array.isArray(months) || months.length === 0) {
     res.status(400).json({ error: "Campo obrigatório: months (array)" });
     return;
   }
+
+  const bulkSegment = String(bodySegment ?? "");
 
   for (const entry of months) {
     const m = Number(entry.month);
@@ -687,18 +708,20 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
 
   const saved = await Promise.all(
     months.map(async (entry) => {
+      const entrySegment = String(entry.segment ?? bulkSegment);
       const [upserted] = await db
         .insert(dashboardGoalsTable)
         .values({
           year,
           month: entry.month,
+          segment: entrySegment,
           revenueGoal: String(entry.revenueGoal),
           expenseGoal: String(entry.expenseGoal),
           salesOrdersGoal: Number(entry.salesOrdersGoal),
           updatedBy: userId,
         })
         .onConflictDoUpdate({
-          target: [dashboardGoalsTable.year, dashboardGoalsTable.month],
+          target: [dashboardGoalsTable.year, dashboardGoalsTable.month, dashboardGoalsTable.segment],
           set: {
             revenueGoal: String(entry.revenueGoal),
             expenseGoal: String(entry.expenseGoal),
@@ -712,6 +735,7 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
         id: upserted.id,
         year: upserted.year,
         month: upserted.month,
+        segment: upserted.segment,
         revenueGoal: upserted.revenueGoal,
         expenseGoal: upserted.expenseGoal,
         salesOrdersGoal: upserted.salesOrdersGoal,
@@ -738,11 +762,14 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     return;
   }
 
+  const segment = String(req.query.segment ?? "");
+
   const rows = await db
     .select({
       id: dashboardGoalsTable.id,
       year: dashboardGoalsTable.year,
       month: dashboardGoalsTable.month,
+      segment: dashboardGoalsTable.segment,
       revenueGoal: dashboardGoalsTable.revenueGoal,
       expenseGoal: dashboardGoalsTable.expenseGoal,
       salesOrdersGoal: dashboardGoalsTable.salesOrdersGoal,
@@ -755,7 +782,8 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     .where(
       and(
         eq(dashboardGoalsTable.year, year),
-        eq(dashboardGoalsTable.month, month)
+        eq(dashboardGoalsTable.month, month),
+        eq(dashboardGoalsTable.segment, segment)
       )
     )
     .limit(1);
@@ -767,6 +795,7 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
       id: null,
       year,
       month,
+      segment,
       revenueGoal: "0",
       expenseGoal: "0",
       salesOrdersGoal: 0,
@@ -781,6 +810,7 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     id: row.id,
     year: row.year,
     month: row.month,
+    segment: row.segment,
     revenueGoal: row.revenueGoal,
     expenseGoal: row.expenseGoal,
     salesOrdersGoal: row.salesOrdersGoal,
@@ -803,10 +833,11 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     return;
   }
 
-  const { revenueGoal, expenseGoal, salesOrdersGoal } = req.body as {
+  const { revenueGoal, expenseGoal, salesOrdersGoal, segment: bodySegment } = req.body as {
     revenueGoal?: string;
     expenseGoal?: string;
     salesOrdersGoal?: number;
+    segment?: string;
   };
 
   if (revenueGoal === undefined || expenseGoal === undefined || salesOrdersGoal === undefined) {
@@ -814,6 +845,7 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     return;
   }
 
+  const segment = String(bodySegment ?? "");
   const userId = req.session.userId ?? null;
 
   const [upserted] = await db
@@ -821,13 +853,14 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     .values({
       year,
       month,
+      segment,
       revenueGoal: String(revenueGoal),
       expenseGoal: String(expenseGoal),
       salesOrdersGoal: Number(salesOrdersGoal),
       updatedBy: userId,
     })
     .onConflictDoUpdate({
-      target: [dashboardGoalsTable.year, dashboardGoalsTable.month],
+      target: [dashboardGoalsTable.year, dashboardGoalsTable.month, dashboardGoalsTable.segment],
       set: {
         revenueGoal: String(revenueGoal),
         expenseGoal: String(expenseGoal),
@@ -846,6 +879,7 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     id: upserted.id,
     year: upserted.year,
     month: upserted.month,
+    segment: upserted.segment,
     revenueGoal: upserted.revenueGoal,
     expenseGoal: upserted.expenseGoal,
     salesOrdersGoal: upserted.salesOrdersGoal,
