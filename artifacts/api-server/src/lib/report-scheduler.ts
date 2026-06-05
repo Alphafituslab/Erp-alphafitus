@@ -4,8 +4,8 @@ import {
   reportSendLogsTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import nodemailer from "nodemailer";
 import { logger } from "./logger";
+import { sendEmail, isSmtpConfigured } from "./mailer";
 import { buildReportPdf } from "../routes/relatorios-pdf";
 
 type Period = "this_month" | "last_month" | "this_quarter" | "this_year";
@@ -47,13 +47,7 @@ async function runScheduledSend(
   const periodLabel = range.label;
   const recipientsStr = recipients.join(", ");
 
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpFrom = process.env.SMTP_FROM ?? smtpUser;
-
-  if (!smtpHost || !smtpUser || !smtpPass) {
+  if (!isSmtpConfigured()) {
     await db.insert(reportSendLogsTable).values({
       scheduleId,
       triggerType: "scheduled",
@@ -70,15 +64,7 @@ async function runScheduledSend(
     const pdfBuffer = await buildReportPdf(period);
     const filename = `relatorio-executivo-${periodLabel.toLowerCase().replace(/\//g, "-")}.pdf`;
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-
-    await transporter.sendMail({
-      from: smtpFrom,
+    await sendEmail({
       to: recipientsStr,
       subject,
       text: message?.trim() || "Segue em anexo o relatório executivo gerado automaticamente pelo NEXUS ERP.",

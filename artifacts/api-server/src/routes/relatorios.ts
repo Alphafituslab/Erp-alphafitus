@@ -17,7 +17,7 @@ import {
   goalAlertSettingsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
-import nodemailer from "nodemailer";
+import { sendEmail, isSmtpConfigured } from "../lib/mailer";
 import { buildReportPdf } from "./relatorios-pdf";
 
 const router: IRouter = Router();
@@ -724,13 +724,7 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
   const validPeriods: Period[] = ["this_month", "last_month", "this_quarter", "this_year"];
   const safePeriod: Period = validPeriods.includes(period as Period) ? (period as Period) : "this_month";
 
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpFrom = process.env.SMTP_FROM ?? smtpUser;
-
-  if (!smtpHost || !smtpUser || !smtpPass) {
+  if (!isSmtpConfigured()) {
     res.status(400).json({
       error: "Serviço de e-mail não configurado. Configure as variáveis SMTP_HOST, SMTP_USER e SMTP_PASS.",
     });
@@ -745,25 +739,11 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
     const pdfBuffer = await buildReportPdf(safePeriod);
     const filename = `relatorio-executivo-${periodLabel.toLowerCase().replace(/\//g, "-")}.pdf`;
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-
-    await transporter.sendMail({
-      from: smtpFrom,
+    await sendEmail({
       to: recipientsStr,
       subject: subject.trim(),
       text: message?.trim() || "Segue em anexo o relatório executivo gerado pelo NEXUS ERP.",
-      attachments: [
-        {
-          filename,
-          content: pdfBuffer,
-          contentType: "application/pdf",
-        },
-      ],
+      attachments: [{ filename, content: pdfBuffer, contentType: "application/pdf" }],
     });
 
     await db.insert(reportSendLogsTable).values({
