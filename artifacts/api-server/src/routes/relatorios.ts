@@ -1008,6 +1008,39 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
   });
 });
 
+// ─── Preview PDF (GET, inline) ────────────────────────────────────────────────
+
+router.get("/relatorios/preview", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const validPeriods: Period[] = ["this_month", "last_month", "this_quarter", "this_year"];
+  const period = req.query.period as Period;
+  const safePeriod: Period = validPeriods.includes(period) ? period : "this_month";
+
+  const companyName = typeof req.query.companyName === "string" ? req.query.companyName : undefined;
+  const includeHeader = req.query.includeHeader !== "false";
+
+  try {
+    const pdfBuffer = await buildReportPdf(safePeriod, {
+      companyName,
+      logoBase64: null,
+      includeHeader,
+    });
+
+    const range = getDateRange(safePeriod);
+    const slug = range.label.toLowerCase().replace(/\//g, "-").replace(/\s+/g, "-");
+    const filename = `relatorio-executivo-${slug}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    res.setHeader("Content-Length", String(pdfBuffer.length));
+    res.send(pdfBuffer);
+  } catch (err: unknown) {
+    req.log.error({ err }, "Failed to generate preview PDF");
+    res.status(500).json({ error: "Falha ao gerar pré-visualização do PDF" });
+  }
+});
+
 // ─── Export PDF ───────────────────────────────────────────────────────────────
 
 router.post("/relatorios/export-pdf", async (req: Request, res: Response): Promise<void> => {

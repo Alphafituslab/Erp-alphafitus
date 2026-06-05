@@ -554,13 +554,13 @@ function SendEmailDialog({
               </span>
               <div className="flex items-center gap-2">
                 <a
-                  href={`/api/relatorios/export-pdf?period=${period}`}
+                  href={`/api/relatorios/preview?period=${period}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary underline-offset-2 hover:underline flex items-center gap-1"
                 >
                   <FileDown className="h-3 w-3" />
-                  Baixar prévia
+                  Pré-visualizar PDF
                 </a>
                 <button
                   type="button"
@@ -1120,14 +1120,25 @@ function ScheduleDialog({
 
         <div className="space-y-1">
           <Label>Período do relatório</Label>
-          <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {PERIOD_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+              <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <a
+              href={`/api/relatorios/preview?period=${period}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline whitespace-nowrap"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              Pré-visualizar
+            </a>
+          </div>
         </div>
 
         <div className="space-y-1">
@@ -1957,6 +1968,16 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
             periodLabel={data?.periodLabel}
             disabled={isLoading}
           />
+          <a
+            href={`/api/relatorios/preview?period=${period}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="outline" size="sm" disabled={isLoading}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Pré-visualizar PDF
+            </Button>
+          </a>
           <PdfExportDialog
             onExport={handleExportPdf}
             disabled={isLoading}
