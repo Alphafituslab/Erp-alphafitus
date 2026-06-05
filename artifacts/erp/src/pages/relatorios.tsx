@@ -480,6 +480,15 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
               </div>
             ) : (
               <>
+                {existingGoals?.updatedByName && (
+                  <div className="rounded-md bg-muted/50 border px-3 py-2 text-xs text-muted-foreground flex items-center gap-1.5">
+                    <span className="font-medium text-foreground">{existingGoals.updatedByName}</span>
+                    <span>configurou esta meta</span>
+                    {existingGoals.updatedAt && (
+                      <span>em {new Date(existingGoals.updatedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+                    )}
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Label htmlFor="revenueGoal">Meta de Receita (R$)</Label>
                   <Input
@@ -1752,6 +1761,8 @@ function GoalsHistorySection() {
       goal,
       pct,
       hasGoal: item.hasGoal,
+      updatedByName: item.updatedByName ?? null,
+      updatedAt: item.updatedAt ?? null,
     };
   });
 
@@ -1972,7 +1983,8 @@ function GoalsHistorySection() {
                   <th className="text-left py-1.5 pr-3 text-muted-foreground font-medium">Mês</th>
                   <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">Real</th>
                   <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">Meta</th>
-                  <th className="text-right py-1.5 pl-2 text-muted-foreground font-medium">%</th>
+                  <th className="text-right py-1.5 px-2 text-muted-foreground font-medium">%</th>
+                  <th className="text-left py-1.5 pl-3 text-muted-foreground font-medium">Configurado por</th>
                 </tr>
               </thead>
               <tbody>
@@ -1983,11 +1995,25 @@ function GoalsHistorySection() {
                     <td className="text-right py-1.5 px-2 tabular-nums text-muted-foreground">
                       {row.hasGoal ? fmtVal(row.goal) : <span className="italic">—</span>}
                     </td>
-                    <td className="text-right py-1.5 pl-2 font-semibold tabular-nums">
+                    <td className="text-right py-1.5 px-2 font-semibold tabular-nums">
                       {row.pct != null ? (
                         <span style={{ color: achievementColor(row.pct) }}>{row.pct.toFixed(1)}%</span>
                       ) : (
                         <span className="text-muted-foreground italic text-[10px]">sem meta</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 pl-3 text-muted-foreground">
+                      {row.hasGoal && row.updatedByName ? (
+                        <span title={row.updatedAt ? new Date(row.updatedAt).toLocaleString("pt-BR") : undefined}>
+                          {row.updatedByName}
+                          {row.updatedAt && (
+                            <span className="ml-1 text-[10px] opacity-70">
+                              {new Date(row.updatedAt).toLocaleDateString("pt-BR")}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="italic text-[10px]">—</span>
                       )}
                     </td>
                   </tr>

@@ -11359,6 +11359,16 @@ components:
           type: string
         salesOrdersGoal:
           type: integer
+        updatedBy:
+          type: integer
+          nullable: true
+        updatedByName:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
 
     GoalAlertSettings:
       type: object
@@ -11481,6 +11491,16 @@ components:
           type: integer
         hasGoal:
           type: boolean
+        updatedBy:
+          type: integer
+          nullable: true
+        updatedByName:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
 
     DashboardGoalInput:
       type: object

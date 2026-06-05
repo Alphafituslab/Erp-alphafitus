@@ -11,6 +11,7 @@ export const dashboardGoalsTable = pgTable(
     revenueGoal: numeric("revenue_goal", { precision: 15, scale: 2 }).notNull().default("0"),
     expenseGoal: numeric("expense_goal", { precision: 15, scale: 2 }).notNull().default("0"),
     salesOrdersGoal: integer("sales_orders_goal").notNull().default(0),
+    updatedBy: integer("updated_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

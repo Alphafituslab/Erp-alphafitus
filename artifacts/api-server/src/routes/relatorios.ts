@@ -503,10 +503,21 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
   const now = new Date();
   const historyStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
-  // Fetch all goals rows for the window
+  // Fetch all goals rows for the window, joined with user names
   const goalRows = await db
-    .select()
+    .select({
+      id: dashboardGoalsTable.id,
+      year: dashboardGoalsTable.year,
+      month: dashboardGoalsTable.month,
+      revenueGoal: dashboardGoalsTable.revenueGoal,
+      expenseGoal: dashboardGoalsTable.expenseGoal,
+      salesOrdersGoal: dashboardGoalsTable.salesOrdersGoal,
+      updatedBy: dashboardGoalsTable.updatedBy,
+      updatedAt: dashboardGoalsTable.updatedAt,
+      updatedByName: usersTable.name,
+    })
     .from(dashboardGoalsTable)
+    .leftJoin(usersTable, eq(dashboardGoalsTable.updatedBy, usersTable.id))
     .where(
       sql`(${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) >= ${historyStart.getFullYear() * 100 + (historyStart.getMonth() + 1)} AND (${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) <= ${now.getFullYear() * 100 + (now.getMonth() + 1)}`
     );
@@ -594,6 +605,9 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
       salesOrdersGoal: goal?.salesOrdersGoal ?? 0,
       salesOrdersActual: soMap.get(key) ?? 0,
       hasGoal: goal != null,
+      updatedBy: goal?.updatedBy ?? null,
+      updatedByName: goal?.updatedByName ?? null,
+      updatedAt: goal?.updatedAt?.toISOString() ?? null,
     };
   });
 
@@ -665,6 +679,12 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
     }
   }
 
+  const userId = req.session.userId ?? null;
+
+  const [updater] = userId
+    ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId)).limit(1)
+    : [];
+
   const saved = await Promise.all(
     months.map(async (entry) => {
       const [upserted] = await db
@@ -675,6 +695,7 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
           revenueGoal: String(entry.revenueGoal),
           expenseGoal: String(entry.expenseGoal),
           salesOrdersGoal: Number(entry.salesOrdersGoal),
+          updatedBy: userId,
         })
         .onConflictDoUpdate({
           target: [dashboardGoalsTable.year, dashboardGoalsTable.month],
@@ -682,6 +703,7 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
             revenueGoal: String(entry.revenueGoal),
             expenseGoal: String(entry.expenseGoal),
             salesOrdersGoal: Number(entry.salesOrdersGoal),
+            updatedBy: userId,
             updatedAt: new Date(),
           },
         })
@@ -693,6 +715,9 @@ router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): 
         revenueGoal: upserted.revenueGoal,
         expenseGoal: upserted.expenseGoal,
         salesOrdersGoal: upserted.salesOrdersGoal,
+        updatedBy: upserted.updatedBy ?? null,
+        updatedByName: updater?.name ?? null,
+        updatedAt: upserted.updatedAt?.toISOString() ?? null,
       };
     })
   );
@@ -713,9 +738,20 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     return;
   }
 
-  const [row] = await db
-    .select()
+  const rows = await db
+    .select({
+      id: dashboardGoalsTable.id,
+      year: dashboardGoalsTable.year,
+      month: dashboardGoalsTable.month,
+      revenueGoal: dashboardGoalsTable.revenueGoal,
+      expenseGoal: dashboardGoalsTable.expenseGoal,
+      salesOrdersGoal: dashboardGoalsTable.salesOrdersGoal,
+      updatedBy: dashboardGoalsTable.updatedBy,
+      updatedAt: dashboardGoalsTable.updatedAt,
+      updatedByName: usersTable.name,
+    })
     .from(dashboardGoalsTable)
+    .leftJoin(usersTable, eq(dashboardGoalsTable.updatedBy, usersTable.id))
     .where(
       and(
         eq(dashboardGoalsTable.year, year),
@@ -723,6 +759,8 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
       )
     )
     .limit(1);
+
+  const row = rows[0];
 
   if (!row) {
     res.json({
@@ -732,6 +770,9 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
       revenueGoal: "0",
       expenseGoal: "0",
       salesOrdersGoal: 0,
+      updatedBy: null,
+      updatedByName: null,
+      updatedAt: null,
     });
     return;
   }
@@ -743,6 +784,9 @@ router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     revenueGoal: row.revenueGoal,
     expenseGoal: row.expenseGoal,
     salesOrdersGoal: row.salesOrdersGoal,
+    updatedBy: row.updatedBy ?? null,
+    updatedByName: row.updatedByName ?? null,
+    updatedAt: row.updatedAt?.toISOString() ?? null,
   });
 });
 
@@ -770,6 +814,8 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     return;
   }
 
+  const userId = req.session.userId ?? null;
+
   const [upserted] = await db
     .insert(dashboardGoalsTable)
     .values({
@@ -778,6 +824,7 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
       revenueGoal: String(revenueGoal),
       expenseGoal: String(expenseGoal),
       salesOrdersGoal: Number(salesOrdersGoal),
+      updatedBy: userId,
     })
     .onConflictDoUpdate({
       target: [dashboardGoalsTable.year, dashboardGoalsTable.month],
@@ -785,10 +832,15 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
         revenueGoal: String(revenueGoal),
         expenseGoal: String(expenseGoal),
         salesOrdersGoal: Number(salesOrdersGoal),
+        updatedBy: userId,
         updatedAt: new Date(),
       },
     })
     .returning();
+
+  const [updater] = userId
+    ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId)).limit(1)
+    : [];
 
   res.json({
     id: upserted.id,
@@ -797,6 +849,9 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
     revenueGoal: upserted.revenueGoal,
     expenseGoal: upserted.expenseGoal,
     salesOrdersGoal: upserted.salesOrdersGoal,
+    updatedBy: upserted.updatedBy ?? null,
+    updatedByName: updater?.name ?? null,
+    updatedAt: upserted.updatedAt?.toISOString() ?? null,
   });
 });
 

@@ -2364,6 +2364,9 @@ export interface DashboardGoal {
   revenueGoal: string;
   expenseGoal: string;
   salesOrdersGoal: number;
+  updatedBy?: number | null;
+  updatedByName?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface GoalAlertSettings {
@@ -2440,6 +2443,9 @@ export interface GoalsHistoryItem {
   salesOrdersGoal: number;
   salesOrdersActual: number;
   hasGoal: boolean;
+  updatedBy?: number | null;
+  updatedByName?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface DashboardGoalInput {

@@ -17,4 +17,7 @@ export interface GoalsHistoryItem {
   salesOrdersGoal: number;
   salesOrdersActual: number;
   hasGoal: boolean;
+  updatedBy?: number | null;
+  updatedByName?: string | null;
+  updatedAt?: Date | null;
 }

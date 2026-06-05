@@ -13,4 +13,7 @@ export interface DashboardGoal {
   revenueGoal: string;
   expenseGoal: string;
   salesOrdersGoal: number;
+  updatedBy?: number | null;
+  updatedByName?: string | null;
+  updatedAt?: Date | null;
 }

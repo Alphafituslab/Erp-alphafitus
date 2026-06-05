@@ -4063,7 +4063,10 @@ export const GetExecutiveDashboardResponse = zod.object({
   "month": zod.number(),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
-  "salesOrdersGoal": zod.number()
+  "salesOrdersGoal": zod.number(),
+  "updatedBy": zod.number().nullish(),
+  "updatedByName": zod.string().nullish(),
+  "updatedAt": zod.coerce.date().nullish()
 }).nullish(),
   "alerts": zod.array(zod.object({
   "kpi": zod.string(),
@@ -4096,7 +4099,10 @@ export const GetGoalsHistoryResponseItem = zod.object({
   "expenseActual": zod.string(),
   "salesOrdersGoal": zod.number(),
   "salesOrdersActual": zod.number(),
-  "hasGoal": zod.boolean()
+  "hasGoal": zod.boolean(),
+  "updatedBy": zod.number().nullish(),
+  "updatedByName": zod.string().nullish(),
+  "updatedAt": zod.coerce.date().nullish()
 })
 export const GetGoalsHistoryResponse = zod.array(GetGoalsHistoryResponseItem)
 
@@ -4154,7 +4160,10 @@ export const BulkUpsertDashboardGoalsResponse = zod.object({
   "month": zod.number(),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
-  "salesOrdersGoal": zod.number()
+  "salesOrdersGoal": zod.number(),
+  "updatedBy": zod.number().nullish(),
+  "updatedByName": zod.string().nullish(),
+  "updatedAt": zod.coerce.date().nullish()
 }))
 })
 
@@ -4173,7 +4182,10 @@ export const GetDashboardGoalsResponse = zod.object({
   "month": zod.number(),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
-  "salesOrdersGoal": zod.number()
+  "salesOrdersGoal": zod.number(),
+  "updatedBy": zod.number().nullish(),
+  "updatedByName": zod.string().nullish(),
+  "updatedAt": zod.coerce.date().nullish()
 })
 
 
@@ -4197,7 +4209,10 @@ export const UpsertDashboardGoalsResponse = zod.object({
   "month": zod.number(),
   "revenueGoal": zod.string(),
   "expenseGoal": zod.string(),
-  "salesOrdersGoal": zod.number()
+  "salesOrdersGoal": zod.number(),
+  "updatedBy": zod.number().nullish(),
+  "updatedByName": zod.string().nullish(),
+  "updatedAt": zod.coerce.date().nullish()
 })
 
 
