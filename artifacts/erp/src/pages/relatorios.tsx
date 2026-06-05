@@ -49,8 +49,6 @@ import {
   Settings,
   Mail,
   X,
-  Upload,
-  ImageIcon,
   Bell,
   BellOff,
   CheckCircle2,
@@ -85,36 +83,16 @@ import {
   useGetGoalsHistory,
   useGetGoalAlertSettings,
   useUpdateGoalAlertSettings,
-  useGetCompanySettings,
-  useUpdateCompanySettings,
 } from "@workspace/api-client-react";
 import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-
-// ── PDF settings ──────────────────────────────────────────────────────────────
-
-const PDF_SETTINGS_KEY = "erp_pdf_settings";
-
-interface PdfSettings {
-  companyName: string;
-  logoBase64: string | null;
-  includeHeader: boolean;
-}
-
-function loadLocalPdfSettings(): Partial<PdfSettings> {
-  try {
-    const raw = localStorage.getItem(PDF_SETTINGS_KEY);
-    if (raw) return JSON.parse(raw) as Partial<PdfSettings>;
-  } catch {}
-  return {};
-}
-
-function saveLocalPdfSettings(s: Partial<PdfSettings>) {
-  try {
-    localStorage.setItem(PDF_SETTINGS_KEY, JSON.stringify(s));
-  } catch {}
-}
+import {
+  PdfExportDialog,
+  loadLocalPdfSettings,
+  saveLocalPdfSettings,
+} from "@/components/pdf-export-dialog";
+import type { PdfSettings } from "@/components/pdf-export-dialog";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -669,202 +647,6 @@ function SendEmailDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── PDF Export Dialog ─────────────────────────────────────────────────────────
-
-function PdfExportDialog({
-  onExport,
-  disabled,
-}: {
-  onExport: (settings: PdfSettings) => Promise<void>;
-  disabled: boolean;
-}) {
-  const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { data: serverSettings, isLoading: loadingServer } = useGetCompanySettings();
-  const updateCompanyMutation = useUpdateCompanySettings();
-
-  const localFallback = loadLocalPdfSettings();
-
-  const [settings, setSettings] = useState<PdfSettings>({
-    companyName: localFallback.companyName ?? "NEXUS ERP",
-    logoBase64: localFallback.logoBase64 ?? null,
-    includeHeader: localFallback.includeHeader ?? true,
-  });
-
-  useEffect(() => {
-    if (serverSettings) {
-      setSettings((prev) => ({
-        ...prev,
-        companyName: serverSettings.companyName ?? prev.companyName,
-        logoBase64: serverSettings.logoBase64 ?? prev.logoBase64,
-      }));
-    }
-  }, [serverSettings]);
-
-  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setSettings((prev) => ({
-        ...prev,
-        logoBase64: (ev.target?.result as string) ?? null,
-      }));
-    };
-    reader.readAsDataURL(file);
-  }
-
-  async function handleExport() {
-    saveLocalPdfSettings({ includeHeader: settings.includeHeader });
-    updateCompanyMutation.mutate(
-      { data: { companyName: settings.companyName, logoBase64: settings.logoBase64 } },
-      {
-        onError: () => {
-          toast({ title: "Aviso", description: "Não foi possível salvar as configurações no servidor.", variant: "destructive" });
-        },
-      }
-    );
-    setExporting(true);
-    try {
-      await onExport(settings);
-      setOpen(false);
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={disabled}>
-          <Download className="h-4 w-4 mr-2" />
-          Exportar PDF
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Exportar Relatório em PDF
-          </DialogTitle>
-        </DialogHeader>
-
-        {loadingServer ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-        <div className="space-y-4 mt-2">
-          <div className="flex items-center gap-3 rounded-md border p-3">
-            <Checkbox
-              id="include-header"
-              checked={settings.includeHeader}
-              onCheckedChange={(v) =>
-                setSettings((prev) => ({ ...prev, includeHeader: !!v }))
-              }
-            />
-            <Label htmlFor="include-header" className="cursor-pointer leading-snug">
-              Incluir cabeçalho com logo e rodapé com numeração de páginas
-            </Label>
-          </div>
-
-          {settings.includeHeader && (
-            <>
-              <div className="space-y-1">
-                <Label htmlFor="pdf-company-name">Nome da empresa</Label>
-                <Input
-                  id="pdf-company-name"
-                  value={settings.companyName}
-                  onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, companyName: e.target.value }))
-                  }
-                  placeholder="Ex: Empresa Ltda."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Logo da empresa</Label>
-                <div className="flex items-center gap-3">
-                  {settings.logoBase64 ? (
-                    <img
-                      src={settings.logoBase64}
-                      alt="Logo"
-                      className="h-10 w-auto max-w-[80px] object-contain border rounded p-0.5"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 border rounded flex items-center justify-center bg-muted">
-                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {settings.logoBase64 ? "Trocar logo" : "Carregar logo"}
-                  </Button>
-                  {settings.logoBase64 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setSettings((prev) => ({ ...prev, logoBase64: null }))
-                      }
-                    >
-                      Remover
-                    </Button>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                    className="hidden"
-                    onChange={handleLogoUpload}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  PNG ou JPG recomendado. Configurações compartilhadas com todos os usuários.
-                </p>
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={exporting}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleExport} disabled={exporting}>
-              {exporting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Gerando PDF…
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4 mr-2" />
-                  Exportar
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-        )}
       </DialogContent>
     </Dialog>
   );

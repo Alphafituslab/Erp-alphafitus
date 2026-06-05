@@ -86,6 +86,8 @@ import {
   XCircle, Clock, Eye, Wrench, ChevronRight, ListChecks, Search, ArrowRight,
 } from "lucide-react";
 import jsPDF from "jspdf";
+import { PdfExportDialog, addPdfHeader, addPdfFooter } from "@/components/pdf-export-dialog";
+import type { PdfSettings } from "@/components/pdf-export-dialog";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1855,12 +1857,143 @@ export default function QualidadePage() {
 
   const approvalRate = dashboard?.approvalRate ?? 0;
 
+  async function handleExportPdf(settings: PdfSettings) {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const lm = 14, rm = 196;
+
+    const subtitle = `Taxa de aprovação: ${approvalRate}% · Inspeções: ${inspections.length} · NCRs: ${ncrs.length} · Análises: ${analyses.length}`;
+    let y = addPdfHeader(doc, settings, "Relatório de Qualidade", subtitle);
+
+    const drawSectionHeader = (title: string) => {
+      if (y > 270) { doc.addPage(); y = 14; }
+      doc.setFillColor("#334155");
+      doc.rect(lm, y, rm - lm, 7, "F");
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#ffffff");
+      doc.text(title, lm + 2, y + 5);
+      y += 9;
+    };
+
+    const drawTableHeader = (headers: string[], colX: number[]) => {
+      doc.setFillColor("#e2e8f0");
+      doc.rect(lm, y, rm - lm, 6, "F");
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#000000");
+      headers.forEach((h, i) => doc.text(h, colX[i] + 1, y + 4.5));
+      y += 6;
+    };
+
+    // ── Inspeções ──
+    drawSectionHeader(`Inspeções (${filteredInspections.length})`);
+    const inspHeaders = ["Produto", "Lote", "Inspetor", "Data", "Resultado"];
+    const inspColX = [lm, lm + 45, lm + 90, lm + 130, lm + 158];
+    drawTableHeader(inspHeaders, inspColX);
+    doc.setFont("helvetica", "normal");
+    let rowBg = false;
+    for (const ins of filteredInspections) {
+      if (y > 272) {
+        doc.addPage(); y = 14;
+        drawTableHeader(inspHeaders, inspColX);
+        doc.setFont("helvetica", "normal");
+        rowBg = false;
+      }
+      if (rowBg) { doc.setFillColor("#f8fafc"); doc.rect(lm, y, rm - lm, 6, "F"); }
+      rowBg = !rowBg;
+      doc.setFontSize(7.5);
+      doc.setTextColor("#000000");
+      const prodTxt = (ins.productName ?? "—").slice(0, 25);
+      doc.text(prodTxt, inspColX[0] + 1, y + 4.5);
+      doc.text((ins.batchNumber ?? "—").slice(0, 20), inspColX[1] + 1, y + 4.5);
+      doc.text((ins.inspector ?? "—").slice(0, 20), inspColX[2] + 1, y + 4.5);
+      doc.text(fmtDate(ins.inspectionDate), inspColX[3] + 1, y + 4.5);
+      const resultMap: Record<string, string> = { approved: "Aprovado", rejected: "Reprovado", pending: "Pendente" };
+      doc.setTextColor(ins.result === "approved" ? "#166534" : ins.result === "rejected" ? "#991b1b" : "#78350f");
+      doc.text(resultMap[ins.result] ?? ins.result, inspColX[4] + 1, y + 4.5);
+      doc.setDrawColor("#e2e8f0");
+      doc.line(lm, y + 6, rm, y + 6);
+      y += 6;
+    }
+
+    y += 6;
+
+    // ── NCRs ──
+    drawSectionHeader(`Não Conformidades — NCRs (${filteredNcrs.length})`);
+    const ncrHeaders = ["Título", "Produto", "Severidade", "Status", "Responsável", "Prazo"];
+    const ncrColX = [lm, lm + 50, lm + 95, lm + 120, lm + 148, lm + 173];
+    drawTableHeader(ncrHeaders, ncrColX);
+    doc.setFont("helvetica", "normal");
+    rowBg = false;
+    for (const ncr of filteredNcrs) {
+      if (y > 272) {
+        doc.addPage(); y = 14;
+        drawTableHeader(ncrHeaders, ncrColX);
+        doc.setFont("helvetica", "normal");
+        rowBg = false;
+      }
+      if (rowBg) { doc.setFillColor("#f8fafc"); doc.rect(lm, y, rm - lm, 6, "F"); }
+      rowBg = !rowBg;
+      doc.setFontSize(7.5);
+      doc.setTextColor("#000000");
+      doc.text(ncr.title.slice(0, 28), ncrColX[0] + 1, y + 4.5);
+      doc.text((ncr.productName ?? "—").slice(0, 22), ncrColX[1] + 1, y + 4.5);
+      const sevMap: Record<string, string> = { critical: "Crítica", high: "Alta", medium: "Média", low: "Baixa" };
+      doc.setTextColor(ncr.severity === "critical" ? "#991b1b" : ncr.severity === "high" ? "#c2410c" : "#000000");
+      doc.text(sevMap[ncr.severity] ?? ncr.severity, ncrColX[2] + 1, y + 4.5);
+      doc.setTextColor("#000000");
+      doc.text((ncr.status ?? "—").slice(0, 14), ncrColX[3] + 1, y + 4.5);
+      doc.text((ncr.assignedTo ?? "—").slice(0, 14), ncrColX[4] + 1, y + 4.5);
+      doc.text(ncr.dueDate ? fmtDate(ncr.dueDate) : "—", ncrColX[5] + 1, y + 4.5);
+      doc.setDrawColor("#e2e8f0");
+      doc.line(lm, y + 6, rm, y + 6);
+      y += 6;
+    }
+
+    y += 6;
+
+    // ── Análises CQ ──
+    drawSectionHeader(`Análises CQ (${filteredAnalyses.length})`);
+    const anHeaders = ["Código", "Produto", "Tipo", "Analista", "Status", "Conclusão"];
+    const anColX = [lm, lm + 35, lm + 80, lm + 110, lm + 140, lm + 162];
+    drawTableHeader(anHeaders, anColX);
+    doc.setFont("helvetica", "normal");
+    rowBg = false;
+    for (const an of filteredAnalyses) {
+      if (y > 272) {
+        doc.addPage(); y = 14;
+        drawTableHeader(anHeaders, anColX);
+        doc.setFont("helvetica", "normal");
+        rowBg = false;
+      }
+      if (rowBg) { doc.setFillColor("#f8fafc"); doc.rect(lm, y, rm - lm, 6, "F"); }
+      rowBg = !rowBg;
+      doc.setFontSize(7.5);
+      doc.setTextColor("#000000");
+      doc.text(an.sampleCode.slice(0, 16), anColX[0] + 1, y + 4.5);
+      doc.text((an.productName ?? "—").slice(0, 22), anColX[1] + 1, y + 4.5);
+      doc.text(analysisTypeLabel(an.analysisType).slice(0, 16), anColX[2] + 1, y + 4.5);
+      doc.text((an.analystName ?? "—").slice(0, 16), anColX[3] + 1, y + 4.5);
+      doc.setTextColor(an.status === "approved" ? "#166534" : an.status === "rejected" ? "#991b1b" : "#000000");
+      doc.text(analysisStatusLabel(an.status).slice(0, 14), anColX[4] + 1, y + 4.5);
+      doc.setTextColor("#000000");
+      doc.text(an.completedAt ? fmtDate(an.completedAt) : "—", anColX[5] + 1, y + 4.5);
+      doc.setDrawColor("#e2e8f0");
+      doc.line(lm, y + 6, rm, y + 6);
+      y += 6;
+    }
+
+    addPdfFooter(doc, settings);
+    doc.save(`relatorio-qualidade-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
         <PageHeader
           title="Controle de Qualidade"
           subtitle="Análises, inspeções, laudos e não conformidades"
+          actions={<PdfExportDialog onExport={handleExportPdf} />}
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>

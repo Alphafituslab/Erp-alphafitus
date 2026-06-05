@@ -47,6 +47,9 @@ import {
   FlaskConical, Warehouse as WarehouseIcon, CalendarX, ArrowRightLeft,
   History, CheckCircle2, XCircle, Clock, Shield, Tag, Printer, FileCode,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import { PdfExportDialog, addPdfHeader, addPdfFooter } from "@/components/pdf-export-dialog";
+import type { PdfSettings } from "@/components/pdf-export-dialog";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1173,6 +1176,112 @@ export default function EstoquePage() {
     setActiveTab("lots");
   }
 
+  async function handleExportPdf(settings: PdfSettings) {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const lm = 14, rm = 196;
+
+    const subtitle = `Produtos: ${allActiveProducts.length} ativos · Lotes: ${lots.length} · Depósitos: ${warehouses.length}`;
+    let y = addPdfHeader(doc, settings, "Relatório de Estoque", subtitle);
+
+    const drawSectionHeader = (title: string) => {
+      if (y > 270) { doc.addPage(); y = 14; }
+      doc.setFillColor("#334155");
+      doc.rect(lm, y, rm - lm, 7, "F");
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#ffffff");
+      doc.text(title, lm + 2, y + 5);
+      y += 9;
+    };
+
+    const drawTableHeader = (headers: string[], colX: number[]) => {
+      doc.setFillColor("#e2e8f0");
+      doc.rect(lm, y, rm - lm, 6, "F");
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#000000");
+      headers.forEach((h, i) => doc.text(h, colX[i] + 1, y + 4.5));
+      y += 6;
+    };
+
+    // ── Produtos ──
+    drawSectionHeader(`Produtos Ativos (${allActiveProducts.length})`);
+    const prodHeaders = ["Nome", "SKU", "Categoria", "Unid.", "Estoque Atual", "Estoque Mín.", "Preço Custo"];
+    const prodColX = [lm, lm + 52, lm + 76, lm + 110, lm + 124, lm + 143, lm + 162];
+    drawTableHeader(prodHeaders, prodColX);
+    doc.setFont("helvetica", "normal");
+    let rowBg = false;
+    for (const p of allActiveProducts) {
+      if (y > 272) {
+        doc.addPage(); y = 14;
+        drawTableHeader(prodHeaders, prodColX);
+        doc.setFont("helvetica", "normal");
+        rowBg = false;
+      }
+      if (rowBg) { doc.setFillColor("#f8fafc"); doc.rect(lm, y, rm - lm, 6, "F"); }
+      rowBg = !rowBg;
+      doc.setFontSize(7.5);
+      doc.setTextColor("#000000");
+      doc.text(p.name.slice(0, 28), prodColX[0] + 1, y + 4.5);
+      doc.text((p.sku ?? "—").slice(0, 12), prodColX[1] + 1, y + 4.5);
+      doc.text((p.category ?? "—").slice(0, 14), prodColX[2] + 1, y + 4.5);
+      doc.text((p.unit ?? "—").slice(0, 6), prodColX[3] + 1, y + 4.5);
+      const stock = Number(p.currentStock);
+      const minStock = Number(p.minStock);
+      doc.setTextColor(stock === 0 ? "#991b1b" : stock <= minStock ? "#c2410c" : "#166534");
+      doc.text(String(p.currentStock ?? 0), prodColX[4] + 10, y + 4.5, { align: "right" });
+      doc.setTextColor("#000000");
+      doc.text(String(p.minStock ?? 0), prodColX[5] + 10, y + 4.5, { align: "right" });
+      const price = p.costPrice ? parseFloat(p.costPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "—";
+      doc.text(price, prodColX[6] + 18, y + 4.5, { align: "right" });
+      doc.setDrawColor("#e2e8f0");
+      doc.line(lm, y + 6, rm, y + 6);
+      y += 6;
+    }
+
+    y += 6;
+
+    // ── Lotes ──
+    drawSectionHeader(`Lotes (${filteredLots.length})`);
+    const lotHeaders = ["Lote Interno", "Produto", "Depósito", "Qtd.", "Status CQ", "Validade"];
+    const lotColX = [lm, lm + 32, lm + 78, lm + 118, lm + 132, lm + 158];
+    drawTableHeader(lotHeaders, lotColX);
+    doc.setFont("helvetica", "normal");
+    rowBg = false;
+    for (const lot of filteredLots) {
+      if (y > 272) {
+        doc.addPage(); y = 14;
+        drawTableHeader(lotHeaders, lotColX);
+        doc.setFont("helvetica", "normal");
+        rowBg = false;
+      }
+      if (rowBg) { doc.setFillColor("#f8fafc"); doc.rect(lm, y, rm - lm, 6, "F"); }
+      rowBg = !rowBg;
+      doc.setFontSize(7.5);
+      doc.setTextColor("#000000");
+      doc.text(lot.internalLot.slice(0, 18), lotColX[0] + 1, y + 4.5);
+      doc.text((lot.productName ?? "—").slice(0, 22), lotColX[1] + 1, y + 4.5);
+      doc.text((lot.warehouseName ?? "—").slice(0, 18), lotColX[2] + 1, y + 4.5);
+      doc.text(String(lot.availableQty ?? 0), lotColX[3] + 8, y + 4.5, { align: "right" });
+      const cqMap: Record<string, string> = { approved: "Aprovado", quarantine: "Quarentena", rejected: "Reprovado", blocked: "Bloqueado" };
+      doc.setTextColor(lot.cqStatus === "approved" ? "#166534" : lot.cqStatus === "rejected" ? "#991b1b" : lot.cqStatus === "quarantine" ? "#78350f" : "#374151");
+      doc.text(cqMap[lot.cqStatus] ?? lot.cqStatus, lotColX[4] + 1, y + 4.5);
+      doc.setTextColor("#000000");
+      const days = daysUntilExpiry(lot.expirationDate);
+      const expText = lot.expirationDate ? fmtDate(lot.expirationDate) + (days !== null && days < 0 ? " (Vencido)" : days !== null && days <= 30 ? ` (${days}d)` : "") : "—";
+      if (days !== null && days < 0) doc.setTextColor("#991b1b");
+      else if (days !== null && days <= 30) doc.setTextColor("#c2410c");
+      doc.text(expText.slice(0, 20), lotColX[5] + 1, y + 4.5);
+      doc.setTextColor("#000000");
+      doc.setDrawColor("#e2e8f0");
+      doc.line(lm, y + 6, rm, y + 6);
+      y += 6;
+    }
+
+    addPdfFooter(doc, settings);
+    doc.save(`relatorio-estoque-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
   return (
     <AppLayout>
       <div className="space-y-5 max-w-7xl mx-auto">
@@ -1180,11 +1289,14 @@ export default function EstoquePage() {
           title="Estoque"
           subtitle="Produtos, lotes, validade e movimentações"
           actions={
-            <Button variant="outline" size="sm" asChild>
-              <a href="/erp/fiscal?openXmlImport=1">
-                <FileCode className="h-4 w-4 mr-1.5" /> Importar XML NF-e
-              </a>
-            </Button>
+            <>
+              <PdfExportDialog onExport={handleExportPdf} />
+              <Button variant="outline" size="sm" asChild>
+                <a href="/erp/fiscal?openXmlImport=1">
+                  <FileCode className="h-4 w-4 mr-1.5" /> Importar XML NF-e
+                </a>
+              </Button>
+            </>
           }
         />
 

@@ -64,6 +64,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, CheckCircle2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import type { FinancialEntry } from "@workspace/api-client-react";
+import jsPDF from "jspdf";
+import { PdfExportDialog, addPdfHeader, addPdfFooter } from "@/components/pdf-export-dialog";
+import type { PdfSettings } from "@/components/pdf-export-dialog";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -289,6 +292,99 @@ export default function FinanceiroPage() {
     "Saldo Prev.": m.cumulativeProjected,
   }));
 
+  async function handleExportPdf(settings: PdfSettings) {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const lm = 14, rm = 196;
+
+    const periodLabel = filterStart && filterEnd
+      ? `${filterStart} a ${filterEnd}`
+      : filterStart
+      ? `a partir de ${filterStart}`
+      : filterEnd
+      ? `até ${filterEnd}`
+      : "Todos os períodos";
+
+    const typeLabel = filterType === "income" ? "Receitas" : filterType === "expense" ? "Despesas" : "Todos os tipos";
+    const statusLabel = filterStatus !== "all" ? ` · Status: ${filterStatus}` : "";
+    const subtitle = `${typeLabel}${statusLabel} · ${periodLabel} · ${entries.length} lançamento(s)`;
+
+    let y = addPdfHeader(doc, settings, "Relatório Financeiro", subtitle);
+
+    const colWidths = [62, 22, 30, 24, 28, 22];
+    const headers = ["Descrição", "Tipo", "Categoria", "Vencimento", "Valor (R$)", "Status"];
+    const colX = [lm, lm+62, lm+84, lm+114, lm+138, lm+166];
+
+    doc.setFillColor("#1e3a5f");
+    doc.rect(lm, y, rm - lm, 7, "F");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#ffffff");
+    headers.forEach((h, i) => doc.text(h, colX[i] + 1, y + 5));
+    y += 7;
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#000000");
+    let rowBg = false;
+
+    for (const e of entries) {
+      if (y > 272) {
+        doc.addPage();
+        y = 14;
+        doc.setFillColor("#1e3a5f");
+        doc.rect(lm, y, rm - lm, 7, "F");
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#ffffff");
+        headers.forEach((h, i) => doc.text(h, colX[i] + 1, y + 5));
+        y += 7;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#000000");
+        rowBg = false;
+      }
+
+      if (rowBg) {
+        doc.setFillColor("#f8fafc");
+        doc.rect(lm, y, rm - lm, 6, "F");
+      }
+      rowBg = !rowBg;
+
+      doc.setFontSize(7.5);
+      const desc = e.description.length > 35 ? e.description.slice(0, 35) + "…" : e.description;
+      doc.text(desc, colX[0] + 1, y + 4.5);
+      doc.setTextColor(e.type === "income" ? "#166534" : "#991b1b");
+      doc.text(e.type === "income" ? "Receita" : "Despesa", colX[1] + 1, y + 4.5);
+      doc.setTextColor("#000000");
+      doc.text(e.category ?? "—", colX[2] + 1, y + 4.5);
+      doc.text(fmtDate(e.dueDate), colX[3] + 1, y + 4.5);
+      const amtStr = parseFloat(e.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      doc.setTextColor(e.type === "income" ? "#166534" : "#991b1b");
+      doc.text(amtStr, colX[4] + colWidths[4] - 2, y + 4.5, { align: "right" });
+      doc.setTextColor("#000000");
+      const statusMap: Record<string, string> = { pending: "Pendente", paid: "Pago", overdue: "Vencido", cancelled: "Cancelado" };
+      doc.text(statusMap[e.status] ?? e.status, colX[5] + 1, y + 4.5);
+
+      doc.setDrawColor("#e2e8f0");
+      doc.line(lm, y + 6, rm, y + 6);
+      y += 6;
+    }
+
+    y += 4;
+    if (y > 270) { doc.addPage(); y = 14; }
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#000000");
+    const totalReceita = entries.filter(e => e.type === "income").reduce((s, e) => s + Number(e.amount), 0);
+    const totalDespesa = entries.filter(e => e.type === "expense").reduce((s, e) => s + Number(e.amount), 0);
+    doc.text(`Total Receitas: R$ ${totalReceita.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, lm, y);
+    doc.text(`Total Despesas: R$ ${totalDespesa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, lm + 80, y);
+    const saldo = totalReceita - totalDespesa;
+    doc.setTextColor(saldo >= 0 ? "#166534" : "#991b1b");
+    doc.text(`Saldo: R$ ${saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, lm + 155, y);
+
+    addPdfFooter(doc, settings);
+    doc.save(`relatorio-financeiro-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
   function openCreate() {
     setEditingEntry(null);
     setDialogOpen(true);
@@ -328,10 +424,13 @@ export default function FinanceiroPage() {
           title="Financeiro"
           subtitle="Contas a pagar e a receber"
           actions={
-            <Button onClick={openCreate} size="sm">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Novo Lançamento
-            </Button>
+            <>
+              <PdfExportDialog onExport={handleExportPdf} disabled={isLoading} />
+              <Button onClick={openCreate} size="sm">
+                <Plus className="h-4 w-4 mr-1.5" />
+                Novo Lançamento
+              </Button>
+            </>
           }
         />
 
