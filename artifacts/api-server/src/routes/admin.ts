@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { spawn } from "child_process";
 import { createGzip } from "zlib";
 import { desc, eq } from "drizzle-orm";
-import { db, usersTable, backupLogsTable } from "@workspace/db";
+import { db, usersTable, backupLogsTable, backupSchedulesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -69,16 +69,10 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   const gzip = createGzip();
   pgdump.stdout.pipe(gzip);
 
-  // State ─────────────────────────────────────────────────────────────────────
-  // pgDumpHadData: true only after pgdump.stdout emits real SQL bytes.
-  // This is the correct signal for "pg_dump is working". It fires BEFORE the
-  // corresponding gzip.on("data") chunk, since piping is synchronous per tick.
-  // gzip emits ~20 bytes of empty-stream header even with zero pg_dump output,
-  // so we cannot rely on gzip output to detect success.
   let pgDumpHadData = false;
   let pgDumpFailed = false;
   let pgDumpStderr = "";
-  let fileSizeBytes = 0; // running counter — never buffer full backup in memory
+  let fileSizeBytes = 0;
 
   pgdump.stdout.on("data", () => {
     pgDumpHadData = true;
@@ -88,7 +82,6 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
     pgDumpStderr += data.toString();
   });
 
-  // pg_dump spawn error (binary not found)
   pgdump.on("error", (err) => {
     pgDumpFailed = true;
     req.log.error({ err }, "pg_dump spawn error");
@@ -102,21 +95,16 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
     }
   });
 
-  // pg_dump process exit
   pgdump.on("close", (code) => {
     if (code !== 0) {
       pgDumpFailed = true;
       req.log.error({ code, pgDumpStderr }, "pg_dump exited with non-zero code");
-      gzip.end(); // flush any remaining gzip bytes, gzip.on("end") handles response
+      gzip.end();
     }
-    // On code === 0, gzip ends naturally when pgdump.stdout closes
   });
 
-  // Stream compressed bytes to response.
-  // Only write to res AFTER pgDumpHadData is true — this prevents the ~20-byte
-  // empty gzip wrapper from being sent as a 200 OK response on failure.
   gzip.on("data", (chunk: Buffer) => {
-    if (!pgDumpHadData) return; // discard gzip wrapper bytes from empty input
+    if (!pgDumpHadData) return;
     fileSizeBytes += chunk.length;
     if (!res.headersSent) {
       res.setHeader("Content-Type", "application/gzip");
@@ -128,14 +116,12 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
 
   gzip.on("end", async () => {
     if (pgDumpFailed || !pgDumpHadData) {
-      // pg_dump did not produce any data or exited with error
       if (!res.headersSent) {
         const errMsg = pgDumpStderr.trim()
           ? `pg_dump falhou: ${pgDumpStderr.slice(0, 300)}`
           : "pg_dump não produziu dados. Verifique se está instalado e se o banco está acessível.";
         res.status(500).json({ error: errMsg });
       } else {
-        // Headers already sent — can't send JSON; just close the connection
         res.end();
       }
       return;
@@ -143,12 +129,14 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
 
     res.end();
 
-    // Insert success log
     try {
       await db.insert(backupLogsTable).values({
         userId: req.session.userId!,
         filename,
         fileSizeBytes,
+        source: "manual",
+        status: "success",
+        errorMessage: null,
       });
     } catch (logErr) {
       req.log.error({ logErr }, "Failed to insert backup log");
@@ -165,7 +153,6 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
     }
   });
 
-  // Kill pg_dump and respond with error if no output starts within 30 s
   const startupTimeout = setTimeout(() => {
     if (!pgDumpHadData) {
       pgDumpFailed = true;
@@ -197,8 +184,95 @@ router.get("/admin/backup/logs", async (req: Request, res: Response): Promise<vo
     userId: l.userId,
     filename: l.filename,
     fileSizeBytes: l.fileSizeBytes,
+    source: l.source,
+    status: l.status,
+    errorMessage: l.errorMessage,
     createdAt: l.createdAt.toISOString(),
   })));
+});
+
+// ─── GET /admin/backup/schedule ──────────────────────────────────────────────
+
+router.get("/admin/backup/schedule", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  const rows = await db.select().from(backupSchedulesTable).limit(1);
+
+  if (!rows.length) {
+    // Return default config (not yet persisted)
+    res.json({
+      id: 0,
+      enabled: false,
+      hour: 2,
+      minute: 0,
+      retentionDays: 7,
+      updatedAt: new Date().toISOString(),
+      updatedBy: null,
+    });
+    return;
+  }
+
+  const row = rows[0]!;
+  res.json({
+    id: row.id,
+    enabled: row.enabled,
+    hour: row.hour,
+    minute: row.minute,
+    retentionDays: row.retentionDays,
+    updatedAt: row.updatedAt.toISOString(),
+    updatedBy: row.updatedBy,
+  });
+});
+
+// ─── PUT /admin/backup/schedule ──────────────────────────────────────────────
+
+router.put("/admin/backup/schedule", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  const { enabled, hour, minute, retentionDays } = req.body as {
+    enabled?: boolean;
+    hour?: number;
+    minute?: number;
+    retentionDays?: number;
+  };
+
+  if (
+    typeof enabled !== "boolean" ||
+    typeof hour !== "number" || hour < 0 || hour > 23 ||
+    typeof minute !== "number" || minute < 0 || minute > 59 ||
+    typeof retentionDays !== "number" || retentionDays < 1 || retentionDays > 365
+  ) {
+    res.status(400).json({ error: "Parâmetros inválidos." });
+    return;
+  }
+
+  const existing = await db.select().from(backupSchedulesTable).limit(1);
+
+  let result;
+  if (existing.length === 0) {
+    const [inserted] = await db
+      .insert(backupSchedulesTable)
+      .values({ enabled, hour, minute, retentionDays, updatedBy: req.session.userId!, updatedAt: new Date() })
+      .returning();
+    result = inserted!;
+  } else {
+    const [updated] = await db
+      .update(backupSchedulesTable)
+      .set({ enabled, hour, minute, retentionDays, updatedBy: req.session.userId!, updatedAt: new Date() })
+      .where(eq(backupSchedulesTable.id, existing[0]!.id))
+      .returning();
+    result = updated!;
+  }
+
+  res.json({
+    id: result.id,
+    enabled: result.enabled,
+    hour: result.hour,
+    minute: result.minute,
+    retentionDays: result.retentionDays,
+    updatedAt: result.updatedAt.toISOString(),
+    updatedBy: result.updatedBy,
+  });
 });
 
 export default router;

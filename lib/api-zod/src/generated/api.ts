@@ -6617,9 +6617,77 @@ export const SetUserModulesResponse = zod.object({
  */
 export const ListBackupLogsResponseItem = zod.object({
   "id": zod.number(),
-  "userId": zod.number(),
+  "userId": zod.number().nullish(),
   "filename": zod.string(),
   "fileSizeBytes": zod.number(),
+  "source": zod.enum(['manual', 'scheduled']),
+  "status": zod.enum(['success', 'error']),
+  "errorMessage": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 export const ListBackupLogsResponse = zod.array(ListBackupLogsResponseItem)
+
+
+/**
+ * @summary Get current automatic backup schedule (admin only)
+ */
+export const getBackupScheduleResponseHourMin = 0;
+export const getBackupScheduleResponseHourMax = 23;
+
+export const getBackupScheduleResponseMinuteMin = 0;
+export const getBackupScheduleResponseMinuteMax = 59;
+
+export const getBackupScheduleResponseRetentionDaysMax = 365;
+
+
+
+export const GetBackupScheduleResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "hour": zod.number().min(getBackupScheduleResponseHourMin).max(getBackupScheduleResponseHourMax),
+  "minute": zod.number().min(getBackupScheduleResponseMinuteMin).max(getBackupScheduleResponseMinuteMax),
+  "retentionDays": zod.number().min(1).max(getBackupScheduleResponseRetentionDaysMax),
+  "updatedAt": zod.coerce.date(),
+  "updatedBy": zod.number().nullish()
+})
+
+
+/**
+ * @summary Update automatic backup schedule (admin only)
+ */
+export const updateBackupScheduleBodyHourMin = 0;
+export const updateBackupScheduleBodyHourMax = 23;
+
+export const updateBackupScheduleBodyMinuteMin = 0;
+export const updateBackupScheduleBodyMinuteMax = 59;
+
+export const updateBackupScheduleBodyRetentionDaysMax = 365;
+
+
+
+export const UpdateBackupScheduleBody = zod.object({
+  "enabled": zod.boolean(),
+  "hour": zod.number().min(updateBackupScheduleBodyHourMin).max(updateBackupScheduleBodyHourMax),
+  "minute": zod.number().min(updateBackupScheduleBodyMinuteMin).max(updateBackupScheduleBodyMinuteMax),
+  "retentionDays": zod.number().min(1).max(updateBackupScheduleBodyRetentionDaysMax)
+})
+
+export const updateBackupScheduleResponseHourMin = 0;
+export const updateBackupScheduleResponseHourMax = 23;
+
+export const updateBackupScheduleResponseMinuteMin = 0;
+export const updateBackupScheduleResponseMinuteMax = 59;
+
+export const updateBackupScheduleResponseRetentionDaysMax = 365;
+
+
+
+export const UpdateBackupScheduleResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "hour": zod.number().min(updateBackupScheduleResponseHourMin).max(updateBackupScheduleResponseHourMax),
+  "minute": zod.number().min(updateBackupScheduleResponseMinuteMin).max(updateBackupScheduleResponseMinuteMax),
+  "retentionDays": zod.number().min(1).max(updateBackupScheduleResponseRetentionDaysMax),
+  "updatedAt": zod.coerce.date(),
+  "updatedBy": zod.number().nullish()
+})

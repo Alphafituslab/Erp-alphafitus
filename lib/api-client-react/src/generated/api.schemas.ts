@@ -5,12 +5,72 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+export type BackupLogSource = typeof BackupLogSource[keyof typeof BackupLogSource];
+
+
+export const BackupLogSource = {
+  manual: 'manual',
+  scheduled: 'scheduled',
+} as const;
+
+export type BackupLogStatus = typeof BackupLogStatus[keyof typeof BackupLogStatus];
+
+
+export const BackupLogStatus = {
+  success: 'success',
+  error: 'error',
+} as const;
+
 export interface BackupLog {
   id: number;
-  userId: number;
+  userId?: number | null;
   filename: string;
   fileSizeBytes: number;
+  source: BackupLogSource;
+  status: BackupLogStatus;
+  errorMessage?: string | null;
   createdAt: string;
+}
+
+export interface BackupSchedule {
+  id: number;
+  enabled: boolean;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+  /**
+     * @minimum 0
+     * @maximum 59
+     */
+  minute: number;
+  /**
+     * @minimum 1
+     * @maximum 365
+     */
+  retentionDays: number;
+  updatedAt: string;
+  updatedBy?: number | null;
+}
+
+export interface BackupScheduleInput {
+  enabled: boolean;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+  /**
+     * @minimum 0
+     * @maximum 59
+     */
+  minute: number;
+  /**
+     * @minimum 1
+     * @maximum 365
+     */
+  retentionDays: number;
 }
 
 export interface OkResponse {

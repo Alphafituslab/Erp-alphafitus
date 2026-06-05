@@ -18,5 +18,6 @@ export * from "./dashboard-goals";
 export * from "./report-schedules";
 export * from "./goal-alert-settings";
 export * from "./backup-logs";
+export * from "./backup-schedules";
 export * from "./company-settings";
 export * from "./user-module-access";

@@ -57,6 +57,9 @@ import {
   AlertCircle,
   ShieldCheck,
   Link2,
+  Clock,
+  CalendarClock,
+  XCircle,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -70,8 +73,11 @@ import {
   useGetUserModules,
   useSetUserModules,
   getGetUserModulesQueryKey,
+  useGetBackupSchedule,
+  useUpdateBackupSchedule,
+  getGetBackupScheduleQueryKey,
 } from "@workspace/api-client-react";
-import type { UserItem, BackupLog } from "@workspace/api-client-react";
+import type { UserItem, BackupLog, BackupSchedule } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -485,6 +491,150 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function formatNextBackup(schedule: BackupSchedule): string {
+  const now = new Date();
+  const next = new Date();
+  next.setHours(schedule.hour, schedule.minute, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next.toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function BackupSchedulePanel() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: schedule, isLoading: schedLoading } = useGetBackupSchedule();
+
+  const [enabled, setEnabled] = useState(false);
+  const [hour, setHour] = useState(2);
+  const [minute, setMinute] = useState(0);
+  const [retentionDays, setRetentionDays] = useState(7);
+  const [synced, setSynced] = useState(false);
+
+  if (schedule && !synced) {
+    setSynced(true);
+    setEnabled(schedule.enabled);
+    setHour(schedule.hour);
+    setMinute(schedule.minute);
+    setRetentionDays(schedule.retentionDays);
+  }
+
+  const { mutate: saveSchedule, isPending: isSaving } = useUpdateBackupSchedule({
+    mutation: {
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: getGetBackupScheduleQueryKey() });
+        toast({ title: "Agendamento salvo!", description: enabled ? `Backup automático ativado às ${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")} diariamente.` : "Backup automático desativado." });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { data?: { error?: string } })?.data?.error ?? "Erro ao salvar agendamento.";
+        toast({ title: "Erro", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  function handleSave() {
+    saveSchedule({ data: { enabled, hour, minute, retentionDays } });
+  }
+
+  const hourOptions = Array.from({ length: 24 }, (_, i) => i);
+  const minuteOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+  return (
+    <Card className="shadow-sm mt-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-muted-foreground" />
+          <CardTitle className="text-base">Agendamento Automático</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {schedLoading ? (
+          <div className="flex items-center gap-2 py-2 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando configuração…
+          </div>
+        ) : (
+          <>
+            {schedule?.enabled && (
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm text-emerald-700">
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>Backup automático <strong>ativo</strong> — próximo agendado para <strong>{formatNextBackup(schedule)}</strong></span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+              <div>
+                <p className="text-sm font-medium">Ativar backup diário automático</p>
+                <p className="text-xs text-muted-foreground">O sistema executará pg_dump automaticamente no horário configurado.</p>
+              </div>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+
+            <div className={`space-y-3 transition-opacity ${!enabled ? "opacity-40 pointer-events-none" : ""}`}>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Hora do backup</Label>
+                  <Select value={String(hour)} onValueChange={(v) => setHour(Number(v))}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hourOptions.map((h) => (
+                        <SelectItem key={h} value={String(h)}>
+                          {String(h).padStart(2, "0")}h
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Minuto</Label>
+                  <Select value={String(minute)} onValueChange={(v) => setMinute(Number(v))}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {minuteOptions.map((m) => (
+                        <SelectItem key={m} value={String(m)}>
+                          :{String(m).padStart(2, "0")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Retenção dos arquivos</Label>
+                <Select value={String(retentionDays)} onValueChange={(v) => setRetentionDays(Number(v))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 dia</SelectItem>
+                    <SelectItem value="3">3 dias</SelectItem>
+                    <SelectItem value="7">7 dias</SelectItem>
+                    <SelectItem value="14">14 dias</SelectItem>
+                    <SelectItem value="30">30 dias</SelectItem>
+                    <SelectItem value="90">90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Arquivos mais antigos serão substituídos pelo próximo backup.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Salvar agendamento
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function BackupPanel() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -495,13 +645,11 @@ function BackupPanel() {
   const { mutate: generateBackup, isPending } = useGenerateBackup({
     mutation: {
       onSuccess: (blob) => {
-        // Derive filename client-side — mirrors server timestamp logic (minute precision)
         const now = new Date();
         const pad = (n: number) => String(n).padStart(2, "0");
         const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
         setLastFilename(filename);
 
-        // Trigger browser download from the received blob
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -511,12 +659,10 @@ function BackupPanel() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        // Invalidate logs only after confirmed server success (not a timer)
         void qc.invalidateQueries({ queryKey: getListBackupLogsQueryKey() });
         toast({ title: "Backup gerado com sucesso!", description: `Download iniciado: ${filename}` });
       },
       onError: (err: unknown) => {
-        // customFetch throws ApiError — data field contains parsed JSON body
         const apiErr = err as { data?: { error?: string }; message?: string };
         const msg =
           apiErr?.data?.error ??
@@ -589,18 +735,40 @@ function BackupPanel() {
                     <TableHead className="text-xs">Arquivo</TableHead>
                     <TableHead className="text-xs text-right">Tamanho</TableHead>
                     <TableHead className="text-xs">Gerado em</TableHead>
-                    <TableHead className="text-xs">Usuário (ID)</TableHead>
+                    <TableHead className="text-xs">Origem</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {(logs as BackupLog[]).map((log) => (
-                    <TableRow key={log.id}>
+                    <TableRow key={log.id} className={log.status === "error" ? "bg-red-50/50" : undefined}>
                       <TableCell className="text-xs font-mono">{log.filename}</TableCell>
                       <TableCell className="text-xs text-right">{formatBytes(log.fileSizeBytes)}</TableCell>
                       <TableCell className="text-xs">
                         {new Date(log.createdAt).toLocaleString("pt-BR")}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">#{log.userId}</TableCell>
+                      <TableCell className="text-xs">
+                        {log.source === "scheduled" ? (
+                          <span className="inline-flex items-center gap-1 text-blue-600">
+                            <CalendarClock className="h-3 w-3" /> Automático
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-gray-500">
+                            <Download className="h-3 w-3" /> Manual
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {log.status === "success" ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-600">
+                            <CheckCircle className="h-3 w-3" /> OK
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-red-600" title={log.errorMessage ?? ""}>
+                            <XCircle className="h-3 w-3" /> Falha
+                          </span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -809,6 +977,7 @@ export default function UsuariosPage() {
       </Card>
 
       <BackupPanel />
+      <BackupSchedulePanel />
 
       {/* Permissions reference */}
       <Card className="shadow-sm mt-6">

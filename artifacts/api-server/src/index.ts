@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedUsers } from "./seed";
 import { startReportScheduler } from "./lib/report-scheduler";
 import { startGoalAlertScheduler } from "./lib/goal-alert-scheduler";
+import { startBackupScheduler } from "./lib/backup-scheduler";
 import { db, usersTable } from "@workspace/db";
 import { count } from "drizzle-orm";
 
@@ -39,6 +40,7 @@ async function bootstrap(): Promise<void> {
 
   startReportScheduler();
   startGoalAlertScheduler();
+  startBackupScheduler();
 
   await new Promise<void>((resolve, reject) => {
     app.listen(port, (err) => {

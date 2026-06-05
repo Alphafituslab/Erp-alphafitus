@@ -7568,23 +7568,139 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/backup/schedule:
+    get:
+      operationId: getBackupSchedule
+      tags: [admin]
+      summary: Get current automatic backup schedule (admin only)
+      responses:
+        "200":
+          description: Current backup schedule configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSchedule"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateBackupSchedule
+      tags: [admin]
+      summary: Update automatic backup schedule (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupScheduleInput"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSchedule"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     BackupLog:
       type: object
-      required: [id, userId, filename, fileSizeBytes, createdAt]
+      required: [id, filename, fileSizeBytes, source, status, createdAt]
       properties:
         id:
           type: integer
         userId:
           type: integer
+          nullable: true
         filename:
           type: string
         fileSizeBytes:
           type: integer
+        source:
+          type: string
+          enum: [manual, scheduled]
+        status:
+          type: string
+          enum: [success, error]
+        errorMessage:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
+
+    BackupSchedule:
+      type: object
+      required: [id, enabled, hour, minute, retentionDays, updatedAt]
+      properties:
+        id:
+          type: integer
+        enabled:
+          type: boolean
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        retentionDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: integer
+          nullable: true
+
+    BackupScheduleInput:
+      type: object
+      required: [enabled, hour, minute, retentionDays]
+      properties:
+        enabled:
+          type: boolean
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        retentionDays:
+          type: integer
+          minimum: 1
+          maximum: 365
 
     OkResponse:
       type: object

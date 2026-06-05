@@ -35,6 +35,8 @@ import type {
   AttendanceSummary,
   AuthUser,
   BackupLog,
+  BackupSchedule,
+  BackupScheduleInput,
   BackwardTraceResult,
   BulkGoalsInput,
   BulkGoalsResult,
@@ -17206,4 +17208,152 @@ export function useListBackupLogs<TData = Awaited<ReturnType<typeof listBackupLo
 
 
 
+
+export const getGetBackupScheduleUrl = () => {
+
+
+
+
+  return `/api/admin/backup/schedule`
+}
+
+/**
+ * @summary Get current automatic backup schedule (admin only)
+ */
+export const getBackupSchedule = async ( options?: RequestInit): Promise<BackupSchedule> => {
+
+  return customFetch<BackupSchedule>(getGetBackupScheduleUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBackupScheduleQueryKey = () => {
+    return [
+    `/api/admin/backup/schedule`
+    ] as const;
+    }
+
+
+export const getGetBackupScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getBackupSchedule>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBackupScheduleQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBackupSchedule>>> = ({ signal }) => getBackupSchedule({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBackupSchedule>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBackupScheduleQueryResult = NonNullable<Awaited<ReturnType<typeof getBackupSchedule>>>
+export type GetBackupScheduleQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get current automatic backup schedule (admin only)
+ */
+
+export function useGetBackupSchedule<TData = Awaited<ReturnType<typeof getBackupSchedule>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBackupScheduleQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateBackupScheduleUrl = () => {
+
+
+
+
+  return `/api/admin/backup/schedule`
+}
+
+/**
+ * @summary Update automatic backup schedule (admin only)
+ */
+export const updateBackupSchedule = async (backupScheduleInput: BackupScheduleInput, options?: RequestInit): Promise<BackupSchedule> => {
+
+  return customFetch<BackupSchedule>(getUpdateBackupScheduleUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      backupScheduleInput,)
+  }
+);}
+
+
+
+
+export const getUpdateBackupScheduleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBackupSchedule>>, TError,{data: BodyType<BackupScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBackupSchedule>>, TError,{data: BodyType<BackupScheduleInput>}, TContext> => {
+
+const mutationKey = ['updateBackupSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBackupSchedule>>, {data: BodyType<BackupScheduleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateBackupSchedule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBackupScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof updateBackupSchedule>>>
+    export type UpdateBackupScheduleMutationBody = BodyType<BackupScheduleInput>
+    export type UpdateBackupScheduleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update automatic backup schedule (admin only)
+ */
+export const useUpdateBackupSchedule = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBackupSchedule>>, TError,{data: BodyType<BackupScheduleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBackupSchedule>>,
+        TError,
+        {data: BodyType<BackupScheduleInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateBackupScheduleMutationOptions(options));
+    }
 
