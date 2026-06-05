@@ -11429,6 +11429,9 @@ components:
           type: integer
           minimum: 1
           maximum: 28
+        customRecipients:
+          type: string
+          nullable: true
         lastSentDate:
           type: string
           nullable: true
@@ -11457,6 +11460,9 @@ components:
           type: integer
           minimum: 1
           maximum: 28
+        customRecipients:
+          type: string
+          nullable: true
 
     CompanySettings:
       type: object

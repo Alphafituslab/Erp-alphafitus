@@ -197,12 +197,21 @@ async function checkGoalAlerts(): Promise<void> {
 
   if (alerts.length === 0) return;
 
-  const adminManagerUsers = await db
-    .select({ email: usersTable.email })
-    .from(usersTable)
-    .where(inArray(usersTable.role, ["admin", "manager"]));
+  let recipients: string[];
 
-  const recipients = adminManagerUsers.map((u) => u.email).filter(Boolean);
+  if (settings.customRecipients && settings.customRecipients.trim() !== "") {
+    recipients = settings.customRecipients
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+  } else {
+    const adminManagerUsers = await db
+      .select({ email: usersTable.email })
+      .from(usersTable)
+      .where(inArray(usersTable.role, ["admin", "manager"]));
+    recipients = adminManagerUsers.map((u) => u.email).filter(Boolean);
+  }
+
   if (recipients.length === 0) return;
 
   const monthLabel = `${MONTH_LABELS[m - 1]}/${y}`;

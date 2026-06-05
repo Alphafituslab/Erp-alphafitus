@@ -1158,6 +1158,7 @@ router.get("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
     notifyMinute: settings.notifyMinute,
     progressThreshold: settings.progressThreshold,
     daysRemainingThreshold: settings.daysRemainingThreshold,
+    customRecipients: settings.customRecipients,
     lastSentDate: settings.lastSentDate,
     updatedAt: settings.updatedAt,
   });
@@ -1172,9 +1173,10 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
     notifyMinute?: number;
     progressThreshold?: number;
     daysRemainingThreshold?: number;
+    customRecipients?: string | null;
   };
 
-  const { enabled, notifyHour, notifyMinute, progressThreshold, daysRemainingThreshold } = body;
+  const { enabled, notifyHour, notifyMinute, progressThreshold, daysRemainingThreshold, customRecipients } = body;
 
   if (notifyHour !== undefined && (notifyHour < 0 || notifyHour > 23)) {
     res.status(400).json({ error: "notifyHour deve ser entre 0 e 23" }); return;
@@ -1189,6 +1191,15 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
     res.status(400).json({ error: "daysRemainingThreshold deve ser entre 1 e 28" }); return;
   }
 
+  if (customRecipients != null && customRecipients.trim() !== "") {
+    const emails = customRecipients.split(",").map((e) => e.trim()).filter(Boolean);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalid = emails.filter((e) => !emailRegex.test(e));
+    if (invalid.length > 0) {
+      res.status(400).json({ error: `E-mails inválidos: ${invalid.join(", ")}` }); return;
+    }
+  }
+
   const settings = await getOrInitGoalAlertSettings();
 
   const [updated] = await db
@@ -1199,6 +1210,9 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
       ...(notifyMinute !== undefined && { notifyMinute }),
       ...(progressThreshold !== undefined && { progressThreshold }),
       ...(daysRemainingThreshold !== undefined && { daysRemainingThreshold }),
+      ...("customRecipients" in body && {
+        customRecipients: customRecipients?.trim() || null,
+      }),
       updatedAt: new Date(),
     })
     .where(eq(goalAlertSettingsTable.id, settings.id))
@@ -1211,6 +1225,7 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
     notifyMinute: updated.notifyMinute,
     progressThreshold: updated.progressThreshold,
     daysRemainingThreshold: updated.daysRemainingThreshold,
+    customRecipients: updated.customRecipients,
     lastSentDate: updated.lastSentDate,
     updatedAt: updated.updatedAt,
   });

@@ -4418,6 +4418,7 @@ export const GetGoalAlertSettingsResponse = zod.object({
   "notifyMinute": zod.number().min(getGoalAlertSettingsResponseNotifyMinuteMin).max(getGoalAlertSettingsResponseNotifyMinuteMax),
   "progressThreshold": zod.number().min(1).max(getGoalAlertSettingsResponseProgressThresholdMax),
   "daysRemainingThreshold": zod.number().min(1).max(getGoalAlertSettingsResponseDaysRemainingThresholdMax),
+  "customRecipients": zod.string().nullish(),
   "lastSentDate": zod.string().nullish(),
   "updatedAt": zod.coerce.date()
 })
@@ -4443,7 +4444,8 @@ export const UpdateGoalAlertSettingsBody = zod.object({
   "notifyHour": zod.number().min(updateGoalAlertSettingsBodyNotifyHourMin).max(updateGoalAlertSettingsBodyNotifyHourMax).optional(),
   "notifyMinute": zod.number().min(updateGoalAlertSettingsBodyNotifyMinuteMin).max(updateGoalAlertSettingsBodyNotifyMinuteMax).optional(),
   "progressThreshold": zod.number().min(1).max(updateGoalAlertSettingsBodyProgressThresholdMax).optional(),
-  "daysRemainingThreshold": zod.number().min(1).max(updateGoalAlertSettingsBodyDaysRemainingThresholdMax).optional()
+  "daysRemainingThreshold": zod.number().min(1).max(updateGoalAlertSettingsBodyDaysRemainingThresholdMax).optional(),
+  "customRecipients": zod.string().nullish()
 })
 
 export const updateGoalAlertSettingsResponseNotifyHourMin = 0;
@@ -4465,6 +4467,7 @@ export const UpdateGoalAlertSettingsResponse = zod.object({
   "notifyMinute": zod.number().min(updateGoalAlertSettingsResponseNotifyMinuteMin).max(updateGoalAlertSettingsResponseNotifyMinuteMax),
   "progressThreshold": zod.number().min(1).max(updateGoalAlertSettingsResponseProgressThresholdMax),
   "daysRemainingThreshold": zod.number().min(1).max(updateGoalAlertSettingsResponseDaysRemainingThresholdMax),
+  "customRecipients": zod.string().nullish(),
   "lastSentDate": zod.string().nullish(),
   "updatedAt": zod.coerce.date()
 })

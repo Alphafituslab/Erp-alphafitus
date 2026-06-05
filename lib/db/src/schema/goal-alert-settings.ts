@@ -7,6 +7,7 @@ export const goalAlertSettingsTable = pgTable("goal_alert_settings", {
   notifyMinute: integer("notify_minute").notNull().default(0),
   progressThreshold: integer("progress_threshold").notNull().default(70),
   daysRemainingThreshold: integer("days_remaining_threshold").notNull().default(15),
+  customRecipients: text("custom_recipients"),
   lastSentDate: text("last_sent_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })

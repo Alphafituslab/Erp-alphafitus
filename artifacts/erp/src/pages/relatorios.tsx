@@ -1585,6 +1585,8 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
   const [notifyMinute, setNotifyMinute] = useState<string>("");
   const [progressThreshold, setProgressThreshold] = useState<string>("");
   const [daysRemainingThreshold, setDaysRemainingThreshold] = useState<string>("");
+  const [customRecipients, setCustomRecipients] = useState<string>("");
+  const [recipientsError, setRecipientsError] = useState<string>("");
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -1594,6 +1596,8 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
       setNotifyMinute(String(settings.notifyMinute));
       setProgressThreshold(String(settings.progressThreshold));
       setDaysRemainingThreshold(String(settings.daysRemainingThreshold));
+      setCustomRecipients(settings.customRecipients ?? "");
+      setRecipientsError("");
       setDirty(false);
     }
   }, [settings]);
@@ -1613,6 +1617,17 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
   });
 
   function handleSave() {
+    const trimmed = customRecipients.trim();
+    if (trimmed !== "") {
+      const emails = trimmed.split(",").map((e) => e.trim()).filter(Boolean);
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalid = emails.filter((e) => !emailRegex.test(e));
+      if (invalid.length > 0) {
+        setRecipientsError(`E-mails inválidos: ${invalid.join(", ")}`);
+        return;
+      }
+    }
+    setRecipientsError("");
     updateSettings({
       data: {
         enabled: enabled ?? true,
@@ -1620,6 +1635,7 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
         notifyMinute: parseInt(notifyMinute, 10),
         progressThreshold: parseInt(progressThreshold, 10),
         daysRemainingThreshold: parseInt(daysRemainingThreshold, 10),
+        customRecipients: trimmed || null,
       },
     });
   }
@@ -1656,7 +1672,7 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
         ) : (
           <div className="space-y-5">
             <p className="text-sm text-muted-foreground">
-              Quando uma meta do mês cair abaixo do limiar configurado e restarem poucos dias, todos os administradores e gestores recebem um e-mail de alerta automaticamente.
+              Quando uma meta do mês cair abaixo do limiar configurado e restarem poucos dias, um e-mail de alerta é enviado automaticamente. Se nenhum destinatário personalizado for informado, todos os administradores e gestores cadastrados são notificados.
             </p>
 
             {/* Enable / Disable toggle */}
@@ -1747,8 +1763,34 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
               </div>
             </div>
 
+            {/* Custom recipients */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                Destinatários personalizados
+              </Label>
+              <Input
+                type="text"
+                placeholder="diretor@empresa.com, monitoramento@empresa.com"
+                value={customRecipients}
+                disabled={!isAdmin}
+                className="text-sm"
+                onChange={(e) => {
+                  setCustomRecipients(e.target.value);
+                  setRecipientsError("");
+                  markDirty();
+                }}
+              />
+              {recipientsError ? (
+                <p className="text-xs text-red-600">{recipientsError}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Informe um ou mais e-mails separados por vírgula. Se vazio, todos os admins e gestores cadastrados serão notificados.
+                </p>
+              )}
+            </div>
+
             <p className="text-xs text-muted-foreground">
-              O alerta é disparado uma vez por dia, na hora configurada, se a meta estiver abaixo de {progressThreshold || settings?.progressThreshold}% e restar até {daysRemainingThreshold || settings?.daysRemainingThreshold} dias no mês. Os destinatários são todos os admins e gestores cadastrados.
+              O alerta é disparado uma vez por dia, na hora configurada, se a meta estiver abaixo de {progressThreshold || settings?.progressThreshold}% e restar até {daysRemainingThreshold || settings?.daysRemainingThreshold} dias no mês.
             </p>
 
             {!isAdmin && (

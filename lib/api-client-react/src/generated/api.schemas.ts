@@ -2394,6 +2394,7 @@ export interface GoalAlertSettings {
      * @maximum 28
      */
   daysRemainingThreshold: number;
+  customRecipients?: string | null;
   lastSentDate?: string | null;
   updatedAt: string;
 }
@@ -2420,6 +2421,7 @@ export interface GoalAlertSettingsInput {
      * @maximum 28
      */
   daysRemainingThreshold?: number;
+  customRecipients?: string | null;
 }
 
 export interface CompanySettings {
