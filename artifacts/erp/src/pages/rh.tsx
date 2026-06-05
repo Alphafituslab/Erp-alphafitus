@@ -1334,7 +1334,21 @@ export default function RhPage() {
   const [deleteAttendance, setDeleteAttendance] = useState<AttendanceLog | null>(null);
   const [quickAddDate, setQuickAddDate] = useState<string>("");
 
-  const { data: employees = [], isLoading: empLoading } = useListEmployees({});
+  const PAGE_SIZE = 20;
+  const [empPage, setEmpPage] = useState(1);
+
+  const empParams = useMemo(() => ({
+    page: empPage,
+    pageSize: PAGE_SIZE,
+    ...(empSearch ? { search: empSearch } : {}),
+    ...(empStatusFilter !== "all" ? { status: empStatusFilter as "active" | "inactive" } : {}),
+    ...(empDeptFilter !== "all" ? { department: empDeptFilter } : {}),
+  }), [empPage, empSearch, empStatusFilter, empDeptFilter]);
+
+  useEffect(() => { setEmpPage(1); }, [empSearch, empStatusFilter, empDeptFilter]);
+
+  const { data: empData, isLoading: empLoading } = useListEmployees(empParams);
+  const employees = empData?.items ?? [];
   const { data: departments = [], isLoading: deptLoading } = useListDepartments();
   const { data: dashboard } = useGetRhDashboard();
   const { data: attendanceLogs = [], isLoading: attLoading } = useListAttendanceLogs(
@@ -1385,22 +1399,7 @@ export default function RhPage() {
     [employees]
   );
 
-  const filteredEmployees = useMemo(() => {
-    let list = employees;
-    if (empStatusFilter !== "all") list = list.filter((e) => e.status === empStatusFilter);
-    if (empDeptFilter !== "all") list = list.filter((e) => e.department === empDeptFilter);
-    if (empSearch) {
-      const q = empSearch.toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          (e.cpf ?? "").includes(q) ||
-          (e.email ?? "").toLowerCase().includes(q) ||
-          (e.role ?? "").toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [employees, empStatusFilter, empDeptFilter, empSearch]);
+  const filteredEmployees = employees;
 
   const attendanceByDate = useMemo(() => {
     const map: Record<string, AttendanceLog[]> = {};
@@ -1850,6 +1849,15 @@ export default function RhPage() {
                     })}
                   </TableBody>
                 </Table>
+                {(empData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {empData?.page} de {empData?.totalPages} — {empData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setEmpPage((p) => Math.max(1, p - 1))} disabled={empPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEmpPage((p) => p + 1)} disabled={empPage >= (empData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

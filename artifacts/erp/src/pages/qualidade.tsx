@@ -1797,7 +1797,8 @@ export default function QualidadePage() {
   const { data: ncrs = [], isLoading: ncrsLoading } = useListQualityNcrs({});
   const { data: dashboard } = useGetQualidadeDashboard();
   const { data: capaDashboard } = useGetCapaDashboard();
-  const { data: products = [] } = useListProducts({});
+  const { data: productsPage } = useListProducts({ pageSize: 500 });
+  const products = productsPage?.items ?? [];
   const { data: analyses = [], isLoading: analysesLoading } = useListQualityAnalyses({});
   const { data: certificates = [], isLoading: certsLoading } = useListQualityCertificates();
 

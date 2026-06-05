@@ -86,6 +86,9 @@ router.get("/vendas/clients", async (req: Request, res: Response): Promise<void>
   if (!requireAuth(req, res)) return;
 
   const { search, active } = req.query as Record<string, string>;
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
 
   const filters = [];
   if (active !== undefined) filters.push(eq(clientsTable.active, active));
@@ -97,13 +100,14 @@ router.get("/vendas/clients", async (req: Request, res: Response): Promise<void>
     );
   }
 
-  const clients = await db
-    .select()
-    .from(clientsTable)
-    .where(and(...filters))
-    .orderBy(clientsTable.name);
+  const where = and(...filters);
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(clientsTable).where(where),
+    db.select().from(clientsTable).where(where).orderBy(clientsTable.name).limit(pageSize).offset(offset),
+  ]);
 
-  res.json(clients);
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/vendas/clients", async (req: Request, res: Response): Promise<void> => {
@@ -239,6 +243,9 @@ router.get("/vendas/orders", async (req: Request, res: Response): Promise<void> 
   if (!requireAuth(req, res)) return;
 
   const { type, status, clientId, startDate, endDate } = req.query as Record<string, string>;
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
 
   const filters = [];
   if (type) filters.push(eq(salesOrdersTable.type, type));
@@ -251,35 +258,46 @@ router.get("/vendas/orders", async (req: Request, res: Response): Promise<void> 
     filters.push(lte(salesOrdersTable.createdAt, end));
   }
 
-  const orders = await db
-    .select({
-      id: salesOrdersTable.id,
-      clientId: salesOrdersTable.clientId,
-      clientName: clientsTable.name,
-      type: salesOrdersTable.type,
-      status: salesOrdersTable.status,
-      totalAmount: salesOrdersTable.totalAmount,
-      validUntil: salesOrdersTable.validUntil,
-      deliveryDate: salesOrdersTable.deliveryDate,
-      notes: salesOrdersTable.notes,
-      paymentTerms: salesOrdersTable.paymentTerms,
-      commission: salesOrdersTable.commission,
-      freightValue: salesOrdersTable.freightValue,
-      carrier: salesOrdersTable.carrier,
-      formula: salesOrdersTable.formula,
-      formulaVersion: salesOrdersTable.formulaVersion,
-      packagingType: salesOrdersTable.packagingType,
-      labelRef: salesOrdersTable.labelRef,
-      technicalNotes: salesOrdersTable.technicalNotes,
-      createdAt: salesOrdersTable.createdAt,
-      updatedAt: salesOrdersTable.updatedAt,
-    })
-    .from(salesOrdersTable)
-    .leftJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
-    .where(filters.length ? and(...filters) : undefined)
-    .orderBy(desc(salesOrdersTable.createdAt));
+  const where = filters.length ? and(...filters) : undefined;
+  const selectFields = {
+    id: salesOrdersTable.id,
+    clientId: salesOrdersTable.clientId,
+    clientName: clientsTable.name,
+    type: salesOrdersTable.type,
+    status: salesOrdersTable.status,
+    totalAmount: salesOrdersTable.totalAmount,
+    validUntil: salesOrdersTable.validUntil,
+    deliveryDate: salesOrdersTable.deliveryDate,
+    notes: salesOrdersTable.notes,
+    paymentTerms: salesOrdersTable.paymentTerms,
+    commission: salesOrdersTable.commission,
+    freightValue: salesOrdersTable.freightValue,
+    carrier: salesOrdersTable.carrier,
+    formula: salesOrdersTable.formula,
+    formulaVersion: salesOrdersTable.formulaVersion,
+    packagingType: salesOrdersTable.packagingType,
+    labelRef: salesOrdersTable.labelRef,
+    technicalNotes: salesOrdersTable.technicalNotes,
+    createdAt: salesOrdersTable.createdAt,
+    updatedAt: salesOrdersTable.updatedAt,
+  };
 
-  res.json(orders);
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` })
+      .from(salesOrdersTable)
+      .leftJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
+      .where(where),
+    db.select(selectFields)
+      .from(salesOrdersTable)
+      .leftJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
+      .where(where)
+      .orderBy(desc(salesOrdersTable.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+  ]);
+
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/vendas/orders", async (req: Request, res: Response): Promise<void> => {

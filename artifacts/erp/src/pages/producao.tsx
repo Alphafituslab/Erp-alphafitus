@@ -280,7 +280,8 @@ export default function ProducaoPage() {
     search: formulaSearch || undefined,
     status: (formulaStatusFilter !== "all" ? formulaStatusFilter : undefined) as any,
   });
-  const productsQ = useListProducts();
+  const productsRawQ = useListProducts({ pageSize: 500 });
+  const productsQ = { ...productsRawQ, data: productsRawQ.data?.items ?? [] };
   const ordersQ = useListProductionOrders({
     search: opSearch || undefined,
     status: (opStatusFilter !== "all" ? opStatusFilter : undefined) as any,

@@ -11,4 +11,13 @@ export type ListEmployeesParams = {
 search?: string;
 status?: ListEmployeesStatus;
 department?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };

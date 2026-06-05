@@ -10,4 +10,13 @@ import type { ListClientsActive } from './listClientsActive';
 export type ListClientsParams = {
 search?: string;
 active?: ListClientsActive;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };

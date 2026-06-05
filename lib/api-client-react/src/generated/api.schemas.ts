@@ -110,6 +110,290 @@ export interface SuccessResponse {
   ok: boolean;
 }
 
+export interface Client {
+  id: number;
+  name: string;
+  document?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  notes?: string | null;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientPage {
+  items: Client[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export type SalesOrderType = typeof SalesOrderType[keyof typeof SalesOrderType];
+
+
+export const SalesOrderType = {
+  quote: 'quote',
+  order: 'order',
+} as const;
+
+export type SalesOrderStatus = typeof SalesOrderStatus[keyof typeof SalesOrderStatus];
+
+
+export const SalesOrderStatus = {
+  draft: 'draft',
+  awaiting_docs: 'awaiting_docs',
+  sent: 'sent',
+  client_approved: 'client_approved',
+  client_rejected: 'client_rejected',
+  credit_check: 'credit_check',
+  credit_rejected: 'credit_rejected',
+  financial_review: 'financial_review',
+  financial_rejected: 'financial_rejected',
+  technical_review: 'technical_review',
+  technical_rejected: 'technical_rejected',
+  regulatory_check: 'regulatory_check',
+  pcp_released: 'pcp_released',
+  raw_material_check: 'raw_material_check',
+  production_planned: 'production_planned',
+  in_production: 'in_production',
+  quality_check: 'quality_check',
+  quality_rejected: 'quality_rejected',
+  quality_approved: 'quality_approved',
+  billing: 'billing',
+  invoice_issued: 'invoice_issued',
+  awaiting_pickup: 'awaiting_pickup',
+  shipped: 'shipped',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SalesOrder {
+  id: number;
+  clientId?: number | null;
+  clientName?: string | null;
+  type: SalesOrderType;
+  status: SalesOrderStatus;
+  totalAmount: string;
+  validUntil?: string | null;
+  deliveryDate?: string | null;
+  notes?: string | null;
+  paymentTerms?: string | null;
+  commission?: string | null;
+  freightValue?: string | null;
+  carrier?: string | null;
+  formula?: string | null;
+  formulaVersion?: string | null;
+  packagingType?: string | null;
+  labelRef?: string | null;
+  technicalNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalesOrderPage {
+  items: SalesOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface Product {
+  id: number;
+  sku?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  unit: string;
+  costPrice?: string | null;
+  salePrice?: string | null;
+  currentStock: string;
+  minStock: number;
+  isCritical?: string;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductPage {
+  items: Product[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export type StockMovementType = typeof StockMovementType[keyof typeof StockMovementType];
+
+
+export const StockMovementType = {
+  input: 'input',
+  output: 'output',
+} as const;
+
+export interface StockMovement {
+  id: number;
+  productId: number;
+  productName?: string | null;
+  type: StockMovementType;
+  quantity: number;
+  reason?: string | null;
+  lotId?: number | null;
+  lotInternalLot?: string | null;
+  referenceId?: number | null;
+  referenceType?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface StockMovementPage {
+  items: StockMovement[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export type SupplierApprovalStatus = typeof SupplierApprovalStatus[keyof typeof SupplierApprovalStatus];
+
+
+export const SupplierApprovalStatus = {
+  approved: 'approved',
+  pending: 'pending',
+  blocked: 'blocked',
+} as const;
+
+export interface Supplier {
+  id: number;
+  name: string;
+  tradeName?: string | null;
+  document?: string | null;
+  stateRegistration?: string | null;
+  municipalRegistration?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  zipCode?: string | null;
+  street?: string | null;
+  addressNumber?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  contactName?: string | null;
+  contactRole?: string | null;
+  contactPhone?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  bankAccount?: string | null;
+  bankAccountType?: string | null;
+  category?: string | null;
+  paymentTerms?: string | null;
+  notes?: string | null;
+  active: string;
+  approvalStatus: SupplierApprovalStatus;
+  qualificationStatus?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierPage {
+  items: Supplier[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export type PurchaseOrderStatus = typeof PurchaseOrderStatus[keyof typeof PurchaseOrderStatus];
+
+
+export const PurchaseOrderStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  partially_received: 'partially_received',
+  received: 'received',
+  cancelled: 'cancelled',
+} as const;
+
+export interface PurchaseOrder {
+  id: number;
+  supplierId: number;
+  supplierName?: string | null;
+  status: PurchaseOrderStatus;
+  totalAmount: string;
+  freightCost?: string | null;
+  carrier?: string | null;
+  nfNumber?: string | null;
+  purchaseRequestId?: number | null;
+  expectedDeliveryDate?: string | null;
+  receivedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PurchaseOrderPage {
+  items: PurchaseOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export type EmployeeLinkedUserRole = typeof EmployeeLinkedUserRole[keyof typeof EmployeeLinkedUserRole];
+
+
+export const EmployeeLinkedUserRole = {
+  admin: 'admin',
+  manager: 'manager',
+  employee: 'employee',
+} as const;
+
+export interface EmployeeLinkedUser {
+  id: number;
+  email: string;
+  role: EmployeeLinkedUserRole;
+  active: string;
+}
+
+export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
+
+
+export const EmployeeStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface Employee {
+  id: number;
+  name: string;
+  cpf?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  department?: string | null;
+  hireDate?: string | null;
+  salary?: string | null;
+  status: EmployeeStatus;
+  linkedUser?: EmployeeLinkedUser | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeePage {
+  items: Employee[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -237,6 +521,7 @@ export interface Client {
   updatedAt: string;
 }
 
+
 export interface ClientInput {
   name: string;
   tradeName?: string | null;
@@ -296,68 +581,6 @@ export interface SalesOrderLog {
   userName?: string | null;
   notes?: string | null;
   createdAt: string;
-}
-
-export type SalesOrderType = typeof SalesOrderType[keyof typeof SalesOrderType];
-
-
-export const SalesOrderType = {
-  quote: 'quote',
-  order: 'order',
-} as const;
-
-export type SalesOrderStatus = typeof SalesOrderStatus[keyof typeof SalesOrderStatus];
-
-
-export const SalesOrderStatus = {
-  draft: 'draft',
-  awaiting_docs: 'awaiting_docs',
-  sent: 'sent',
-  client_approved: 'client_approved',
-  client_rejected: 'client_rejected',
-  credit_check: 'credit_check',
-  credit_rejected: 'credit_rejected',
-  financial_review: 'financial_review',
-  financial_rejected: 'financial_rejected',
-  technical_review: 'technical_review',
-  technical_rejected: 'technical_rejected',
-  regulatory_check: 'regulatory_check',
-  pcp_released: 'pcp_released',
-  raw_material_check: 'raw_material_check',
-  production_planned: 'production_planned',
-  in_production: 'in_production',
-  quality_check: 'quality_check',
-  quality_rejected: 'quality_rejected',
-  quality_approved: 'quality_approved',
-  billing: 'billing',
-  invoice_issued: 'invoice_issued',
-  awaiting_pickup: 'awaiting_pickup',
-  shipped: 'shipped',
-  delivered: 'delivered',
-  cancelled: 'cancelled',
-} as const;
-
-export interface SalesOrder {
-  id: number;
-  clientId?: number | null;
-  clientName?: string | null;
-  type: SalesOrderType;
-  status: SalesOrderStatus;
-  totalAmount: string;
-  validUntil?: string | null;
-  deliveryDate?: string | null;
-  notes?: string | null;
-  paymentTerms?: string | null;
-  commission?: string | null;
-  freightValue?: string | null;
-  carrier?: string | null;
-  formula?: string | null;
-  formulaVersion?: string | null;
-  packagingType?: string | null;
-  labelRef?: string | null;
-  technicalNotes?: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export type SalesOrderWithItemsType = typeof SalesOrderWithItemsType[keyof typeof SalesOrderWithItemsType];
@@ -576,6 +799,7 @@ export interface Product {
   updatedAt: string;
 }
 
+
 export interface ProductInput {
   sku?: string | null;
   name: string;
@@ -637,29 +861,6 @@ export interface ProductLotLabel {
   manufacturingDate?: string | null;
   receivedAt: string;
   notes?: string | null;
-}
-
-export type StockMovementType = typeof StockMovementType[keyof typeof StockMovementType];
-
-
-export const StockMovementType = {
-  input: 'input',
-  output: 'output',
-} as const;
-
-export interface StockMovement {
-  id: number;
-  productId: number;
-  productName?: string | null;
-  type: StockMovementType;
-  quantity: number;
-  reason?: string | null;
-  lotId?: number | null;
-  lotInternalLot?: string | null;
-  referenceId?: number | null;
-  referenceType?: string | null;
-  notes?: string | null;
-  createdAt: string;
 }
 
 export type StockMovementInputType = typeof StockMovementInputType[keyof typeof StockMovementInputType];
@@ -1274,49 +1475,6 @@ export interface QualityCertificate {
   createdAt: string;
 }
 
-export type SupplierApprovalStatus = typeof SupplierApprovalStatus[keyof typeof SupplierApprovalStatus];
-
-
-export const SupplierApprovalStatus = {
-  approved: 'approved',
-  pending: 'pending',
-  blocked: 'blocked',
-} as const;
-
-export interface Supplier {
-  id: number;
-  name: string;
-  tradeName?: string | null;
-  document?: string | null;
-  stateRegistration?: string | null;
-  municipalRegistration?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  zipCode?: string | null;
-  street?: string | null;
-  addressNumber?: string | null;
-  complement?: string | null;
-  neighborhood?: string | null;
-  city?: string | null;
-  state?: string | null;
-  contactName?: string | null;
-  contactRole?: string | null;
-  contactPhone?: string | null;
-  bankName?: string | null;
-  bankAgency?: string | null;
-  bankAccount?: string | null;
-  bankAccountType?: string | null;
-  category?: string | null;
-  paymentTerms?: string | null;
-  notes?: string | null;
-  active: string;
-  approvalStatus: SupplierApprovalStatus;
-  qualificationStatus?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface SupplierInput {
   name: string;
   tradeName?: string | null;
@@ -1363,34 +1521,6 @@ export interface PurchaseOrderItemInput {
   description: string;
   quantity: number;
   unitPrice: number;
-}
-
-export type PurchaseOrderStatus = typeof PurchaseOrderStatus[keyof typeof PurchaseOrderStatus];
-
-
-export const PurchaseOrderStatus = {
-  draft: 'draft',
-  sent: 'sent',
-  partially_received: 'partially_received',
-  received: 'received',
-  cancelled: 'cancelled',
-} as const;
-
-export interface PurchaseOrder {
-  id: number;
-  supplierId: number;
-  supplierName?: string | null;
-  status: PurchaseOrderStatus;
-  totalAmount: string;
-  freightCost?: string | null;
-  carrier?: string | null;
-  nfNumber?: string | null;
-  purchaseRequestId?: number | null;
-  expectedDeliveryDate?: string | null;
-  receivedAt?: string | null;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export type PurchaseOrderWithItemsStatus = typeof PurchaseOrderWithItemsStatus[keyof typeof PurchaseOrderWithItemsStatus];
@@ -1638,46 +1768,6 @@ export interface SupplierApprovalInput {
 
 export interface PurchaseRequestRejectionInput {
   notes?: string | null;
-}
-
-export type EmployeeLinkedUserRole = typeof EmployeeLinkedUserRole[keyof typeof EmployeeLinkedUserRole];
-
-
-export const EmployeeLinkedUserRole = {
-  admin: 'admin',
-  manager: 'manager',
-  employee: 'employee',
-} as const;
-
-export interface EmployeeLinkedUser {
-  id: number;
-  email: string;
-  role: EmployeeLinkedUserRole;
-  active: string;
-}
-
-export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
-
-
-export const EmployeeStatus = {
-  active: 'active',
-  inactive: 'inactive',
-} as const;
-
-export interface Employee {
-  id: number;
-  name: string;
-  cpf?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  role: string;
-  department?: string | null;
-  hireDate?: string | null;
-  salary?: string | null;
-  status: EmployeeStatus;
-  linkedUser?: EmployeeLinkedUser | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export type EmployeeInputStatus = typeof EmployeeInputStatus[keyof typeof EmployeeInputStatus];
@@ -3229,6 +3319,15 @@ year?: number;
 export type ListClientsParams = {
 search?: string;
 active?: ListClientsActive;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListClientsActive = typeof ListClientsActive[keyof typeof ListClientsActive];
@@ -3245,6 +3344,15 @@ status?: ListSalesOrdersStatus;
 clientId?: number;
 startDate?: string;
 endDate?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListSalesOrdersType = typeof ListSalesOrdersType[keyof typeof ListSalesOrdersType];
@@ -3291,6 +3399,15 @@ search?: string;
 category?: string;
 active?: ListProductsActive;
 lowStock?: ListProductsLowStock;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListProductsActive = typeof ListProductsActive[keyof typeof ListProductsActive];
@@ -3313,6 +3430,15 @@ productId?: number;
 type?: ListStockMovementsType;
 startDate?: string;
 endDate?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListStockMovementsType = typeof ListStockMovementsType[keyof typeof ListStockMovementsType];
@@ -3360,6 +3486,15 @@ export type ListSuppliersParams = {
 search?: string;
 active?: ListSuppliersActive;
 category?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListSuppliersActive = typeof ListSuppliersActive[keyof typeof ListSuppliersActive];
@@ -3375,6 +3510,15 @@ status?: ListPurchaseOrdersStatus;
 supplierId?: number;
 startDate?: string;
 endDate?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListPurchaseOrdersStatus = typeof ListPurchaseOrdersStatus[keyof typeof ListPurchaseOrdersStatus];
@@ -3501,6 +3645,15 @@ export type ListEmployeesParams = {
 search?: string;
 status?: ListEmployeesStatus;
 department?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListEmployeesStatus = typeof ListEmployeesStatus[keyof typeof ListEmployeesStatus];

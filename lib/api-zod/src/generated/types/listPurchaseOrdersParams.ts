@@ -12,4 +12,13 @@ status?: ListPurchaseOrdersStatus;
 supplierId?: number;
 startDate?: Date;
 endDate?: Date;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };

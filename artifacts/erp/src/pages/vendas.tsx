@@ -1116,9 +1116,11 @@ export default function VendasPage() {
   const [clientDialog, setClientDialog] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteClient, setDeleteClient] = useState<Client | null>(null);
+  const [clientsPage, setClientsPage] = useState(1);
 
   const [orderType, setOrderType] = useState<string>("all");
   const [orderStatus, setOrderStatus] = useState<string>("all");
+  const [ordersPage, setOrdersPage] = useState(1);
   const [orderDialog, setOrderDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
   const [deleteOrder, setDeleteOrder] = useState<SalesOrder | null>(null);
@@ -1129,18 +1131,29 @@ export default function VendasPage() {
     qc.invalidateQueries({ queryKey: getGetVendasDashboardQueryKey() });
   };
 
-  const { data: clients = [] } = useListClients({});
-  const activeClients = useMemo(() => clients.filter((c) => c.active === "true"), [clients]);
+  const PAGE_SIZE = 20;
 
-  const orderParams = useMemo(() => ({
+  const { data: clientsData } = useListClients({ page: clientsPage, pageSize: PAGE_SIZE });
+  const { data: allClientsData } = useListClients({ pageSize: 500 });
+  const clients = clientsData?.items ?? [];
+  const activeClients = useMemo(() => (allClientsData?.items ?? []).filter((c) => c.active === "true"), [allClientsData]);
+
+  const ordersParams = useMemo(() => ({
     ...(orderType !== "all" ? { type: orderType as "quote" | "order" } : {}),
     ...(orderStatus !== "all" ? { status: orderStatus as any } : {}),
-  }), [orderType, orderStatus]);
+    page: ordersPage,
+    pageSize: PAGE_SIZE,
+  }), [orderType, orderStatus, ordersPage]);
 
-  const { data: orders = [], isLoading: ordersLoading } = useListSalesOrders(orderParams);
+  useEffect(() => { setOrdersPage(1); }, [orderType, orderStatus]);
+  useEffect(() => { setClientsPage(1); }, [clientSearch]);
+
+  const { data: ordersData, isLoading: ordersLoading } = useListSalesOrders(ordersParams);
+  const orders = ordersData?.items ?? [];
   const { data: dashboard } = useGetVendasDashboard({ year: currentYear });
 
-  const { data: allOrders = [] } = useListSalesOrders({});
+  const { data: allOrdersData } = useListSalesOrders({ pageSize: 500 });
+  const allOrders = allOrdersData?.items ?? [];
 
   const deleteCMutation = useDeleteClient();
   const deleteOMutation = useDeleteSalesOrder();
@@ -1475,6 +1488,15 @@ export default function VendasPage() {
                     })}
                   </TableBody>
                 </Table>
+                {(ordersData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {ordersData?.page} de {ordersData?.totalPages} — {ordersData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setOrdersPage((p) => Math.max(1, p - 1))} disabled={ordersPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setOrdersPage((p) => p + 1)} disabled={ordersPage >= (ordersData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1533,6 +1555,15 @@ export default function VendasPage() {
                     ))}
                   </TableBody>
                 </Table>
+                {(clientsData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {clientsData?.page} de {clientsData?.totalPages} — {clientsData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setClientsPage((p) => Math.max(1, p - 1))} disabled={clientsPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setClientsPage((p) => p + 1)} disabled={clientsPage >= (clientsData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

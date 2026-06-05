@@ -161,7 +161,8 @@ function ProjectDialog({
   const { toast } = useToast();
   const createM = useCreateProject();
   const updateM = useUpdateProject();
-  const { data: clients = [] } = useListClients({});
+  const { data: clientsPage } = useListClients({ pageSize: 500 });
+  const clients = clientsPage?.items ?? [];
 
   const form = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
@@ -325,7 +326,8 @@ function TaskDialog({
   const { toast } = useToast();
   const createM = useCreateProjectTask();
   const updateM = useUpdateProjectTask();
-  const { data: employees = [] } = useListEmployees({});
+  const { data: employeesPage } = useListEmployees({ pageSize: 500 });
+  const employees = employeesPage?.items ?? [];
   const activeEmployees = useMemo(() => employees.filter((e) => e.status === "active"), [employees]);
 
   const form = useForm<TaskForm>({

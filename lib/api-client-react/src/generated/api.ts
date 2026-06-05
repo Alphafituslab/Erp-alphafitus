@@ -44,6 +44,7 @@ import type {
   CashflowMonth,
   Client,
   ClientInput,
+  ClientPage,
   CompleteAnalysisInput,
   ComprasDashboard,
   CreateUsuarioInput,
@@ -54,6 +55,7 @@ import type {
   DepartmentInput,
   Employee,
   EmployeeInput,
+  EmployeePage,
   EmployeeTraining,
   EmployeeTrainingInput,
   EmployeeTrainingRecord,
@@ -135,6 +137,7 @@ import type {
   ProductLotInput,
   ProductLotLabel,
   ProductLotUpdateInput,
+  ProductPage,
   ProductionOrder,
   ProductionOrderDetail,
   ProductionOrderFinishInput,
@@ -153,6 +156,7 @@ import type {
   ProjectsDashboard,
   PurchaseOrder,
   PurchaseOrderInput,
+  PurchaseOrderPage,
   PurchaseOrderWithItems,
   PurchaseRequest,
   PurchaseRequestInput,
@@ -180,6 +184,7 @@ import type {
   SalesOrder,
   SalesOrderInput,
   SalesOrderLog,
+  SalesOrderPage,
   SalesOrderWithItems,
   SearchTraceLotsParams,
   SelectQuotationWinnerInput,
@@ -188,11 +193,13 @@ import type {
   StageUpdateInput,
   StockMovement,
   StockMovementInput,
+  StockMovementPage,
   SuccessResponse,
   Supplier,
   SupplierAnalysisResult,
   SupplierApprovalInput,
   SupplierInput,
+  SupplierPage,
   TraceabilityResult,
   Training,
   TrainingComplianceDept,
@@ -988,9 +995,9 @@ export const getListClientsUrl = (params?: ListClientsParams,) => {
 /**
  * @summary List clients with optional search
  */
-export const listClients = async (params?: ListClientsParams, options?: RequestInit): Promise<Client[]> => {
+export const listClients = async (params?: ListClientsParams, options?: RequestInit): Promise<ClientPage> => {
 
-  return customFetch<Client[]>(getListClientsUrl(params),
+  return customFetch<ClientPage>(getListClientsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1285,9 +1292,9 @@ export const getListSalesOrdersUrl = (params?: ListSalesOrdersParams,) => {
 /**
  * @summary List sales orders/quotes with optional filters
  */
-export const listSalesOrders = async (params?: ListSalesOrdersParams, options?: RequestInit): Promise<SalesOrder[]> => {
+export const listSalesOrders = async (params?: ListSalesOrdersParams, options?: RequestInit): Promise<SalesOrderPage> => {
 
-  return customFetch<SalesOrder[]>(getListSalesOrdersUrl(params),
+  return customFetch<SalesOrderPage>(getListSalesOrdersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1878,9 +1885,9 @@ export const getListProductsUrl = (params?: ListProductsParams,) => {
 /**
  * @summary List products with optional filters
  */
-export const listProducts = async (params?: ListProductsParams, options?: RequestInit): Promise<Product[]> => {
+export const listProducts = async (params?: ListProductsParams, options?: RequestInit): Promise<ProductPage> => {
 
-  return customFetch<Product[]>(getListProductsUrl(params),
+  return customFetch<ProductPage>(getListProductsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2175,9 +2182,9 @@ export const getListStockMovementsUrl = (params?: ListStockMovementsParams,) => 
 /**
  * @summary List stock movements with optional filters
  */
-export const listStockMovements = async (params?: ListStockMovementsParams, options?: RequestInit): Promise<StockMovement[]> => {
+export const listStockMovements = async (params?: ListStockMovementsParams, options?: RequestInit): Promise<StockMovementPage> => {
 
-  return customFetch<StockMovement[]>(getListStockMovementsUrl(params),
+  return customFetch<StockMovementPage>(getListStockMovementsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -3236,9 +3243,9 @@ export const getListSuppliersUrl = (params?: ListSuppliersParams,) => {
 /**
  * @summary List suppliers with optional search
  */
-export const listSuppliers = async (params?: ListSuppliersParams, options?: RequestInit): Promise<Supplier[]> => {
+export const listSuppliers = async (params?: ListSuppliersParams, options?: RequestInit): Promise<SupplierPage> => {
 
-  return customFetch<Supplier[]>(getListSuppliersUrl(params),
+  return customFetch<SupplierPage>(getListSuppliersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -3533,9 +3540,9 @@ export const getListPurchaseOrdersUrl = (params?: ListPurchaseOrdersParams,) => 
 /**
  * @summary List purchase orders with optional filters
  */
-export const listPurchaseOrders = async (params?: ListPurchaseOrdersParams, options?: RequestInit): Promise<PurchaseOrder[]> => {
+export const listPurchaseOrders = async (params?: ListPurchaseOrdersParams, options?: RequestInit): Promise<PurchaseOrderPage> => {
 
-  return customFetch<PurchaseOrder[]>(getListPurchaseOrdersUrl(params),
+  return customFetch<PurchaseOrderPage>(getListPurchaseOrdersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -7558,9 +7565,9 @@ export const getListEmployeesUrl = (params?: ListEmployeesParams,) => {
 /**
  * @summary List employees with optional filters
  */
-export const listEmployees = async (params?: ListEmployeesParams, options?: RequestInit): Promise<Employee[]> => {
+export const listEmployees = async (params?: ListEmployeesParams, options?: RequestInit): Promise<EmployeePage> => {
 
-  return customFetch<Employee[]>(getListEmployeesUrl(params),
+  return customFetch<EmployeePage>(getListEmployeesUrl(params),
   {
     ...options,
     method: 'GET'

@@ -11,4 +11,13 @@ export type ListSuppliersParams = {
 search?: string;
 active?: ListSuppliersActive;
 category?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };

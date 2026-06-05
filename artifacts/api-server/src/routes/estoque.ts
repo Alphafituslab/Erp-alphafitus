@@ -31,6 +31,9 @@ router.get("/estoque/products", async (req: Request, res: Response): Promise<voi
   if (!requireAuth(req, res)) return;
 
   const { search, category, active, lowStock } = req.query as Record<string, string>;
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
 
   const filters = [];
 
@@ -54,13 +57,14 @@ router.get("/estoque/products", async (req: Request, res: Response): Promise<voi
     filters.push(sql`${productsTable.currentStock} <= ${productsTable.minStock}`);
   }
 
-  const products = await db
-    .select()
-    .from(productsTable)
-    .where(and(...filters))
-    .orderBy(productsTable.name);
+  const where = and(...filters);
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(where),
+    db.select().from(productsTable).where(where).orderBy(productsTable.name).limit(pageSize).offset(offset),
+  ]);
 
-  res.json(products);
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/estoque/products", async (req: Request, res: Response): Promise<void> => {
@@ -184,6 +188,9 @@ router.get("/estoque/movements", async (req: Request, res: Response): Promise<vo
   if (!requireAuth(req, res)) return;
 
   const { productId, type, startDate, endDate } = req.query as Record<string, string>;
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
 
   const filters = [];
 
@@ -199,29 +206,40 @@ router.get("/estoque/movements", async (req: Request, res: Response): Promise<vo
     filters.push(lte(stockMovementsTable.createdAt, end));
   }
 
-  const movements = await db
-    .select({
-      id: stockMovementsTable.id,
-      productId: stockMovementsTable.productId,
-      productName: productsTable.name,
-      lotId: stockMovementsTable.lotId,
-      lotInternalLot: productLotsTable.internalLot,
-      type: stockMovementsTable.type,
-      quantity: stockMovementsTable.quantity,
-      reason: stockMovementsTable.reason,
-      referenceId: stockMovementsTable.referenceId,
-      referenceType: stockMovementsTable.referenceType,
-      notes: stockMovementsTable.notes,
-      createdAt: stockMovementsTable.createdAt,
-    })
-    .from(stockMovementsTable)
-    .leftJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
-    .leftJoin(productLotsTable, eq(stockMovementsTable.lotId, productLotsTable.id))
-    .where(filters.length ? and(...filters) : undefined)
-    .orderBy(desc(stockMovementsTable.createdAt))
-    .limit(200);
+  const where = filters.length ? and(...filters) : undefined;
+  const selectFields = {
+    id: stockMovementsTable.id,
+    productId: stockMovementsTable.productId,
+    productName: productsTable.name,
+    lotId: stockMovementsTable.lotId,
+    lotInternalLot: productLotsTable.internalLot,
+    type: stockMovementsTable.type,
+    quantity: stockMovementsTable.quantity,
+    reason: stockMovementsTable.reason,
+    referenceId: stockMovementsTable.referenceId,
+    referenceType: stockMovementsTable.referenceType,
+    notes: stockMovementsTable.notes,
+    createdAt: stockMovementsTable.createdAt,
+  };
 
-  res.json(movements);
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` })
+      .from(stockMovementsTable)
+      .leftJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
+      .leftJoin(productLotsTable, eq(stockMovementsTable.lotId, productLotsTable.id))
+      .where(where),
+    db.select(selectFields)
+      .from(stockMovementsTable)
+      .leftJoin(productsTable, eq(stockMovementsTable.productId, productsTable.id))
+      .leftJoin(productLotsTable, eq(stockMovementsTable.lotId, productLotsTable.id))
+      .where(where)
+      .orderBy(desc(stockMovementsTable.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+  ]);
+
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/estoque/movements", async (req: Request, res: Response): Promise<void> => {

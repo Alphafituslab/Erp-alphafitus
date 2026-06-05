@@ -1685,11 +1685,34 @@ export default function ComprasPage() {
   const [quotDialog, setQuotDialog] = useState(false);
   const [viewQuotation, setViewQuotation] = useState<QuotationWithItems | null>(null);
 
+  // Pagination
+  const PAGE_SIZE = 20;
+  const [suppliersPage, setSuppliersPage] = useState(1);
+  const [poPage, setPoPage] = useState(1);
+
   // Queries
-  const { data: suppliers = [], isLoading: supplLoading } = useListSuppliers({});
-  const { data: orders = [], isLoading: ordersLoading } = useListPurchaseOrders({});
+  const suppliersParams = useMemo(() => ({
+    page: suppliersPage,
+    pageSize: PAGE_SIZE,
+    ...(suppSearch ? { search: suppSearch } : {}),
+  }), [suppliersPage, suppSearch]);
+
+  const poParams = useMemo(() => ({
+    page: poPage,
+    pageSize: PAGE_SIZE,
+    ...(poStatusFilter !== "all" ? { status: poStatusFilter as any } : {}),
+  }), [poPage, poStatusFilter]);
+
+  useEffect(() => { setSuppliersPage(1); }, [suppSearch]);
+  useEffect(() => { setPoPage(1); }, [poStatusFilter]);
+
+  const { data: suppliersData, isLoading: supplLoading } = useListSuppliers(suppliersParams);
+  const { data: ordersData, isLoading: ordersLoading } = useListPurchaseOrders(poParams);
+  const suppliers = suppliersData?.items ?? [];
+  const orders = ordersData?.items ?? [];
   const { data: dashboard } = useGetComprasDashboard();
-  const { data: products = [] } = useListProducts({});
+  const { data: productsData } = useListProducts({ pageSize: 500 });
+  const products = productsData?.items ?? [];
   const { data: requests = [], isLoading: reqLoading } = useListPurchaseRequests({});
   const { data: quotations = [], isLoading: quotLoading } = useListQuotations({});
   const { data: warehouses = [] } = useListWarehouses({});
@@ -1719,23 +1742,13 @@ export default function ComprasPage() {
   const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active === "true"), [suppliers]);
   const activeProducts = useMemo(() => products.filter((p) => p.active === "true"), [products]);
 
-  const filteredSuppliers = useMemo(() => {
-    if (!suppSearch) return activeSuppliers;
-    const q = suppSearch.toLowerCase();
-    return activeSuppliers.filter(
-      (s) => s.name.toLowerCase().includes(q) || (s.document ?? "").toLowerCase().includes(q) || (s.category ?? "").toLowerCase().includes(q)
-    );
-  }, [activeSuppliers, suppSearch]);
+  const filteredSuppliers = activeSuppliers;
 
   const filteredOrders = useMemo(() => {
-    let list = orders;
-    if (poStatusFilter !== "all") list = list.filter((o) => o.status === poStatusFilter);
-    if (poSearch) {
-      const q = poSearch.toLowerCase();
-      list = list.filter((o) => String(o.id).includes(q) || (o.supplierName ?? "").toLowerCase().includes(q));
-    }
-    return list;
-  }, [orders, poStatusFilter, poSearch]);
+    if (!poSearch) return orders;
+    const q = poSearch.toLowerCase();
+    return orders.filter((o) => String(o.id).includes(q) || (o.supplierName ?? "").toLowerCase().includes(q));
+  }, [orders, poSearch]);
 
   const filteredRequests = useMemo(() => {
     if (reqStatusFilter === "all") return requests;
@@ -2063,6 +2076,15 @@ export default function ComprasPage() {
                     ))}
                   </TableBody>
                 </Table>
+                {(ordersData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {ordersData?.page} de {ordersData?.totalPages} — {ordersData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setPoPage((p) => Math.max(1, p - 1))} disabled={poPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setPoPage((p) => p + 1)} disabled={poPage >= (ordersData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -2288,6 +2310,15 @@ export default function ComprasPage() {
                     ))}
                   </TableBody>
                 </Table>
+                {(suppliersData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {suppliersData?.page} de {suppliersData?.totalPages} — {suppliersData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setSuppliersPage((p) => Math.max(1, p - 1))} disabled={suppliersPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setSuppliersPage((p) => p + 1)} disabled={suppliersPage >= (suppliersData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

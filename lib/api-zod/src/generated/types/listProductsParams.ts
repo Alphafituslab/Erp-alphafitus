@@ -13,4 +13,13 @@ search?: string;
 category?: string;
 active?: ListProductsActive;
 lowStock?: ListProductsLowStock;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };

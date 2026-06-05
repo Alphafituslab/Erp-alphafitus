@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -178,7 +178,8 @@ function ProductDialog({ open, onClose, editing }: { open: boolean; onClose: () 
   };
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
-  const { data: suppliers = [] } = useListSuppliers({});
+  const { data: suppliersPage } = useListSuppliers({ pageSize: 500 });
+  const suppliers = suppliersPage?.items ?? [];
 
   const form = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
@@ -1095,8 +1096,33 @@ export default function EstoquePage() {
   const [warehouseDialog, setWarehouseDialog] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
 
-  const { data: products = [], isLoading: productsLoading } = useListProducts({});
-  const { data: movements = [], isLoading: movementsLoading } = useListStockMovements({});
+  const PAGE_SIZE = 20;
+  const [productsPage, setProductsPage] = useState(1);
+  const [movementsPage, setMovementsPage] = useState(1);
+
+  const productsParams = useMemo(() => ({
+    page: productsPage,
+    pageSize: PAGE_SIZE,
+    ...(search ? { search } : {}),
+    ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
+    ...(stockAlertFilter ? { lowStock: "true" as const } : {}),
+  }), [productsPage, search, categoryFilter, stockAlertFilter]);
+
+  const movementsParams = useMemo(() => ({
+    page: movementsPage,
+    pageSize: PAGE_SIZE,
+    ...(movTypeFilter !== "all" ? { type: movTypeFilter as "input" | "output" } : {}),
+  }), [movementsPage, movTypeFilter]);
+
+  useEffect(() => { setProductsPage(1); }, [search, categoryFilter, stockAlertFilter]);
+  useEffect(() => { setMovementsPage(1); }, [movTypeFilter]);
+
+  const { data: productsData, isLoading: productsLoading } = useListProducts(productsParams);
+  const { data: movementsData, isLoading: movementsLoading } = useListStockMovements(movementsParams);
+  const { data: allProductsData } = useListProducts({ pageSize: 500 });
+  const products = productsData?.items ?? [];
+  const movements = movementsData?.items ?? [];
+  const allProducts = allProductsData?.items ?? [];
   const { data: dashboard } = useGetEstoqueDashboard();
   const { data: warehouses = [] } = useListWarehouses({});
   const { data: lots = [], isLoading: lotsLoading } = useListProductLots({});
@@ -1104,32 +1130,20 @@ export default function EstoquePage() {
   const deleteMutation = useDeleteProduct();
 
   const activeProducts = useMemo(() => products.filter((p) => p.active === "true"), [products]);
+  const allActiveProducts = useMemo(() => allProducts.filter((p) => p.active === "true"), [allProducts]);
 
   const categories = useMemo(() => {
-    const cats = new Set(activeProducts.map((p) => p.category).filter(Boolean) as string[]);
+    const cats = new Set(allActiveProducts.map((p) => p.category).filter(Boolean) as string[]);
     return Array.from(cats).sort();
-  }, [activeProducts]);
+  }, [allActiveProducts]);
 
-  const filteredProducts = useMemo(() => {
-    let list = activeProducts;
-    if (categoryFilter !== "all") list = list.filter((p) => p.category === categoryFilter);
-    if (stockAlertFilter) list = list.filter((p) => stockStatus(p) !== "ok");
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q) || (p.category ?? "").toLowerCase().includes(q));
-    }
-    return list;
-  }, [activeProducts, categoryFilter, stockAlertFilter, search]);
+  const filteredProducts = activeProducts;
 
   const filteredMovements = useMemo(() => {
-    let list = movements;
-    if (movTypeFilter !== "all") list = list.filter((m) => m.type === movTypeFilter);
-    if (movSearch) {
-      const q = movSearch.toLowerCase();
-      list = list.filter((m) => (m.productName ?? "").toLowerCase().includes(q) || (m.reason ?? "").toLowerCase().includes(q));
-    }
-    return list;
-  }, [movements, movTypeFilter, movSearch]);
+    if (!movSearch) return movements;
+    const q = movSearch.toLowerCase();
+    return movements.filter((m) => (m.productName ?? "").toLowerCase().includes(q) || (m.reason ?? "").toLowerCase().includes(q));
+  }, [movements, movSearch]);
 
   const filteredLots = useMemo(() => {
     let list = [...lots];
@@ -1471,6 +1485,15 @@ export default function EstoquePage() {
                     ))}
                   </TableBody>
                 </Table>
+                {(productsData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {productsData?.page} de {productsData?.totalPages} — {productsData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setProductsPage((p) => Math.max(1, p - 1))} disabled={productsPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setProductsPage((p) => p + 1)} disabled={productsPage >= (productsData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1607,6 +1630,15 @@ export default function EstoquePage() {
                     ))}
                   </TableBody>
                 </Table>
+                {(movementsData?.totalPages ?? 1) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <span className="text-sm text-muted-foreground">Página {movementsData?.page} de {movementsData?.totalPages} — {movementsData?.total} registros</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setMovementsPage((p) => Math.max(1, p - 1))} disabled={movementsPage <= 1}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setMovementsPage((p) => p + 1)} disabled={movementsPage >= (movementsData?.totalPages ?? 1)}>Próxima</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

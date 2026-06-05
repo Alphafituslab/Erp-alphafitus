@@ -74,6 +74,9 @@ router.get("/rh/employees", async (req: Request, res: Response): Promise<void> =
     status?: string;
     department?: string;
   };
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
 
   const filters: any[] = [];
   if (status) filters.push(eq(employeesTable.status, status));
@@ -85,14 +88,15 @@ router.get("/rh/employees", async (req: Request, res: Response): Promise<void> =
     );
   }
 
-  const employees = await db
-    .select()
-    .from(employeesTable)
-    .where(filters.length ? and(...filters) : undefined)
-    .orderBy(employeesTable.name);
+  const where = filters.length ? and(...filters) : undefined;
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(employeesTable).where(where),
+    db.select().from(employeesTable).where(where).orderBy(employeesTable.name).limit(pageSize).offset(offset),
+  ]);
 
-  const result = await Promise.all(employees.map(attachLinkedUser));
-  res.json(result);
+  const enrichedItems = await Promise.all(items.map(attachLinkedUser));
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items: enrichedItems, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/rh/employees", async (req: Request, res: Response): Promise<void> => {

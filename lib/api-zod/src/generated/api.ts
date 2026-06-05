@@ -198,12 +198,22 @@ export const GetCashflowResponse = zod.array(GetCashflowResponseItem)
 /**
  * @summary List clients with optional search
  */
+export const listClientsQueryPageDefault = 1;
+
+export const listClientsQueryPageSizeDefault = 20;
+export const listClientsQueryPageSizeMax = 500;
+
+
+
 export const ListClientsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "active": zod.enum(['true', 'false']).optional()
+  "active": zod.enum(['true', 'false']).optional(),
+  "page": zod.coerce.number().min(1).default(listClientsQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listClientsQueryPageSizeMax).default(listClientsQueryPageSizeDefault)
 })
 
-export const ListClientsResponseItem = zod.object({
+export const ListClientsResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "tradeName": zod.string().nullish(),
@@ -237,8 +247,12 @@ export const ListClientsResponseItem = zod.object({
   "active": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListClientsResponse = zod.array(ListClientsResponseItem)
 
 
 /**
@@ -370,15 +384,25 @@ export const DeleteClientResponse = zod.object({
 /**
  * @summary List sales orders/quotes with optional filters
  */
+export const listSalesOrdersQueryPageDefault = 1;
+
+export const listSalesOrdersQueryPageSizeDefault = 20;
+export const listSalesOrdersQueryPageSizeMax = 500;
+
+
+
 export const ListSalesOrdersQueryParams = zod.object({
   "type": zod.enum(['quote', 'order']).optional(),
   "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']).optional(),
   "clientId": zod.coerce.number().optional(),
   "startDate": zod.date().optional(),
-  "endDate": zod.date().optional()
+  "endDate": zod.date().optional(),
+  "page": zod.coerce.number().min(1).default(listSalesOrdersQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listSalesOrdersQueryPageSizeMax).default(listSalesOrdersQueryPageSizeDefault)
 })
 
-export const ListSalesOrdersResponseItem = zod.object({
+export const ListSalesOrdersResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
@@ -399,8 +423,12 @@ export const ListSalesOrdersResponseItem = zod.object({
   "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListSalesOrdersResponse = zod.array(ListSalesOrdersResponseItem)
 
 
 /**
@@ -628,14 +656,24 @@ export const UpdateSalesOrderStatusResponse = zod.object({
 /**
  * @summary List products with optional filters
  */
+export const listProductsQueryPageDefault = 1;
+
+export const listProductsQueryPageSizeDefault = 20;
+export const listProductsQueryPageSizeMax = 500;
+
+
+
 export const ListProductsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "category": zod.coerce.string().optional(),
   "active": zod.enum(['true', 'false']).optional(),
-  "lowStock": zod.enum(['true']).optional()
+  "lowStock": zod.enum(['true']).optional(),
+  "page": zod.coerce.number().min(1).default(listProductsQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listProductsQueryPageSizeMax).default(listProductsQueryPageSizeDefault)
 })
 
-export const ListProductsResponseItem = zod.object({
+export const ListProductsResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "sku": zod.string().nullish(),
   "name": zod.string(),
@@ -659,8 +697,12 @@ export const ListProductsResponseItem = zod.object({
   "active": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
 
 /**
@@ -760,14 +802,24 @@ export const DeleteProductResponse = zod.object({
 /**
  * @summary List stock movements with optional filters
  */
+export const listStockMovementsQueryPageDefault = 1;
+
+export const listStockMovementsQueryPageSizeDefault = 20;
+export const listStockMovementsQueryPageSizeMax = 500;
+
+
+
 export const ListStockMovementsQueryParams = zod.object({
   "productId": zod.coerce.number().optional(),
   "type": zod.enum(['input', 'output']).optional(),
   "startDate": zod.date().optional(),
-  "endDate": zod.date().optional()
+  "endDate": zod.date().optional(),
+  "page": zod.coerce.number().min(1).default(listStockMovementsQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listStockMovementsQueryPageSizeMax).default(listStockMovementsQueryPageSizeDefault)
 })
 
-export const ListStockMovementsResponseItem = zod.object({
+export const ListStockMovementsResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number(),
   "productName": zod.string().nullish(),
@@ -780,8 +832,12 @@ export const ListStockMovementsResponseItem = zod.object({
   "referenceType": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListStockMovementsResponse = zod.array(ListStockMovementsResponseItem)
 
 
 /**
@@ -1212,13 +1268,23 @@ export const GetLotMovementsResponse = zod.array(GetLotMovementsResponseItem)
 /**
  * @summary List suppliers with optional search
  */
+export const listSuppliersQueryPageDefault = 1;
+
+export const listSuppliersQueryPageSizeDefault = 20;
+export const listSuppliersQueryPageSizeMax = 500;
+
+
+
 export const ListSuppliersQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "active": zod.enum(['true', 'false']).optional(),
-  "category": zod.coerce.string().optional()
+  "category": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listSuppliersQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listSuppliersQueryPageSizeMax).default(listSuppliersQueryPageSizeDefault)
 })
 
-export const ListSuppliersResponseItem = zod.object({
+export const ListSuppliersResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "tradeName": zod.string().nullish(),
@@ -1250,8 +1316,12 @@ export const ListSuppliersResponseItem = zod.object({
   "qualificationStatus": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
 
 
 /**
@@ -1373,14 +1443,24 @@ export const DeleteSupplierResponse = zod.object({
 /**
  * @summary List purchase orders with optional filters
  */
+export const listPurchaseOrdersQueryPageDefault = 1;
+
+export const listPurchaseOrdersQueryPageSizeDefault = 20;
+export const listPurchaseOrdersQueryPageSizeMax = 500;
+
+
+
 export const ListPurchaseOrdersQueryParams = zod.object({
   "status": zod.enum(['draft', 'sent', 'partially_received', 'received', 'cancelled']).optional(),
   "supplierId": zod.coerce.number().optional(),
   "startDate": zod.date().optional(),
-  "endDate": zod.date().optional()
+  "endDate": zod.date().optional(),
+  "page": zod.coerce.number().min(1).default(listPurchaseOrdersQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listPurchaseOrdersQueryPageSizeMax).default(listPurchaseOrdersQueryPageSizeDefault)
 })
 
-export const ListPurchaseOrdersResponseItem = zod.object({
+export const ListPurchaseOrdersResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "supplierId": zod.number(),
   "supplierName": zod.string().nullish(),
@@ -1395,8 +1475,12 @@ export const ListPurchaseOrdersResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListPurchaseOrdersResponse = zod.array(ListPurchaseOrdersResponseItem)
 
 
 /**
@@ -3064,13 +3148,23 @@ export const GetVendasDashboardResponse = zod.object({
 /**
  * @summary List employees with optional filters
  */
+export const listEmployeesQueryPageDefault = 1;
+
+export const listEmployeesQueryPageSizeDefault = 20;
+export const listEmployeesQueryPageSizeMax = 500;
+
+
+
 export const ListEmployeesQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "status": zod.enum(['active', 'inactive']).optional(),
-  "department": zod.coerce.string().optional()
+  "department": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listEmployeesQueryPageDefault),
+  "pageSize": zod.coerce.number().min(1).max(listEmployeesQueryPageSizeMax).default(listEmployeesQueryPageSizeDefault)
 })
 
-export const ListEmployeesResponseItem = zod.object({
+export const ListEmployeesResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "cpf": zod.string().nullish(),
@@ -3089,8 +3183,12 @@ export const ListEmployeesResponseItem = zod.object({
 }).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "pageSize": zod.number(),
+  "totalPages": zod.number()
 })
-export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
 
 
 /**

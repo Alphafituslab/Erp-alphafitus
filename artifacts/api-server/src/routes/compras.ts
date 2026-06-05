@@ -55,6 +55,10 @@ router.get("/compras/suppliers", async (req: Request, res: Response): Promise<vo
   if (!requireAuth(req, res)) return;
 
   const { search, active, category } = req.query as Record<string, string>;
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
+
   const filters = [];
 
   if (active !== undefined) {
@@ -73,13 +77,14 @@ router.get("/compras/suppliers", async (req: Request, res: Response): Promise<vo
     filters.push(eq(suppliersTable.category, category));
   }
 
-  const suppliers = await db
-    .select()
-    .from(suppliersTable)
-    .where(and(...filters))
-    .orderBy(suppliersTable.name);
+  const where = and(...filters);
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(suppliersTable).where(where),
+    db.select().from(suppliersTable).where(where).orderBy(suppliersTable.name).limit(pageSize).offset(offset),
+  ]);
 
-  res.json(suppliers);
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/compras/suppliers", async (req: Request, res: Response): Promise<void> => {
@@ -388,6 +393,10 @@ router.get("/compras/orders", async (req: Request, res: Response): Promise<void>
   if (!requireAuth(req, res)) return;
 
   const { status, supplierId, startDate, endDate } = req.query as Record<string, string>;
+  const page = Math.max(1, parseInt((req.query.page as string) ?? "1") || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt((req.query.pageSize as string) ?? "20") || 20));
+  const offset = (page - 1) * pageSize;
+
   const filters = [];
 
   if (status) filters.push(eq(purchaseOrdersTable.status, status));
@@ -402,29 +411,40 @@ router.get("/compras/orders", async (req: Request, res: Response): Promise<void>
     filters.push(lte(purchaseOrdersTable.createdAt, end));
   }
 
-  const orders = await db
-    .select({
-      id: purchaseOrdersTable.id,
-      supplierId: purchaseOrdersTable.supplierId,
-      supplierName: suppliersTable.name,
-      status: purchaseOrdersTable.status,
-      totalAmount: purchaseOrdersTable.totalAmount,
-      freightCost: purchaseOrdersTable.freightCost,
-      carrier: purchaseOrdersTable.carrier,
-      nfNumber: purchaseOrdersTable.nfNumber,
-      purchaseRequestId: purchaseOrdersTable.purchaseRequestId,
-      expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
-      receivedAt: purchaseOrdersTable.receivedAt,
-      notes: purchaseOrdersTable.notes,
-      createdAt: purchaseOrdersTable.createdAt,
-      updatedAt: purchaseOrdersTable.updatedAt,
-    })
-    .from(purchaseOrdersTable)
-    .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
-    .where(filters.length ? and(...filters) : undefined)
-    .orderBy(desc(purchaseOrdersTable.createdAt));
+  const where = filters.length ? and(...filters) : undefined;
+  const selectFields = {
+    id: purchaseOrdersTable.id,
+    supplierId: purchaseOrdersTable.supplierId,
+    supplierName: suppliersTable.name,
+    status: purchaseOrdersTable.status,
+    totalAmount: purchaseOrdersTable.totalAmount,
+    freightCost: purchaseOrdersTable.freightCost,
+    carrier: purchaseOrdersTable.carrier,
+    nfNumber: purchaseOrdersTable.nfNumber,
+    purchaseRequestId: purchaseOrdersTable.purchaseRequestId,
+    expectedDeliveryDate: purchaseOrdersTable.expectedDeliveryDate,
+    receivedAt: purchaseOrdersTable.receivedAt,
+    notes: purchaseOrdersTable.notes,
+    createdAt: purchaseOrdersTable.createdAt,
+    updatedAt: purchaseOrdersTable.updatedAt,
+  };
 
-  res.json(orders);
+  const [countResult, items] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` })
+      .from(purchaseOrdersTable)
+      .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+      .where(where),
+    db.select(selectFields)
+      .from(purchaseOrdersTable)
+      .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+      .where(where)
+      .orderBy(desc(purchaseOrdersTable.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+  ]);
+
+  const total = countResult[0]?.count ?? 0;
+  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/compras/orders", async (req: Request, res: Response): Promise<void> => {
