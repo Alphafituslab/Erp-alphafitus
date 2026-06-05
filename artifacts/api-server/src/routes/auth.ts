@@ -1,24 +1,30 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
-import { LoginBody, LoginResponse, GetMeResponse, LogoutResponse } from "@workspace/api-zod";
+import { db, usersTable, userModuleAccessTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
+async function fetchUserModules(userId: number, role: string) {
+  if (role === "admin" || role === "manager") return null;
+  const rows = await db
+    .select({ module: userModuleAccessTable.module, canEdit: userModuleAccessTable.canEdit })
+    .from(userModuleAccessTable)
+    .where(eq(userModuleAccessTable.userId, userId));
+  return rows;
+}
+
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const parsed = LoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const { email, password } = req.body ?? {};
+  if (!email || !password) {
+    res.status(400).json({ error: "Email e senha obrigatórios" });
     return;
   }
-
-  const { email, password } = parsed.data;
 
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, email.toLowerCase()))
+    .where(eq(usersTable.email, String(email).toLowerCase()))
     .limit(1);
 
   if (!user) {
@@ -26,7 +32,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  const valid = await bcrypt.compare(String(password), user.passwordHash);
   if (!valid) {
     res.status(401).json({ error: "Credenciais inválidas" });
     return;
@@ -40,19 +46,21 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   req.session.userId = user.id;
   req.session.role = user.role;
   req.session.userName = user.name ?? user.email;
-  req.session.save((err) => {
+  req.session.save(async (err) => {
     if (err) {
       req.log.error({ err }, "Session save error");
       res.status(500).json({ error: "Erro interno" });
       return;
     }
-    res.json(LoginResponse.parse({
+    const modules = await fetchUserModules(user.id, user.role);
+    res.json({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       sector: user.sector ?? null,
-    }));
+      modules,
+    });
   });
 });
 
@@ -62,7 +70,7 @@ router.post("/auth/logout", (req, res): void => {
       req.log.error({ err }, "Session destroy error");
     }
     res.clearCookie("erp.sid");
-    res.json(LogoutResponse.parse({ ok: true }));
+    res.json({ ok: true });
   });
 });
 
@@ -84,13 +92,15 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(GetMeResponse.parse({
+  const modules = await fetchUserModules(user.id, user.role);
+  res.json({
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     sector: user.sector ?? null,
-  }));
+    modules,
+  });
 });
 
 export default router;

@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -1764,6 +1765,7 @@ function CompleteAnalysisDialog({
 
 export default function QualidadePage() {
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Inspection state
@@ -2145,9 +2147,11 @@ export default function QualidadePage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Análises recentes</CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingAnalysis(null); setAnalysisDialog(true); }}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nova
-                  </Button>
+                  {canEditModule('qualidade') && (
+                    <Button size="sm" variant="outline" onClick={() => { setEditingAnalysis(null); setAnalysisDialog(true); }}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Nova
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="p-0">
                   {(dashboard?.recentAnalyses ?? []).length === 0 ? (
@@ -2191,9 +2195,11 @@ export default function QualidadePage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-base">NCRs em aberto</CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingNcr(null); setNcrDialog(true); }}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Nova NCR
-                  </Button>
+                  {canEditModule('qualidade') && (
+                    <Button size="sm" variant="outline" onClick={() => { setEditingNcr(null); setNcrDialog(true); }}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Nova NCR
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
                   {(dashboard?.openNcrList ?? []).length === 0 && (
@@ -2452,9 +2458,11 @@ export default function QualidadePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => { setEditingAnalysis(null); setAnalysisDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Nova Análise
-              </Button>
+              {canEditModule('qualidade') && (
+                <Button onClick={() => { setEditingAnalysis(null); setAnalysisDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Nova Análise
+                </Button>
+              )}
             </div>
 
             <Card>

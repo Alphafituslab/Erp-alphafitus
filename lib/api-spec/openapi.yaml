@@ -7422,6 +7422,90 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /usuarios/{id}/modules:
+    get:
+      operationId: getUserModules
+      summary: Get user module permissions (admin only)
+      tags: [Usuarios]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User module permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserModulesResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: setUserModules
+      summary: Set user module permissions (admin only)
+      tags: [Usuarios]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetUserModulesInput"
+      responses:
+        "200":
+          description: Permissions updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserModulesResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Admin: Backup ──────────────────────────────────────────────────────────
 
   /admin/backup:
@@ -7509,6 +7593,33 @@ components:
           type: boolean
       required:
         - ok
+
+    UserModuleItem:
+      type: object
+      required: [module, canEdit]
+      properties:
+        module:
+          type: string
+        canEdit:
+          type: boolean
+
+    UserModulesResponse:
+      type: object
+      required: [modules]
+      properties:
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserModuleItem"
+
+    SetUserModulesInput:
+      type: object
+      required: [modules]
+      properties:
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserModuleItem"
 
     UserItem:
       type: object
@@ -7645,6 +7756,12 @@ components:
           type: string
           nullable: true
           enum: [vendas, financeiro, producao, separacao, faturamento, logistica]
+        modules:
+          type: array
+          nullable: true
+          description: "null = full access (admin/manager). Array = granted modules for employee."
+          items:
+            $ref: "#/components/schemas/UserModuleItem"
 
     SuccessResponse:
       type: object

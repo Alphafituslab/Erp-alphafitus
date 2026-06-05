@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -876,6 +877,7 @@ function DocDialog({
 export default function FiscalPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
 
   const [tab, setTab] = useState("documentos");
 
@@ -997,9 +999,11 @@ export default function FiscalPage() {
               <Button variant="outline" size="sm" onClick={() => setXmlImportOpen(true)}>
                 <FileCode className="h-4 w-4 mr-1.5" /> Importar XML NF-e
               </Button>
-              <Button onClick={openNew} size="sm">
-                <Plus className="h-4 w-4 mr-1.5" /> Novo Documento
-              </Button>
+              {canEditModule('fiscal') && (
+                <Button onClick={openNew} size="sm">
+                  <Plus className="h-4 w-4 mr-1.5" /> Novo Documento
+                </Button>
+              )}
             </div>
           }
         />

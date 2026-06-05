@@ -1211,6 +1211,7 @@ function PipelineView({
 
 export default function VendasPage() {
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
   const currentYear = new Date().getFullYear();
 
   const [clientSearch, setClientSearch] = useState("");
@@ -1307,11 +1308,11 @@ export default function VendasPage() {
         <PageHeader
           title="Vendas / Comercial"
           subtitle="Clientes, orçamentos e pedidos de venda"
-          actions={
+          actions={canEditModule('vendas') && (
             <Button onClick={() => { setEditingOrder(null); setOrderDialog(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Novo
             </Button>
-          }
+          )}
         />
 
         <Tabs defaultValue="dashboard">
@@ -1524,9 +1525,11 @@ export default function VendasPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => { setEditingOrder(null); setOrderDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Novo
-              </Button>
+              {canEditModule('vendas') && (
+                <Button onClick={() => { setEditingOrder(null); setOrderDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo
+                </Button>
+              )}
             </div>
 
             <Card>
@@ -1649,9 +1652,11 @@ export default function VendasPage() {
                 value={clientSearch}
                 onChange={(e) => setClientSearch(e.target.value)}
               />
-              <Button onClick={() => { setEditingClient(null); setClientDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Novo Cliente
-              </Button>
+              {canEditModule('vendas') && (
+                <Button onClick={() => { setEditingClient(null); setClientDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo Cliente
+                </Button>
+              )}
             </div>
 
             <Card>

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1318,6 +1319,7 @@ function EmployeeTrainingPanel({
 export default function RhPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canEditModule } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Employee state
@@ -1835,9 +1837,11 @@ export default function RhPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => { setEditingEmp(null); setEmpDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Novo funcionário
-              </Button>
+              {canEditModule('rh') && (
+                <Button onClick={() => { setEditingEmp(null); setEmpDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo funcionário
+                </Button>
+              )}
             </div>
 
             <Card>
@@ -1929,9 +1933,11 @@ export default function RhPage() {
           {/* ── DEPARTMENTS TAB ───────────────────────────────────────────── */}
           <TabsContent value="departments" className="space-y-4 mt-4">
             <div className="flex justify-end">
-              <Button onClick={() => { setEditingDept(null); setDeptDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Novo departamento
-              </Button>
+              {canEditModule('rh') && (
+                <Button onClick={() => { setEditingDept(null); setDeptDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo departamento
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -826,7 +826,7 @@ function ProjectDetail({
 export default function ProjetosPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, canEditModule } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
@@ -1035,9 +1035,11 @@ export default function ProjetosPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => { setEditingProj(null); setProjDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Novo projeto
-              </Button>
+              {canEditModule('projetos') && (
+                <Button onClick={() => { setEditingProj(null); setProjDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo projeto
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

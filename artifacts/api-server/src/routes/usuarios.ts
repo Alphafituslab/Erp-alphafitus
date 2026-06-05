@@ -1,13 +1,19 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, userModuleAccessTable } from "@workspace/db";
 import { CreateUsuarioBody, UpdateUsuarioBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 const VALID_SECTORS = ["vendas", "financeiro", "producao", "separacao", "faturamento", "logistica"] as const;
 type Sector = typeof VALID_SECTORS[number];
+
+const VALID_MODULES = [
+  "relatorios", "dashboard", "vendas", "estoque", "compras",
+  "producao", "aps", "qualidade", "rastreabilidade",
+  "financeiro", "fiscal", "rh", "projetos",
+] as const;
 
 async function requireAdminAsync(req: Request, res: Response): Promise<boolean> {
   if (!req.session.userId) {
@@ -126,6 +132,62 @@ router.delete("/usuarios/:id", async (req, res): Promise<void> => {
   const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
   if (!deleted) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
   res.json({ ok: true });
+});
+
+// ── Module Permissions ─────────────────────────────────────────────────────────
+
+router.get("/usuarios/:id/modules", async (req, res): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido" }); return; }
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+  const modules = await db
+    .select({ module: userModuleAccessTable.module, canEdit: userModuleAccessTable.canEdit })
+    .from(userModuleAccessTable)
+    .where(eq(userModuleAccessTable.userId, id));
+  res.json({ modules });
+});
+
+router.put("/usuarios/:id/modules", async (req, res): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido" }); return; }
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "Usuário não encontrado." }); return; }
+
+  const modules = req.body?.modules;
+  if (!Array.isArray(modules)) {
+    res.status(400).json({ error: "Campo 'modules' deve ser um array." });
+    return;
+  }
+  for (const m of modules) {
+    if (typeof m.module !== "string" || !VALID_MODULES.includes(m.module as typeof VALID_MODULES[number])) {
+      res.status(400).json({ error: `Módulo inválido: ${m.module}` });
+      return;
+    }
+    if (typeof m.canEdit !== "boolean") {
+      res.status(400).json({ error: `canEdit deve ser boolean para módulo ${m.module}` });
+      return;
+    }
+  }
+
+  await db.delete(userModuleAccessTable).where(eq(userModuleAccessTable.userId, id));
+  if (modules.length > 0) {
+    await db.insert(userModuleAccessTable).values(
+      modules.map((m: { module: string; canEdit: boolean }) => ({
+        userId: id,
+        module: m.module,
+        canEdit: m.canEdit,
+      }))
+    );
+  }
+
+  const result = await db
+    .select({ module: userModuleAccessTable.module, canEdit: userModuleAccessTable.canEdit })
+    .from(userModuleAccessTable)
+    .where(eq(userModuleAccessTable.userId, id));
+  res.json({ modules: result });
 });
 
 export default router;

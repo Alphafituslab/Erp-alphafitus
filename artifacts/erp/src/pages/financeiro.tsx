@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import {
   useListFinancialEntries,
@@ -242,6 +243,7 @@ function EntryDialog({ open, onClose, editing }: EntryDialogProps) {
 export default function FinanceiroPage() {
   const currentYear = new Date().getFullYear();
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
 
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -426,10 +428,12 @@ export default function FinanceiroPage() {
           actions={
             <>
               <PdfExportDialog onExport={handleExportPdf} disabled={isLoading} />
-              <Button onClick={openCreate} size="sm">
-                <Plus className="h-4 w-4 mr-1.5" />
-                Novo Lançamento
-              </Button>
+              {canEditModule('financeiro') && (
+                <Button onClick={openCreate} size="sm">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Novo Lançamento
+                </Button>
+              )}
             </>
           }
         />

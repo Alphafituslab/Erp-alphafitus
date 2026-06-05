@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth";
 import {
   useListWorkCenters,
   useCreateWorkCenter,
@@ -899,6 +900,7 @@ function SimulateDialog({ open, onClose, workCenters }: { open: boolean; onClose
 export default function ApsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
 
   const [tab, setTab] = useState("gantt");
   const [ganttStart, setGanttStart] = useState(todayStr());
@@ -1003,10 +1005,12 @@ export default function ApsPage() {
               <Wand2 className="size-4 mr-1.5" />
               Programação Auto
             </Button>
-            <Button size="sm" onClick={() => setSchedDialog({ open: true, entry: null })}>
-              <Plus className="size-4 mr-1.5" />
-              Nova Programação
-            </Button>
+            {canEditModule('aps') && (
+              <Button size="sm" onClick={() => setSchedDialog({ open: true, entry: null })}>
+                <Plus className="size-4 mr-1.5" />
+                Nova Programação
+              </Button>
+            )}
           </div>
         </div>
 

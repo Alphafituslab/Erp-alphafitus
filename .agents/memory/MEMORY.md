@@ -1,2 +1,1 @@
-- [OpenAPI append pitfall](openapi-append-pitfall.md) — appending paths/schemas with cat >> breaks YAML structure; always use edit tool instead
-- [Vendas 10-step flow](vendas-status-flow.md) — new sequential status machine replaced 25-status flow; sector-based transition guards enforced server-side.
+- [Module permissions system](module-permissions.md) — granular per-module access (canAccess/canEdit) for employees; admin/manager always have full access (null modules = all).

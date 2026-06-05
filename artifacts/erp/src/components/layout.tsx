@@ -74,6 +74,7 @@ interface NavItem {
   icon: React.ElementType;
   iconColor?: string;
   roles?: string[];
+  module?: string;
 }
 
 interface NavGroup {
@@ -86,29 +87,29 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Painel",
     items: [
-      { href: "/relatorios", label: "Relatórios", icon: BarChart2, iconColor: "text-emerald-400" },
-      { href: "/dashboard", label: "Módulos", icon: LayoutDashboard, iconColor: "text-sky-400" },
+      { href: "/relatorios", label: "Relatórios", icon: BarChart2, iconColor: "text-emerald-400", module: "relatorios" },
+      { href: "/dashboard", label: "Módulos", icon: LayoutDashboard, iconColor: "text-sky-400", module: "dashboard" },
     ],
   },
   {
     label: "Operações",
     items: [
-      { href: "/vendas", label: "Vendas", icon: ShoppingCart, iconColor: "text-blue-400" },
-      { href: "/estoque", label: "Estoque", icon: Package, iconColor: "text-amber-400" },
-      { href: "/compras", label: "Compras", icon: Truck, iconColor: "text-purple-400" },
-      { href: "/producao", label: "Produção", icon: Factory, iconColor: "text-rose-400" },
-      { href: "/aps", label: "APS / Gantt", icon: CalendarClock, iconColor: "text-cyan-400" },
-      { href: "/qualidade", label: "Qualidade", icon: ClipboardCheck, iconColor: "text-teal-400" },
-      { href: "/rastreabilidade", label: "Rastreabilidade", icon: GitBranch, iconColor: "text-violet-400" },
+      { href: "/vendas", label: "Vendas", icon: ShoppingCart, iconColor: "text-blue-400", module: "vendas" },
+      { href: "/estoque", label: "Estoque", icon: Package, iconColor: "text-amber-400", module: "estoque" },
+      { href: "/compras", label: "Compras", icon: Truck, iconColor: "text-purple-400", module: "compras" },
+      { href: "/producao", label: "Produção", icon: Factory, iconColor: "text-rose-400", module: "producao" },
+      { href: "/aps", label: "APS / Gantt", icon: CalendarClock, iconColor: "text-cyan-400", module: "aps" },
+      { href: "/qualidade", label: "Qualidade", icon: ClipboardCheck, iconColor: "text-teal-400", module: "qualidade" },
+      { href: "/rastreabilidade", label: "Rastreabilidade", icon: GitBranch, iconColor: "text-violet-400", module: "rastreabilidade" },
     ],
   },
   {
     label: "Gestão",
     items: [
-      { href: "/financeiro", label: "Financeiro", icon: DollarSign, iconColor: "text-emerald-400" },
-      { href: "/fiscal", label: "Fiscal", icon: FileText, iconColor: "text-orange-400" },
-      { href: "/rh", label: "RH", icon: Users, iconColor: "text-pink-400" },
-      { href: "/projetos", label: "Projetos", icon: FolderKanban, iconColor: "text-indigo-400" },
+      { href: "/financeiro", label: "Financeiro", icon: DollarSign, iconColor: "text-emerald-400", module: "financeiro" },
+      { href: "/fiscal", label: "Fiscal", icon: FileText, iconColor: "text-orange-400", module: "fiscal" },
+      { href: "/rh", label: "RH", icon: Users, iconColor: "text-pink-400", module: "rh" },
+      { href: "/projetos", label: "Projetos", icon: FolderKanban, iconColor: "text-indigo-400", module: "projetos" },
     ],
   },
   {
@@ -180,7 +181,7 @@ function TopbarClock() {
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, canAccessModule } = useAuth();
   const logoutMutation = useLogout();
   const queryClient = useQueryClient();
 
@@ -197,7 +198,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const visibleGroups = NAV_GROUPS
     .filter((g) => !g.roles || g.roles.includes(userRole))
-    .map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(userRole)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => {
+        if (i.roles && !i.roles.includes(userRole)) return false;
+        if (i.module && !canAccessModule(i.module)) return false;
+        return true;
+      }),
+    }))
     .filter((g) => g.items.length > 0);
 
   const currentItem = NAV_GROUPS.flatMap((g) => g.items).find(

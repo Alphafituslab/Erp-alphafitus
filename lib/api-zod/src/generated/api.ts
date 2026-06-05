@@ -59,7 +59,11 @@ export const LoginResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'manager', 'employee']),
-  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish()
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "canEdit": zod.boolean()
+})).nullish().describe('null = full access (admin\/manager). Array = granted modules for employee.')
 })
 
 
@@ -79,7 +83,11 @@ export const GetMeResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'manager', 'employee']),
-  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish()
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "canEdit": zod.boolean()
+})).nullish().describe('null = full access (admin\/manager). Array = granted modules for employee.')
 })
 
 
@@ -6560,6 +6568,43 @@ export const DeleteUsuarioParams = zod.object({
 
 export const DeleteUsuarioResponse = zod.object({
   "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get user module permissions (admin only)
+ */
+export const GetUserModulesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetUserModulesResponse = zod.object({
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "canEdit": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Set user module permissions (admin only)
+ */
+export const SetUserModulesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetUserModulesBody = zod.object({
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "canEdit": zod.boolean()
+}))
+})
+
+export const SetUserModulesResponse = zod.object({
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "canEdit": zod.boolean()
+}))
 })
 
 

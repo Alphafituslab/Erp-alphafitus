@@ -19,3 +19,4 @@ export * from "./report-schedules";
 export * from "./goal-alert-settings";
 export * from "./backup-logs";
 export * from "./company-settings";
+export * from "./user-module-access";

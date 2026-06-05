@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1068,6 +1069,7 @@ function LotLabelDialog({ lotId, onClose }: { lotId: number | null; onClose: () 
 
 export default function EstoquePage() {
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Product state
@@ -1584,7 +1586,9 @@ export default function EstoquePage() {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => openMovementFor()}><Package className="h-4 w-4 mr-2" />Movimentação</Button>
-                <Button onClick={() => { setEditingProduct(null); setProductDialog(true); }}><Plus className="h-4 w-4 mr-2" />Novo produto</Button>
+                {canEditModule('estoque') && (
+                  <Button onClick={() => { setEditingProduct(null); setProductDialog(true); }}><Plus className="h-4 w-4 mr-2" />Novo produto</Button>
+                )}
               </div>
             </div>
             <Card>
@@ -1783,7 +1787,9 @@ export default function EstoquePage() {
           {/* ── WAREHOUSES TAB ────────────────────────────────────────── */}
           <TabsContent value="warehouses" className="space-y-4 mt-4">
             <div className="flex justify-end">
-              <Button onClick={() => { setEditingWarehouse(null); setWarehouseDialog(true); }}><Plus className="h-4 w-4 mr-2" />Novo depósito</Button>
+              {canEditModule('estoque') && (
+                <Button onClick={() => { setEditingWarehouse(null); setWarehouseDialog(true); }}><Plus className="h-4 w-4 mr-2" />Novo depósito</Button>
+              )}
             </div>
             <Card>
               <CardContent className="p-0">

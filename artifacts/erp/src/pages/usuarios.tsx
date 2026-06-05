@@ -55,6 +55,7 @@ import {
   Download,
   CheckCircle,
   AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -65,6 +66,9 @@ import {
   useGenerateBackup,
   useListBackupLogs,
   getListBackupLogsQueryKey,
+  useGetUserModules,
+  useSetUserModules,
+  getGetUserModulesQueryKey,
 } from "@workspace/api-client-react";
 import type { UserItem, BackupLog } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -308,6 +312,165 @@ function EditUsuarioDialog({ user, currentUserId, onSuccess }: { user: UserItem;
             </Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Module Permissions Dialog ─────────────────────────────────────────────────
+
+const MODULES_LIST = [
+  { key: "relatorios", label: "Relatórios", group: "Painel" },
+  { key: "dashboard", label: "Dashboard", group: "Painel" },
+  { key: "vendas", label: "Vendas", group: "Operações" },
+  { key: "estoque", label: "Estoque", group: "Operações" },
+  { key: "compras", label: "Compras", group: "Operações" },
+  { key: "producao", label: "Produção", group: "Operações" },
+  { key: "aps", label: "APS / Gantt", group: "Operações" },
+  { key: "qualidade", label: "Qualidade", group: "Operações" },
+  { key: "rastreabilidade", label: "Rastreabilidade", group: "Operações" },
+  { key: "financeiro", label: "Financeiro", group: "Gestão" },
+  { key: "fiscal", label: "Fiscal", group: "Gestão" },
+  { key: "rh", label: "RH", group: "Gestão" },
+  { key: "projetos", label: "Projetos", group: "Gestão" },
+];
+
+function PermissoesDialog({ targetUser }: { targetUser: UserItem }) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+
+  type ModuleState = { canAccess: boolean; canEdit: boolean };
+  const [perms, setPerms] = useState<Record<string, ModuleState>>({});
+
+  const { data: modulesData, isLoading: modulesLoading } = useGetUserModules(targetUser.id, {
+    query: {
+      queryKey: getGetUserModulesQueryKey(targetUser.id),
+      enabled: open,
+    },
+  });
+
+  // Sync local state whenever server data arrives
+  const [syncedData, setSyncedData] = useState<typeof modulesData>(undefined);
+  if (modulesData !== syncedData) {
+    setSyncedData(modulesData);
+    if (modulesData) {
+      const initial: Record<string, ModuleState> = {};
+      MODULES_LIST.forEach((m) => { initial[m.key] = { canAccess: false, canEdit: false }; });
+      modulesData.modules.forEach((m) => { initial[m.module] = { canAccess: true, canEdit: m.canEdit }; });
+      setPerms(initial);
+    }
+  }
+
+  const { mutate: saveModules, isPending: isSaving } = useSetUserModules({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Permissões salvas!", description: `Permissões de ${targetUser.name} atualizadas.` });
+        setOpen(false);
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao salvar.";
+        toast({ title: "Erro", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  function handleSave() {
+    const modules = Object.entries(perms)
+      .filter(([, v]) => v.canAccess)
+      .map(([module, v]) => ({ module, canEdit: v.canEdit }));
+    saveModules({ id: targetUser.id, data: { modules } });
+  }
+
+  function toggleAccess(key: string, val: boolean) {
+    setPerms((prev) => ({
+      ...prev,
+      [key]: { canAccess: val, canEdit: val ? (prev[key]?.canEdit ?? false) : false },
+    }));
+  }
+
+  function toggleEdit(key: string, val: boolean) {
+    setPerms((prev) => ({ ...prev, [key]: { ...(prev[key] ?? { canAccess: true }), canEdit: val } }));
+  }
+
+  const isFullAccess = targetUser.role === "admin" || targetUser.role === "manager";
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600" title="Gerenciar permissões">
+          <ShieldCheck className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0">
+        <DialogHeader className="pb-3">
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-blue-500" />
+            Permissões — {targetUser.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isFullAccess ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 flex items-start gap-2">
+            <ShieldCheck className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>
+              Perfil <strong>{targetUser.role === "admin" ? "Administrador" : "Gerente"}</strong> tem acesso total a todos os módulos por padrão.
+              Permissões individuais não se aplicam a este perfil.
+            </span>
+          </div>
+        ) : modulesLoading ? (
+          <div className="flex items-center gap-2 py-8 text-muted-foreground text-sm justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando permissões…
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground mb-3">
+              <strong>Acesso:</strong> o colaborador vê o módulo na barra lateral e pode consultá-lo.
+              <br />
+              <strong>Cadastrar:</strong> pode criar, editar e excluir registros nesse módulo.
+            </p>
+
+            <div className="grid grid-cols-[1fr_64px_72px] gap-x-2 text-[11px] font-semibold text-muted-foreground mb-1 px-1">
+              <span>Módulo</span>
+              <span className="text-center">Acesso</span>
+              <span className="text-center">Cadastrar</span>
+            </div>
+
+            <div className="overflow-y-auto flex-1 space-y-3 pr-0.5">
+              {(["Painel", "Operações", "Gestão"] as const).map((group) => {
+                const items = MODULES_LIST.filter((m) => m.group === group);
+                return (
+                  <div key={group}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-1 px-1">{group}</p>
+                    <div className="space-y-0.5">
+                      {items.map((m) => {
+                        const state = perms[m.key] ?? { canAccess: false, canEdit: false };
+                        return (
+                          <div key={m.key} className="grid grid-cols-[1fr_64px_72px] gap-x-2 items-center rounded-md px-1 py-1.5 hover:bg-muted/40 transition-colors">
+                            <span className="text-sm">{m.label}</span>
+                            <div className="flex justify-center">
+                              <Switch checked={state.canAccess} onCheckedChange={(v) => toggleAccess(m.key, v)} className="scale-90" />
+                            </div>
+                            <div className="flex justify-center">
+                              <Switch checked={state.canEdit} onCheckedChange={(v) => toggleEdit(m.key, v)} disabled={!state.canAccess} className="scale-90" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t mt-3">
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>Cancelar</Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                Salvar permissões
+              </Button>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -588,6 +751,7 @@ export default function UsuariosPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        <PermissoesDialog targetUser={u} />
                         <EditUsuarioDialog user={u} currentUserId={user?.id ?? 0} onSuccess={refresh} />
                         {u.id !== user?.id && (
                           <AlertDialog>

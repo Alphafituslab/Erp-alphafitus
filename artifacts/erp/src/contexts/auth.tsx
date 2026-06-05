@@ -1,25 +1,38 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 import { AuthUser } from "@workspace/api-client-react";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
 
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  canAccessModule: (module: string) => boolean;
+  canEditModule: (module: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [, setLocation] = useLocation();
-
-  const { data: user, isLoading, isError } = useGetMe({
+  const { data: user, isLoading } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
       retry: false,
     },
   });
+
+  const canAccessModule = (module: string): boolean => {
+    if (!user) return false;
+    if (user.role === "admin" || user.role === "manager") return true;
+    if (user.modules == null) return true;
+    return (user.modules as Array<{ module: string; canEdit: boolean }>).some((m) => m.module === module);
+  };
+
+  const canEditModule = (module: string): boolean => {
+    if (!user) return false;
+    if (user.role === "admin" || user.role === "manager") return true;
+    if (user.modules == null) return true;
+    return (user.modules as Array<{ module: string; canEdit: boolean }>).some((m) => m.module === module && m.canEdit);
+  };
 
   return (
     <AuthContext.Provider
@@ -27,6 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: user ?? null,
         isLoading,
         isAuthenticated: !!user,
+        canAccessModule,
+        canEditModule,
       }}
     >
       {children}
@@ -41,3 +56,5 @@ export function useAuth() {
   }
   return context;
 }
+
+export { getGetMeQueryKey };

@@ -204,6 +204,7 @@ import type {
   SalesOrderWithItems,
   SearchTraceLotsParams,
   SelectQuotationWinnerInput,
+  SetUserModulesInput,
   StageFinishInput,
   StageStartInput,
   StageUpdateInput,
@@ -226,6 +227,7 @@ import type {
   UpdatePurchaseOrderStatusInput,
   UpdateSalesOrderStatusInput,
   UpdateUsuarioInput,
+  UserModulesResponse,
   UsuariosListData,
   VendasDashboard,
   Warehouse,
@@ -16906,6 +16908,155 @@ export const useDeleteUsuario = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteUsuarioMutationOptions(options));
+    }
+
+export const getGetUserModulesUrl = (id: number,) => {
+
+
+
+
+  return `/api/usuarios/${id}/modules`
+}
+
+/**
+ * @summary Get user module permissions (admin only)
+ */
+export const getUserModules = async (id: number, options?: RequestInit): Promise<UserModulesResponse> => {
+
+  return customFetch<UserModulesResponse>(getGetUserModulesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserModulesQueryKey = (id: number,) => {
+    return [
+    `/api/usuarios/${id}/modules`
+    ] as const;
+    }
+
+
+export const getGetUserModulesQueryOptions = <TData = Awaited<ReturnType<typeof getUserModules>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserModules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserModulesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserModules>>> = ({ signal }) => getUserModules(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserModules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserModulesQueryResult = NonNullable<Awaited<ReturnType<typeof getUserModules>>>
+export type GetUserModulesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get user module permissions (admin only)
+ */
+
+export function useGetUserModules<TData = Awaited<ReturnType<typeof getUserModules>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserModules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserModulesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetUserModulesUrl = (id: number,) => {
+
+
+
+
+  return `/api/usuarios/${id}/modules`
+}
+
+/**
+ * @summary Set user module permissions (admin only)
+ */
+export const setUserModules = async (id: number,
+    setUserModulesInput: SetUserModulesInput, options?: RequestInit): Promise<UserModulesResponse> => {
+
+  return customFetch<UserModulesResponse>(getSetUserModulesUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setUserModulesInput,)
+  }
+);}
+
+
+
+
+export const getSetUserModulesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserModules>>, TError,{id: number;data: BodyType<SetUserModulesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setUserModules>>, TError,{id: number;data: BodyType<SetUserModulesInput>}, TContext> => {
+
+const mutationKey = ['setUserModules'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setUserModules>>, {id: number;data: BodyType<SetUserModulesInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setUserModules(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetUserModulesMutationResult = NonNullable<Awaited<ReturnType<typeof setUserModules>>>
+    export type SetUserModulesMutationBody = BodyType<SetUserModulesInput>
+    export type SetUserModulesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set user module permissions (admin only)
+ */
+export const useSetUserModules = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserModules>>, TError,{id: number;data: BodyType<SetUserModulesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setUserModules>>,
+        TError,
+        {id: number;data: BodyType<SetUserModulesInput>},
+        TContext
+      > => {
+      return useMutation(getSetUserModulesMutationOptions(options));
     }
 
 export const getGenerateBackupUrl = () => {

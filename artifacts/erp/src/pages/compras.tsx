@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1655,6 +1656,7 @@ function SupplierAnalysisSheet({
 
 export default function ComprasPage() {
   const qc = useQueryClient();
+  const { canEditModule } = useAuth();
 
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -1895,9 +1897,11 @@ export default function ComprasPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Entregas pendentes</CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingPo(null); setPoDialog(true); }}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Novo PC
-                  </Button>
+                  {canEditModule('compras') && (
+                    <Button size="sm" variant="outline" onClick={() => { setEditingPo(null); setPoDialog(true); }}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Novo PC
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="p-0">
                   {(dashboard?.pendingDeliveries ?? []).length === 0 ? (
@@ -2008,9 +2012,11 @@ export default function ComprasPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={() => { setEditingPo(null); setPoDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> Novo pedido
-              </Button>
+              {canEditModule('compras') && (
+                <Button onClick={() => { setEditingPo(null); setPoDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> Novo pedido
+                </Button>
+              )}
             </div>
 
             <Card>

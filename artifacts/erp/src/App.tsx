@@ -20,17 +20,22 @@ import ProducaoPage from "@/pages/producao";
 import ApsPage from "@/pages/aps";
 import RastreabilidadePage from "@/pages/rastreabilidade";
 import UsuariosPage from "@/pages/usuarios";
-import ModulePlaceholderPage from "@/pages/module";
 
 const queryClient = new QueryClient();
 
 function RootRoute() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null;
-  if (isAuthenticated) {
-    return <Redirect to="/relatorios" />;
-  }
+  if (isAuthenticated) return <Redirect to="/relatorios" />;
   return <Redirect to="/login" />;
+}
+
+function ModuleGuard({ module, children }: { module: string; children: React.ReactNode }) {
+  const { user, isLoading, canAccessModule } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Redirect to="/login" />;
+  if (!canAccessModule(module)) return <Redirect to="/dashboard" />;
+  return <>{children}</>;
 }
 
 function Router() {
@@ -38,83 +43,83 @@ function Router() {
     <Switch>
       <Route path="/" component={RootRoute} />
       <Route path="/login" component={LoginPage} />
-      
+
       <Route path="/dashboard">
         <ProtectedRoute>
           <DashboardPage />
         </ProtectedRoute>
       </Route>
 
+      <Route path="/relatorios">
+        <ModuleGuard module="relatorios">
+          <RelatoriosPage />
+        </ModuleGuard>
+      </Route>
+
       <Route path="/financeiro">
-        <ProtectedRoute>
+        <ModuleGuard module="financeiro">
           <FinanceiroPage />
-        </ProtectedRoute>
+        </ModuleGuard>
       </Route>
 
       <Route path="/vendas">
-        <ProtectedRoute>
+        <ModuleGuard module="vendas">
           <VendasPage />
-        </ProtectedRoute>
+        </ModuleGuard>
       </Route>
 
       <Route path="/estoque">
-        <ProtectedRoute>
+        <ModuleGuard module="estoque">
           <EstoquePage />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/qualidade">
-        <ProtectedRoute>
-          <QualidadePage />
-        </ProtectedRoute>
+        </ModuleGuard>
       </Route>
 
       <Route path="/compras">
-        <ProtectedRoute>
+        <ModuleGuard module="compras">
           <ComprasPage />
-        </ProtectedRoute>
+        </ModuleGuard>
       </Route>
 
-      <Route path="/rh">
-        <ProtectedRoute>
-          <RhPage />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/projetos">
-        <ProtectedRoute>
-          <ProjetosPage />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/fiscal">
-        <ProtectedRoute>
-          <FiscalPage />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/relatorios">
-        <ProtectedRoute>
-          <RelatoriosPage />
-        </ProtectedRoute>
+      <Route path="/qualidade">
+        <ModuleGuard module="qualidade">
+          <QualidadePage />
+        </ModuleGuard>
       </Route>
 
       <Route path="/producao">
-        <ProtectedRoute>
+        <ModuleGuard module="producao">
           <ProducaoPage />
-        </ProtectedRoute>
+        </ModuleGuard>
       </Route>
 
       <Route path="/aps">
-        <ProtectedRoute>
+        <ModuleGuard module="aps">
           <ApsPage />
-        </ProtectedRoute>
+        </ModuleGuard>
       </Route>
 
       <Route path="/rastreabilidade">
-        <ProtectedRoute>
+        <ModuleGuard module="rastreabilidade">
           <RastreabilidadePage />
-        </ProtectedRoute>
+        </ModuleGuard>
+      </Route>
+
+      <Route path="/rh">
+        <ModuleGuard module="rh">
+          <RhPage />
+        </ModuleGuard>
+      </Route>
+
+      <Route path="/projetos">
+        <ModuleGuard module="projetos">
+          <ProjetosPage />
+        </ModuleGuard>
+      </Route>
+
+      <Route path="/fiscal">
+        <ModuleGuard module="fiscal">
+          <FiscalPage />
+        </ModuleGuard>
       </Route>
 
       <Route path="/usuarios">

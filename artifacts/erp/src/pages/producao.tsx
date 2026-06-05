@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout";
+import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -202,6 +203,7 @@ function KpiCard({ title, value, sub, color }: { title: string; value: number | 
 export default function ProducaoPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canEditModule } = useAuth();
   const [tab, setTab] = useState("dashboard");
 
   // ── Traceability by PA lot ─────────────────────────────────────────────────
@@ -713,9 +715,11 @@ export default function ProducaoPage() {
             <Button size="sm" variant="outline" onClick={() => { setCompareFormulaAId(""); setCompareFormulaBId(""); setCompareDialog(true); }}>
               <ArrowLeftRight className="size-3.5 mr-1" />Comparar Versões
             </Button>
-            <Button size="sm" onClick={openNewFormula}>
-              <Plus className="size-3.5 mr-1" />Nova Fórmula
-            </Button>
+            {canEditModule('producao') && (
+              <Button size="sm" onClick={openNewFormula}>
+                <Plus className="size-3.5 mr-1" />Nova Fórmula
+              </Button>
+            )}
           </div>
 
           {formulasQ.isLoading ? (
@@ -766,9 +770,11 @@ export default function ProducaoPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button size="sm" onClick={openNewOp}>
-              <Plus className="size-3.5 mr-1" />Nova OP
-            </Button>
+            {canEditModule('producao') && (
+              <Button size="sm" onClick={openNewOp}>
+                <Plus className="size-3.5 mr-1" />Nova OP
+              </Button>
+            )}
           </div>
 
           {ordersQ.isLoading ? (

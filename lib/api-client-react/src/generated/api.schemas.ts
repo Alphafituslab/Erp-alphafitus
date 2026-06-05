@@ -17,6 +17,19 @@ export interface OkResponse {
   ok: boolean;
 }
 
+export interface UserModuleItem {
+  module: string;
+  canEdit: boolean;
+}
+
+export interface UserModulesResponse {
+  modules: UserModuleItem[];
+}
+
+export interface SetUserModulesInput {
+  modules: UserModuleItem[];
+}
+
 export type UserItemRole = typeof UserItemRole[keyof typeof UserItemRole];
 
 
@@ -156,6 +169,8 @@ export interface AuthUser {
   email: string;
   role: AuthUserRole;
   sector?: AuthUserSector;
+  /** null = full access (admin/manager). Array = granted modules for employee. */
+  modules?: UserModuleItem[] | null;
 }
 
 export interface SuccessResponse {
