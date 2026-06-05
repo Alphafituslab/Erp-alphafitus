@@ -7343,6 +7343,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /rastreabilidade/alerts/pdf:
+    get:
+      operationId: getTraceabilityAlertsPdf
+      tags: [rastreabilidade]
+      summary: Generate recall impact report as professional PDF (for ANVISA/ISO audit)
+      responses:
+        "200":
+          description: PDF binary document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /usuarios:
     get:
       operationId: listUsuarios

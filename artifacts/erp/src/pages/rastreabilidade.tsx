@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   ArrowDown,
   Printer,
+  Download,
   Package,
   Factory,
   ShoppingCart,
@@ -876,8 +877,30 @@ function AlertsPanel() {
   const totalLots = (data as any)?.totalLots ?? 0;
   const totalOps = (data as any)?.totalOpsAffected ?? 0;
   const totalClients = (data as any)?.totalClientsExposed ?? 0;
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  const handlePrintAlerts = () => window.print();
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const resp = await fetch("/api/rastreabilidade/alerts/pdf", { credentials: "include" });
+      if (!resp.ok) throw new Error("Erro ao gerar PDF");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      a.download = `laudo-recall-${stamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Erro ao gerar o laudo PDF. Tente novamente.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-16 gap-3 text-white/40">
@@ -935,11 +958,15 @@ function AlertsPanel() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 border-white/20 text-white/60 hover:text-white text-xs"
-              onClick={handlePrintAlerts}
+              className="gap-1.5 border-red-500/30 text-red-300 hover:text-red-200 hover:bg-red-500/10 text-xs"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
             >
-              <Printer className="h-3.5 w-3.5" />
-              Exportar PDF
+              {downloadingPdf
+                ? <Clock className="h-3.5 w-3.5 animate-spin" />
+                : <Download className="h-3.5 w-3.5" />
+              }
+              {downloadingPdf ? "Gerando laudo…" : "Baixar Laudo PDF"}
             </Button>
           )}
         </div>
@@ -1073,6 +1100,30 @@ export default function RastreabilidadePage() {
   }, [handleSearch]);
 
   const handlePrint = () => window.print();
+  const [downloadingAlertsPdf, setDownloadingAlertsPdf] = useState(false);
+
+  const handleDownloadAlertsPdf = async () => {
+    setDownloadingAlertsPdf(true);
+    try {
+      const resp = await fetch("/api/rastreabilidade/alerts/pdf", { credentials: "include" });
+      if (!resp.ok) throw new Error("Erro ao gerar PDF");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      a.download = `laudo-recall-${stamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Erro ao gerar o laudo PDF. Tente novamente.");
+    } finally {
+      setDownloadingAlertsPdf(false);
+    }
+  };
 
   const printTimestamp = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
@@ -1114,10 +1165,25 @@ export default function RastreabilidadePage() {
               <p className="text-sm text-white/50">Rastreamento completo de lotes — frente e verso</p>
             </div>
           </div>
-          {((mainTab === "trace" && activeLot) || mainTab === "alerts") && (
+          {mainTab === "trace" && activeLot && (
             <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 border-white/20 text-white/70 hover:text-white no-print">
               <Printer className="h-4 w-4" />
-              Exportar PDF
+              Imprimir Rastreabilidade
+            </Button>
+          )}
+          {mainTab === "alerts" && (
+            <Button
+              onClick={handleDownloadAlertsPdf}
+              disabled={downloadingAlertsPdf}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-red-500/30 text-red-300 hover:text-red-200 hover:bg-red-500/10 no-print"
+            >
+              {downloadingAlertsPdf
+                ? <Clock className="h-4 w-4 animate-spin" />
+                : <Download className="h-4 w-4" />
+              }
+              {downloadingAlertsPdf ? "Gerando laudo…" : "Baixar Laudo PDF"}
             </Button>
           )}
         </div>

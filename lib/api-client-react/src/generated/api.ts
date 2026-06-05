@@ -16921,6 +16921,83 @@ export function useGetTraceabilityAlerts<TData = Awaited<ReturnType<typeof getTr
 
 
 
+export const getGetTraceabilityAlertsPdfUrl = () => {
+
+
+
+
+  return `/api/rastreabilidade/alerts/pdf`
+}
+
+/**
+ * @summary Generate recall impact report as professional PDF (for ANVISA/ISO audit)
+ */
+export const getTraceabilityAlertsPdf = async ( options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetTraceabilityAlertsPdfUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTraceabilityAlertsPdfQueryKey = () => {
+    return [
+    `/api/rastreabilidade/alerts/pdf`
+    ] as const;
+    }
+
+
+export const getGetTraceabilityAlertsPdfQueryOptions = <TData = Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTraceabilityAlertsPdfQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>> = ({ signal }) => getTraceabilityAlertsPdf({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTraceabilityAlertsPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>>
+export type GetTraceabilityAlertsPdfQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Generate recall impact report as professional PDF (for ANVISA/ISO audit)
+ */
+
+export function useGetTraceabilityAlertsPdf<TData = Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityAlertsPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTraceabilityAlertsPdfQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getListUsuariosUrl = () => {
 
 
