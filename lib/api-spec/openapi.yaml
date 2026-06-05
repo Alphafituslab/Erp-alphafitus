@@ -38,7 +38,84 @@ tags:
     description: Full lot traceability — forward (MP → PA → clients) and backward (PA → MP → suppliers)
   - name: admin
     description: Administration — database backup and system maintenance (admin-only)
+  - name: notifications
+    description: In-app notifications
 paths:
+  /notifications:
+    get:
+      operationId: getNotifications
+      tags: [notifications]
+      summary: List notifications for the current user
+      responses:
+        "200":
+          description: Notifications list with unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsResult"
+        "401":
+          description: Unauthorized
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "401":
+          description: Unauthorized
+
+  /notifications/active-recall-count:
+    get:
+      operationId: getActiveRecallCount
+      tags: [notifications]
+      summary: Count of currently active critical lots (rejected/quarantine) consumed in production orders
+      responses:
+        "200":
+          description: Active recall count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        "401":
+          description: Unauthorized
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read for the current user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "401":
+          description: Unauthorized
   /settings/company:
     get:
       operationId: getCompanySettings
@@ -14207,4 +14284,38 @@ components:
         totalOpsAffected:
           type: integer
         totalClientsExposed:
+          type: integer
+
+    Notification:
+      type: object
+      required: [id, type, title, message, read, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        meta:
+          type: string
+          nullable: true
+        read:
+          type: boolean
+        createdAt:
+          type: string
+
+    NotificationsResult:
+      type: object
+      required: [notifications, unreadCount]
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        unreadCount:
           type: integer

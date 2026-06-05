@@ -3,6 +3,7 @@ import { and, eq, gte, lte, sql, desc, like, or, isNotNull, inArray } from "driz
 import {
   db, productsTable, stockMovementsTable,
   warehousesTable, productLotsTable, lotMovementsTable,
+  productionMaterialConsumptionsTable, usersTable, notificationsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -699,6 +700,47 @@ router.put("/estoque/lots/:id", async (req: Request, res: Response): Promise<voi
       });
     }
   });
+
+  // ── Recall notification: if lot changed to rejected/quarantine, check OP consumptions ──
+  const isCritical = (cqStatus === "rejected" || cqStatus === "quarantine") && existing.cqStatus !== cqStatus;
+  if (isCritical && cqStatus !== undefined) {
+    const consumptions = await db
+      .select({ orderId: productionMaterialConsumptionsTable.orderId })
+      .from(productionMaterialConsumptionsTable)
+      .where(eq(productionMaterialConsumptionsTable.lotId, id));
+
+    if (consumptions.length > 0) {
+      const uniqueOpIds = [...new Set(consumptions.map((c) => c.orderId))];
+      const opCount = uniqueOpIds.length;
+
+      const [product] = await db
+        .select({ name: productsTable.name })
+        .from(productsTable)
+        .where(eq(productsTable.id, existing.productId));
+
+      const statusLabel = cqStatus === "rejected" ? "REPROVADO" : "QUARENTENA";
+      const title = `⚠️ Recall — Lote ${existing.internalLot} ${statusLabel}`;
+      const message = `Lote ${existing.internalLot} do produto "${product?.name ?? "desconhecido"}" mudou para ${statusLabel} e foi consumido em ${opCount} Ordem(ns) de Produção. Verifique o impacto imediatamente.`;
+      const meta = JSON.stringify({ lotId: id, internalLot: existing.internalLot, cqStatus, opCount, opIds: uniqueOpIds });
+
+      const recipients = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(inArray(usersTable.role, ["admin", "manager"]));
+
+      if (recipients.length > 0) {
+        await db.insert(notificationsTable).values(
+          recipients.map((u) => ({
+            userId: u.id,
+            type: "recall",
+            title,
+            message,
+            meta,
+          }))
+        );
+      }
+    }
+  }
 
   const [result] = await db
     .select(LOT_SELECT)

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/auth";
 import { Redirect } from "wouter";
 import {
@@ -32,9 +32,13 @@ import {
   GitBranch,
   UserCog,
   ChevronRight,
+  Bell,
+  AlertTriangle,
+  X,
+  CheckCheck,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useLogout, getGetMeQueryKey, useGetNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, useGetActiveRecallCount } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -43,6 +47,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -179,6 +184,176 @@ function TopbarClock() {
   );
 }
 
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  const { data } = useGetNotifications({ query: { refetchInterval: 30_000, queryKey: ["/api/notifications"] } });
+  const { data: recallData } = useGetActiveRecallCount({ query: { refetchInterval: 30_000, queryKey: ["/api/notifications/active-recall-count"] } });
+  const markRead = useMarkNotificationRead();
+  const markAll = useMarkAllNotificationsRead();
+
+  const notifications = data?.notifications ?? [];
+  const unreadCount = data?.unreadCount ?? 0;
+  const activeCriticalCount = recallData?.count ?? 0;
+  const hasBadge = unreadCount > 0 || activeCriticalCount > 0;
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  function handleMarkRead(id: number) {
+    markRead.mutate({ id }, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications"] }),
+    });
+  }
+
+  function handleMarkAll() {
+    markAll.mutate(undefined, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/notifications"] }),
+    });
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => setOpen((v) => !v)}
+          >
+            <Bell className="h-4 w-4" />
+            {hasBadge && (
+              <span className={cn(
+                "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none",
+                unreadCount > 0
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-amber-500 text-white"
+              )}>
+                {unreadCount > 0
+                  ? (unreadCount > 99 ? "99+" : unreadCount)
+                  : activeCriticalCount > 99 ? "99+" : activeCriticalCount}
+              </span>
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="text-xs">Notificações</TooltipContent>
+      </Tooltip>
+
+      {open && (
+        <div className="absolute right-0 top-10 z-50 w-96 rounded-xl border border-border bg-card shadow-xl">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-semibold">Notificações</span>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-destructive/10 text-destructive text-[10px] font-bold px-1.5 py-0.5">
+                  {unreadCount} não lida{unreadCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              {unreadCount > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleMarkAll}>
+                      <CheckCheck className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs">Marcar todas como lidas</TooltipContent>
+                </Tooltip>
+              )}
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpen(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Active critical lots warning (persists even after reading notifications) */}
+          {activeCriticalCount > 0 && (
+            <div className="flex items-start gap-2 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-snug">
+                <span className="font-semibold">{activeCriticalCount} lote{activeCriticalCount !== 1 ? "s" : ""} crítico{activeCriticalCount !== 1 ? "s" : ""}</span> com impacto em OPs ainda ativo{activeCriticalCount !== 1 ? "s" : ""}. Verifique Rastreabilidade.
+              </p>
+            </div>
+          )}
+
+          {/* List */}
+          <ScrollArea className="max-h-[400px]">
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
+                <Bell className="h-8 w-8 opacity-20" />
+                <span className="text-sm">Nenhuma notificação</span>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className={cn(
+                      "flex gap-3 px-4 py-3 transition-colors",
+                      !n.read && "bg-destructive/5"
+                    )}
+                  >
+                    <div className="flex-shrink-0 mt-0.5">
+                      <div className={cn(
+                        "h-7 w-7 rounded-full flex items-center justify-center",
+                        n.type === "recall" ? "bg-destructive/10" : "bg-primary/10"
+                      )}>
+                        <AlertTriangle className={cn(
+                          "h-3.5 w-3.5",
+                          n.type === "recall" ? "text-destructive" : "text-primary"
+                        )} />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-[12px] font-semibold leading-tight", !n.read && "text-foreground")}>
+                        {n.title}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                        {n.message}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">
+                        {new Date(n.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                    {!n.read && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 flex-shrink-0 self-start mt-0.5"
+                            onClick={() => handleMarkRead(n.id)}
+                          >
+                            <CheckCheck className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-xs">Marcar como lida</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppLayout({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const { user, canAccessModule } = useAuth();
@@ -312,9 +487,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <span className="text-sm font-semibold text-foreground truncate">{currentLabel}</span>
             </div>
 
-            {/* Right: date + user */}
-            <div className="ml-auto flex items-center gap-4">
+            {/* Right: date + notifications + user */}
+            <div className="ml-auto flex items-center gap-3">
               <TopbarClock />
+              <div className="h-5 w-px bg-border hidden sm:block" />
+              <NotificationBell />
               <div className="h-5 w-px bg-border hidden sm:block" />
               <div className="flex items-center gap-2.5">
                 <div className="text-right hidden md:block">

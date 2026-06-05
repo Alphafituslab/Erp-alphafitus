@@ -16,6 +16,7 @@ import rastreabilidadeRouter from "./rastreabilidade";
 import usuariosRouter from "./usuarios";
 import adminRouter from "./admin";
 import settingsRouter from "./settings";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(producaoRouter);
 router.use(apsRouter);
 router.use(rastreabilidadeRouter);
 router.use(adminRouter);
+router.use(notificationsRouter);
 
 export default router;

@@ -8,6 +8,52 @@
 import * as zod from 'zod';
 
 /**
+ * @summary List notifications for the current user
+ */
+export const GetNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number().nullish(),
+  "type": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "meta": zod.string().nullish(),
+  "read": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Mark a single notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkNotificationReadResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Count of currently active critical lots (rejected/quarantine) consumed in production orders
+ */
+export const GetActiveRecallCountResponse = zod.object({
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Mark all notifications as read for the current user
+ */
+export const MarkAllNotificationsReadResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
  * @summary Get company settings (logo and name for PDF header)
  */
 export const GetCompanySettingsResponse = zod.object({

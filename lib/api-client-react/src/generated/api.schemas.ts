@@ -3631,6 +3631,34 @@ export interface TraceabilityAlertsResult {
   totalClientsExposed: number;
 }
 
+export interface Notification {
+  id: number;
+  userId?: number | null;
+  type: string;
+  title: string;
+  message: string;
+  meta?: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationsResult {
+  notifications: Notification[];
+  unreadCount: number;
+}
+
+export type MarkNotificationRead200 = {
+  ok?: boolean;
+};
+
+export type GetActiveRecallCount200 = {
+  count: number;
+};
+
+export type MarkAllNotificationsRead200 = {
+  ok?: boolean;
+};
+
 export type ListFinancialEntriesParams = {
 type?: ListFinancialEntriesType;
 status?: ListFinancialEntriesStatus;
