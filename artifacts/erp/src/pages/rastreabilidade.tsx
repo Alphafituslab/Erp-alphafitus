@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { Link } from "wouter";
 import {
   useSearchTraceLots,
   useGetTraceabilityTrace,
@@ -9,13 +10,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Search,
   GitBranch,
   ArrowRight,
   ArrowLeft,
+  ArrowDown,
   Printer,
   Package,
   Factory,
@@ -32,6 +34,7 @@ import {
   Bell,
   Users,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,6 +68,7 @@ function StatusBadge({ status }: { status?: string | null }) {
     draft: "Rascunho", confirmed: "Confirmado", in_progress: "Em andamento",
     completed: "Concluído", cancelled: "Cancelado", approved: "Aprovado",
     rejected: "Reprovado", pending: "Pendente", released: "Liberado",
+    issued: "Emitida", cancelled_doc: "Cancelada",
   };
   return <Badge variant="outline" className="text-xs">{m[status] ?? status}</Badge>;
 }
@@ -110,6 +114,435 @@ function GridCard({ children, className = "" }: { children: React.ReactNode; cla
     </div>
   );
 }
+
+// ─── Trace Tree Components ────────────────────────────────────────────────────
+
+interface TraceNodeProps {
+  icon: React.ElementType;
+  iconBg: string;
+  borderColor: string;
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  href?: string;
+  meta?: { label: string; value: string | null | undefined }[];
+  highlighted?: boolean;
+}
+
+function TraceNode({ icon: Icon, iconBg, borderColor, title, subtitle, badge, href, meta, highlighted }: TraceNodeProps) {
+  const inner = (
+    <div className={`
+      rounded-xl border px-4 py-3 space-y-2 transition-all
+      ${highlighted ? "bg-violet-500/10 border-violet-500/40 shadow-lg shadow-violet-500/10" : `bg-white/5 ${borderColor}`}
+      ${href ? "hover:bg-white/10 cursor-pointer group" : ""}
+    `}>
+      <div className="flex items-start gap-3">
+        <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>
+          <Icon className="h-4 w-4 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-sm text-white truncate">{title}</span>
+            {badge}
+            {href && (
+              <ExternalLink className="h-3 w-3 text-white/30 group-hover:text-white/70 ml-auto flex-shrink-0 transition-colors" />
+            )}
+          </div>
+          {subtitle && <p className="text-xs text-white/50 mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+      {meta && meta.filter(m => m.value).length > 0 && (
+        <div className="pl-11 space-y-0.5">
+          {meta.filter(m => m.value).map((m, i) => (
+            <div key={i} className="flex gap-2 text-xs">
+              <span className="text-white/30 min-w-[90px] shrink-0">{m.label}</span>
+              <span className="text-white/60">{m.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  if (href) {
+    return <Link href={href}>{inner}</Link>;
+  }
+  return inner;
+}
+
+function TraceConnector({ label, direction = "down" }: { label: string; direction?: "down" | "up" }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 py-1">
+      {direction === "up" && <ArrowDown className="h-4 w-4 text-white/20 rotate-180" />}
+      <div className="flex items-center gap-2">
+        <div className="h-px w-6 bg-white/10" />
+        <span className="text-xs text-white/30 whitespace-nowrap">{label}</span>
+        <div className="h-px w-6 bg-white/10" />
+      </div>
+      {direction === "down" && <ArrowDown className="h-4 w-4 text-white/20" />}
+    </div>
+  );
+}
+
+function TreeSection({ title, icon: Icon, iconColor, children }: {
+  title: string; icon: React.ElementType; iconColor: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
+        <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function TraceTreeView({ lot }: { lot: string }) {
+  const { data: trace, isLoading, error } = useGetTraceabilityTrace(
+    { lot },
+    { query: { enabled: !!lot } as any }
+  );
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center py-12 gap-3 text-white/40">
+      <Clock className="h-5 w-5 animate-spin" /><span>Calculando árvore de rastreabilidade…</span>
+    </div>
+  );
+  if (error) return (
+    <div className="flex items-center gap-3 py-8 text-red-300 text-sm border border-red-500/20 rounded-lg px-4">
+      <XCircle className="h-4 w-4 shrink-0" />Lote não encontrado. Verifique o número informado.
+    </div>
+  );
+  if (!trace) return null;
+
+  const fw = trace.forward as any;
+  const bw = trace.backward as any;
+  const info = trace.mpLotInfo as any;
+  const paOrders = (trace.paOrderInfo as any[]) ?? [];
+
+  const detectedAs = trace.detectedAs;
+
+  return (
+    <div className="space-y-6">
+      {/* Legend */}
+      <div className="flex items-center gap-4 flex-wrap text-xs text-white/40 border border-white/5 rounded-lg px-4 py-2 bg-white/2">
+        <span className="font-medium text-white/60">Legenda:</span>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-600/60" /><span>Matéria-Prima</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-amber-600/60" /><span>Ordem de Produção</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-600/60" /><span>Produto Acabado</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-sky-600/60" /><span>Pedido de Venda</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-purple-600/60" /><span>Documento Fiscal</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-teal-600/60" /><span>Fornecedor</span></div>
+        <ExternalLink className="h-3 w-3 ml-2" /><span>Clique para navegar</span>
+      </div>
+
+      {/* ── FORWARD CHAIN: MP → OP → PA → Sales → NF ─────────────────────────── */}
+      {(detectedAs === "mp" || detectedAs === "both") && fw && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-3">
+            <ArrowRight className="h-4 w-4 text-emerald-400" />
+            <span className="text-sm font-semibold text-emerald-300">Rastreabilidade Direta (MP → Clientes)</span>
+          </div>
+
+          {/* MP Lot node (root) */}
+          {info && (
+            <TreeSection title="Matéria-Prima" icon={FlaskConical} iconColor="text-green-400">
+              <TraceNode
+                icon={FlaskConical}
+                iconBg="bg-green-600/60"
+                borderColor="border-green-500/30"
+                title={lot}
+                subtitle={info.productName}
+                badge={<CqBadge status={info.cqStatus} />}
+                highlighted
+                meta={[
+                  { label: "Lote Fornecedor", value: info.supplierLot },
+                  { label: "Fabricação", value: fmt(info.manufacturingDate) },
+                  { label: "Validade", value: fmt(info.expirationDate) },
+                  { label: "Qtd Total", value: info.totalQty != null ? `${info.totalQty} un` : null },
+                ]}
+              />
+            </TreeSection>
+          )}
+
+          {/* OPs that consumed this MP */}
+          {(fw.productionOrders as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="consumida em" direction="down" />
+              <TreeSection title={`${(fw.productionOrders as any[]).length} Ordem(ns) de Produção`} icon={Factory} iconColor="text-amber-400">
+                <div className="space-y-2">
+                  {(fw.productionOrders as any[]).map((op: any) => (
+                    <TraceNode
+                      key={op.id}
+                      icon={Factory}
+                      iconBg="bg-amber-600/60"
+                      borderColor="border-amber-500/30"
+                      title={`OP ${op.number}`}
+                      subtitle={op.productName}
+                      badge={<StatusBadge status={op.status} />}
+                      href="/producao"
+                      meta={[
+                        { label: "Lote PA", value: op.batchLot },
+                        { label: "Qtd Plan.", value: op.plannedQty != null ? `${op.plannedQty} ${op.unit ?? ""}` : null },
+                        { label: "Início", value: fmt(op.scheduledStart) },
+                        { label: "Fim", value: fmt(op.scheduledEnd) },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {/* PA lots generated */}
+          {(fw.paLots as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="gerou lote de PA" direction="down" />
+              <TreeSection title={`${(fw.paLots as any[]).length} Lote(s) de Produto Acabado`} icon={Package} iconColor="text-blue-400">
+                <div className="space-y-2">
+                  {(fw.paLots as any[]).map((l: any) => (
+                    <TraceNode
+                      key={l.id}
+                      icon={Package}
+                      iconBg="bg-blue-600/60"
+                      borderColor="border-blue-500/30"
+                      title={l.internalLot}
+                      subtitle={l.productName}
+                      badge={<CqBadge status={l.cqStatus} />}
+                      meta={[
+                        { label: "Qtd Total", value: l.totalQty != null ? `${l.totalQty} un` : null },
+                        { label: "Validade", value: fmt(l.expirationDate) },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {/* Sales orders */}
+          {(fw.salesOrders as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="vendido em" direction="down" />
+              <TreeSection title={`${(fw.salesOrders as any[]).length} Pedido(s) de Venda`} icon={ShoppingCart} iconColor="text-sky-400">
+                <div className="space-y-2">
+                  {(fw.salesOrders as any[]).map((so: any) => (
+                    <TraceNode
+                      key={so.id}
+                      icon={ShoppingCart}
+                      iconBg="bg-sky-600/60"
+                      borderColor="border-sky-500/30"
+                      title={`PV #${so.id}`}
+                      subtitle={so.clientName ?? "Cliente não identificado"}
+                      badge={<StatusBadge status={so.status} />}
+                      href="/vendas"
+                      meta={[
+                        { label: "Documento", value: so.clientDocument },
+                        { label: "Cidade", value: so.clientCity ? `${so.clientCity}/${so.clientState ?? ""}` : null },
+                        { label: "Total", value: so.totalAmount != null ? `R$ ${Number(so.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null },
+                        { label: "Entrega", value: fmt(so.deliveryDate) },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {/* Fiscal documents */}
+          {(fw.fiscalDocs as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="documentado em" direction="down" />
+              <TreeSection title={`${(fw.fiscalDocs as any[]).length} Documento(s) Fiscal(is)`} icon={FileText} iconColor="text-purple-400">
+                <div className="space-y-2">
+                  {(fw.fiscalDocs as any[]).map((d: any) => (
+                    <TraceNode
+                      key={d.id}
+                      icon={FileText}
+                      iconBg="bg-purple-600/60"
+                      borderColor="border-purple-500/30"
+                      title={`${(d.type ?? "NF").toUpperCase()}${d.number ? ` nº ${d.number}` : ` #${d.id}`}`}
+                      subtitle={d.recipient ?? d.emitter}
+                      badge={<StatusBadge status={d.status} />}
+                      href="/fiscal"
+                      meta={[
+                        { label: "Emissão", value: fmt(d.issueDate) },
+                        { label: "Total", value: d.totalAmount != null ? `R$ ${Number(d.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null },
+                        { label: "Chave", value: d.accessKey ? `${d.accessKey.slice(0, 12)}…` : null },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {!(fw.productionOrders as any[])?.length && !(fw.paLots as any[])?.length && (
+            <div className="text-center py-6 text-white/30 text-sm border border-white/10 rounded-lg">
+              Nenhum consumo em OPs encontrado para este lote de MP.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Divider between chains */}
+      {(detectedAs === "both") && <Separator className="bg-white/10" />}
+
+      {/* ── BACKWARD CHAIN: PA → OP → MPs → Suppliers ─────────────────────────── */}
+      {(detectedAs === "pa" || detectedAs === "both") && bw && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-3">
+            <ArrowLeft className="h-4 w-4 text-orange-400" />
+            <span className="text-sm font-semibold text-orange-300">Rastreabilidade Reversa (PA → Fornecedores)</span>
+          </div>
+
+          {/* PA lot(s) - root of backward chain */}
+          {paOrders.length > 0 && (
+            <TreeSection title="Produto Acabado (Lote OP)" icon={Package} iconColor="text-blue-400">
+              <div className="space-y-2">
+                {paOrders.map((op: any) => (
+                  <TraceNode
+                    key={op.id}
+                    icon={Package}
+                    iconBg="bg-blue-600/60"
+                    borderColor="border-blue-500/30"
+                    title={op.batchLot ?? lot}
+                    subtitle={op.productName}
+                    highlighted
+                    meta={[
+                      { label: "Qtd Real", value: op.actualQty != null ? `${op.actualQty} ${op.unit ?? ""}` : null },
+                      { label: "Status OP", value: op.status },
+                    ]}
+                  />
+                ))}
+              </div>
+            </TreeSection>
+          )}
+
+          {/* Sales orders associated with the PA */}
+          {(bw.salesOrders as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="vendido em" direction="down" />
+              <TreeSection title={`${(bw.salesOrders as any[]).length} Pedido(s) de Venda`} icon={ShoppingCart} iconColor="text-sky-400">
+                <div className="space-y-2">
+                  {(bw.salesOrders as any[]).map((so: any) => (
+                    <TraceNode
+                      key={so.id}
+                      icon={ShoppingCart}
+                      iconBg="bg-sky-600/60"
+                      borderColor="border-sky-500/30"
+                      title={`PV #${so.id}`}
+                      subtitle={so.clientName ?? "Cliente não identificado"}
+                      badge={<StatusBadge status={so.status} />}
+                      href="/vendas"
+                      meta={[
+                        { label: "Documento", value: so.clientDocument },
+                        { label: "Cidade", value: so.clientCity ?? null },
+                        { label: "Total", value: so.totalAmount != null ? `R$ ${Number(so.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {/* OPs that produced this PA */}
+          {(bw.productionOrders as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="produzida pela OP" direction="up" />
+              <TreeSection title={`${(bw.productionOrders as any[]).length} Ordem(ns) de Produção`} icon={Factory} iconColor="text-amber-400">
+                <div className="space-y-2">
+                  {(bw.productionOrders as any[]).map((op: any) => (
+                    <TraceNode
+                      key={op.id}
+                      icon={Factory}
+                      iconBg="bg-amber-600/60"
+                      borderColor="border-amber-500/30"
+                      title={`OP ${op.number}`}
+                      subtitle={op.productName}
+                      badge={<StatusBadge status={op.status} />}
+                      href="/producao"
+                      meta={[
+                        { label: "Início real", value: fmtTs(op.actualStart) },
+                        { label: "Fim real", value: fmtTs(op.actualEnd) },
+                        { label: "Liberado por", value: op.releasedBy },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {/* Consumed MP lots */}
+          {(bw.consumedMpLots as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="consumiu as MPs" direction="up" />
+              <TreeSection title={`${(bw.consumedMpLots as any[]).length} Matéria(s)-Prima Consumida(s)`} icon={Package} iconColor="text-green-400">
+                <div className="space-y-2">
+                  {(bw.consumedMpLots as any[]).map((c: any, i: number) => (
+                    <TraceNode
+                      key={c.id ?? i}
+                      icon={FlaskConical}
+                      iconBg="bg-green-600/60"
+                      borderColor="border-green-500/30"
+                      title={c.internalLot ?? "Lote desconhecido"}
+                      subtitle={c.productName}
+                      badge={<CqBadge status={c.cqStatus} />}
+                      meta={[
+                        { label: "Lote Fornecedor", value: c.supplierLot },
+                        { label: "Qtd Real", value: c.actualQty != null ? `${c.actualQty} ${c.unit ?? ""}` : null },
+                        { label: "Registrado", value: fmtTs(c.recordedAt) },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {/* Suppliers */}
+          {(bw.suppliers as any[])?.length > 0 && (
+            <>
+              <TraceConnector label="recebidas dos fornecedores" direction="up" />
+              <TreeSection title={`${(bw.suppliers as any[]).length} Fornecedor(es)`} icon={Truck} iconColor="text-teal-400">
+                <div className="space-y-2">
+                  {(bw.suppliers as any[]).map((s: any) => (
+                    <TraceNode
+                      key={s.id}
+                      icon={Truck}
+                      iconBg="bg-teal-600/60"
+                      borderColor="border-teal-500/30"
+                      title={s.supplierName ?? "Fornecedor não identificado"}
+                      subtitle={s.supplierCity ? `${s.supplierCity}/${s.supplierState ?? ""}` : s.supplierDocument}
+                      badge={s.supplierApprovalStatus ? <Badge variant="outline" className="text-xs">{s.supplierApprovalStatus}</Badge> : undefined}
+                      meta={[
+                        { label: "CNPJ", value: s.supplierDocument },
+                        { label: "NF Entrada", value: s.nfNumber },
+                        { label: "Recebimento", value: fmt(s.receivedAt) },
+                        { label: "Valor NF", value: s.totalAmount != null ? `R$ ${Number(s.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null },
+                      ]}
+                    />
+                  ))}
+                </div>
+              </TreeSection>
+            </>
+          )}
+
+          {!(bw.consumedMpLots as any[])?.length && !(bw.mpLots as any[])?.length && !(bw.suppliers as any[])?.length && (
+            <div className="text-center py-6 text-white/30 text-sm border border-white/10 rounded-lg">
+              Nenhuma MP ou fornecedor encontrado para este lote de PA.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Forward View (detailed) ──────────────────────────────────────────────────
 
 function ForwardView({ lot }: { lot: string }) {
   const { data: fw, isLoading, error } = useGetTraceabilityForward(
@@ -193,7 +626,13 @@ function ForwardView({ lot }: { lot: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(fw.productionOrders as any[]).map((op: any) => (
               <GridCard key={op.id}>
-                <div className="flex items-center justify-between"><span className="font-medium text-sm text-white/90">OP {op.number}</span><StatusBadge status={op.status} /></div>
+                <div className="flex items-center justify-between">
+                  <Link href="/producao" className="flex items-center gap-1.5 hover:text-amber-300 transition-colors">
+                    <span className="font-medium text-sm text-white/90">OP {op.number}</span>
+                    <ExternalLink className="h-3 w-3 text-white/30" />
+                  </Link>
+                  <StatusBadge status={op.status} />
+                </div>
                 <DataRow label="Produto" value={op.productName} />
                 <DataRow label="Lote PA" value={op.batchLot} />
                 <DataRow label="Qtd Plan." value={op.plannedQty !== undefined ? `${op.plannedQty} ${op.unit ?? ""}` : null} />
@@ -225,7 +664,13 @@ function ForwardView({ lot }: { lot: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(fw.salesOrders as any[]).map((so: any) => (
               <GridCard key={so.id}>
-                <div className="flex items-center justify-between"><span className="font-medium text-sm text-white/90">{so.clientName ?? "—"}</span><StatusBadge status={so.status} /></div>
+                <div className="flex items-center justify-between">
+                  <Link href="/vendas" className="flex items-center gap-1.5 hover:text-sky-300 transition-colors">
+                    <span className="font-medium text-sm text-white/90">{so.clientName ?? "—"}</span>
+                    <ExternalLink className="h-3 w-3 text-white/30" />
+                  </Link>
+                  <StatusBadge status={so.status} />
+                </div>
                 <DataRow label="Documento" value={so.clientDocument} />
                 <DataRow label="Cidade" value={so.clientCity ? `${so.clientCity}/${so.clientState}` : null} />
                 <DataRow label="Total" value={so.totalAmount !== undefined ? `R$ ${Number(so.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
@@ -241,8 +686,13 @@ function ForwardView({ lot }: { lot: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(fw.fiscalDocs as any[]).map((d: any) => (
               <GridCard key={d.id}>
-                <div className="font-medium text-sm text-white/90">{d.documentType?.toUpperCase()} {d.number ? `nº ${d.number}` : `#${d.id}`}</div>
-                <DataRow label="Status" value={<StatusBadge status={d.status} />} />
+                <div className="flex items-center justify-between">
+                  <Link href="/fiscal" className="flex items-center gap-1.5 hover:text-purple-300 transition-colors">
+                    <span className="font-medium text-sm text-white/90">{d.type?.toUpperCase()} {d.number ? `nº ${d.number}` : `#${d.id}`}</span>
+                    <ExternalLink className="h-3 w-3 text-white/30" />
+                  </Link>
+                  <StatusBadge status={d.status} />
+                </div>
                 <DataRow label="Emissão" value={fmt(d.issueDate)} />
               </GridCard>
             ))}
@@ -258,6 +708,8 @@ function ForwardView({ lot }: { lot: string }) {
     </div>
   );
 }
+
+// ─── Backward View (detailed) ─────────────────────────────────────────────────
 
 function BackwardView({ lot }: { lot: string }) {
   const { data: bw, isLoading, error } = useGetTraceabilityBackward(
@@ -284,7 +736,13 @@ function BackwardView({ lot }: { lot: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(bw.productionOrders as any[]).map((op: any) => (
               <GridCard key={op.id}>
-                <div className="flex items-center justify-between"><span className="font-medium text-sm text-white/90">OP {op.number}</span><StatusBadge status={op.status} /></div>
+                <div className="flex items-center justify-between">
+                  <Link href="/producao" className="flex items-center gap-1.5 hover:text-amber-300 transition-colors">
+                    <span className="font-medium text-sm text-white/90">OP {op.number}</span>
+                    <ExternalLink className="h-3 w-3 text-white/30" />
+                  </Link>
+                  <StatusBadge status={op.status} />
+                </div>
                 <DataRow label="Produto" value={op.productName} />
                 <DataRow label="Lote PA" value={op.batchLot} />
                 <DataRow label="Qtd Real" value={op.actualQty !== undefined ? `${op.actualQty} ${op.unit ?? ""}` : null} />
@@ -385,7 +843,13 @@ function BackwardView({ lot }: { lot: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(bw.salesOrders as any[]).map((so: any) => (
               <GridCard key={so.id}>
-                <div className="flex items-center justify-between"><span className="font-medium text-sm text-white/90">{so.clientName ?? "—"}</span><StatusBadge status={so.status} /></div>
+                <div className="flex items-center justify-between">
+                  <Link href="/vendas" className="flex items-center gap-1.5 hover:text-sky-300 transition-colors">
+                    <span className="font-medium text-sm text-white/90">{so.clientName ?? "—"}</span>
+                    <ExternalLink className="h-3 w-3 text-white/30" />
+                  </Link>
+                  <StatusBadge status={so.status} />
+                </div>
                 <DataRow label="Documento" value={so.clientDocument} />
                 <DataRow label="Cidade" value={so.clientCity} />
                 <DataRow label="Total" value={so.totalAmount !== undefined ? `R$ ${Number(so.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
@@ -403,6 +867,8 @@ function BackwardView({ lot }: { lot: string }) {
     </div>
   );
 }
+
+// ─── Alerts Panel ─────────────────────────────────────────────────────────────
 
 function AlertsPanel() {
   const { data, isLoading, error, refetch, isFetching } = useGetTraceabilityAlerts();
@@ -427,7 +893,6 @@ function AlertsPanel() {
 
   return (
     <div className="space-y-5">
-      {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="bg-red-500/10 border-red-500/30">
           <CardContent className="pt-4 pb-4 text-center">
@@ -449,7 +914,6 @@ function AlertsPanel() {
         </Card>
       </div>
 
-      {/* Toolbar */}
       <div className="flex items-center justify-between no-print">
         <p className="text-xs text-white/40">
           {totalLots === 0
@@ -481,7 +945,6 @@ function AlertsPanel() {
         </div>
       </div>
 
-      {/* Empty state */}
       {alerts.length === 0 && (
         <div className="flex flex-col items-center justify-center py-14 gap-3 border border-green-500/20 rounded-lg bg-green-500/5">
           <CheckCircle2 className="h-10 w-10 text-green-400" />
@@ -492,7 +955,6 @@ function AlertsPanel() {
         </div>
       )}
 
-      {/* Alert cards */}
       {alerts.map((alert: any) => {
         const isRejected = alert.cqStatus === "rejected";
         const hasImpact = alert.opsAffectedCount > 0 || alert.clientsExposedCount > 0;
@@ -502,7 +964,6 @@ function AlertsPanel() {
             className={`border ${isRejected ? "border-red-500/40 bg-red-500/5" : "border-orange-500/40 bg-orange-500/5"}`}
           >
             <CardContent className="pt-4 pb-4 space-y-3">
-              {/* Header row */}
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -517,8 +978,6 @@ function AlertsPanel() {
                   </div>
                   <p className="text-xs text-white/50">{alert.productName ?? "Produto não identificado"}</p>
                 </div>
-
-                {/* Impact badges */}
                 <div className="flex items-center gap-2 shrink-0">
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${alert.opsAffectedCount > 0 ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-white/5 text-white/30 border border-white/10"}`}>
                     <Factory className="h-3.5 w-3.5" />
@@ -531,7 +990,6 @@ function AlertsPanel() {
                 </div>
               </div>
 
-              {/* Detail rows */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1">
                 {alert.supplierLot && <DataRow label="Lote Forn." value={alert.supplierLot} />}
                 {alert.totalQty !== null && alert.totalQty !== undefined && (
@@ -541,33 +999,37 @@ function AlertsPanel() {
                 {alert.manufacturingDate && <DataRow label="Fabricação" value={fmt(alert.manufacturingDate)} />}
               </div>
 
-              {/* Affected OPs list */}
               {(alert.affectedOps as any[])?.length > 0 && (
                 <div className="pt-1">
                   <p className="text-xs text-white/40 mb-1.5">OPs que consumiram este lote:</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(alert.affectedOps as any[]).map((op: any) => (
-                      <Badge key={op.id} variant="outline" className="text-xs border-amber-500/30 text-amber-300">
-                        <Factory className="h-3 w-3 mr-1" />
-                        OP {op.number}
-                        {op.batchLot ? ` → ${op.batchLot}` : ""}
-                      </Badge>
+                      <Link key={op.id} href="/producao">
+                        <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10 cursor-pointer transition-colors">
+                          <Factory className="h-3 w-3 mr-1" />
+                          OP {op.number}
+                          {op.batchLot ? ` → ${op.batchLot}` : ""}
+                          <ExternalLink className="h-2.5 w-2.5 ml-1 opacity-60" />
+                        </Badge>
+                      </Link>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Exposed clients list */}
               {(alert.exposedClients as any[])?.length > 0 && (
                 <div className="pt-1">
                   <p className="text-xs text-white/40 mb-1.5">Clientes que podem ter recebido PA derivado:</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(alert.exposedClients as any[]).map((c: any, i: number) => (
-                      <Badge key={c.soId ?? i} variant="outline" className="text-xs border-red-500/30 text-red-300">
-                        <Users className="h-3 w-3 mr-1" />
-                        {c.clientName ?? "Cliente desconhecido"}
-                        {c.clientCity ? ` — ${c.clientCity}` : ""}
-                      </Badge>
+                      <Link key={c.soId ?? i} href="/vendas">
+                        <Badge variant="outline" className="text-xs border-red-500/30 text-red-300 hover:bg-red-500/10 cursor-pointer transition-colors">
+                          <Users className="h-3 w-3 mr-1" />
+                          {c.clientName ?? "Cliente desconhecido"}
+                          {c.clientCity ? ` — ${c.clientCity}` : ""}
+                          <ExternalLink className="h-2.5 w-2.5 ml-1 opacity-60" />
+                        </Badge>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -580,132 +1042,7 @@ function AlertsPanel() {
   );
 }
 
-function CombinedView({ lot }: { lot: string }) {
-  const { data: trace, isLoading, error } = useGetTraceabilityTrace(
-    { lot },
-    { query: { enabled: !!lot } as any }
-  );
-  if (isLoading) return (
-    <div className="flex items-center justify-center py-12 gap-3 text-white/40">
-      <Clock className="h-5 w-5 animate-spin" /><span>Carregando rastreabilidade completa…</span>
-    </div>
-  );
-  if (error) return (
-    <div className="flex items-center gap-3 py-8 text-red-300 text-sm">
-      <XCircle className="h-4 w-4" />Lote não encontrado.
-    </div>
-  );
-  if (!trace) return null;
-
-  const fw = trace.forward as any;
-  const bw = trace.backward as any;
-  const info = trace.mpLotInfo as any;
-
-  const detectedLabel = trace.detectedAs === "mp" ? "Matéria-Prima"
-    : trace.detectedAs === "pa" ? "Produto Acabado (Lote OP)"
-    : trace.detectedAs === "both" ? "MP e PA"
-    : "Tipo desconhecido";
-
-  return (
-    <div className="space-y-4">
-      {/* Lot summary header */}
-      <Card className="bg-white/5 border-white/10">
-        <CardContent className="pt-4 pb-4 space-y-1.5">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/40 border text-xs">{detectedLabel}</Badge>
-          </div>
-          {info && (
-            <>
-              <DataRow label="Produto" value={info.productName} />
-              <DataRow label="Lote Fornecedor" value={info.supplierLot} />
-              <DataRow label="Qtd Total" value={info.totalQty !== undefined ? `${info.totalQty} un` : null} />
-              <DataRow label="Status CQ" value={<CqBadge status={info.cqStatus} />} />
-              <DataRow label="Fabricação" value={fmt(info.manufacturingDate)} />
-              <DataRow label="Validade" value={fmt(info.expirationDate)} />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {fw && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <ArrowRight className="h-4 w-4 text-emerald-400" />
-            <h3 className="text-sm font-semibold text-white/80">Direta (MP → PA → Clientes)</h3>
-          </div>
-          {(fw.paLots as any[])?.length > 0 && (
-            <SectionToggle title="Lotes PA Gerados" icon={Package} iconColor="text-blue-400" count={fw.paLots.length}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {fw.paLots.map((l: any) => (
-                  <GridCard key={l.id}>
-                    <div className="flex items-center justify-between"><span className="font-medium text-sm text-white/90">{l.internalLot}</span><CqBadge status={l.cqStatus} /></div>
-                    <DataRow label="Produto" value={l.productName} />
-                    <DataRow label="Validade" value={fmt(l.expirationDate)} />
-                  </GridCard>
-                ))}
-              </div>
-            </SectionToggle>
-          )}
-          {(fw.salesOrders as any[])?.length > 0 && (
-            <SectionToggle title="Pedidos de Venda" icon={ShoppingCart} iconColor="text-sky-400" count={fw.salesOrders.length}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {fw.salesOrders.map((so: any) => (
-                  <GridCard key={so.id}>
-                    <div className="flex items-center justify-between"><span className="font-medium text-sm text-white/90">{so.clientName ?? "—"}</span><StatusBadge status={so.status} /></div>
-                    <DataRow label="Cidade" value={so.clientCity ? `${so.clientCity}/${so.clientState}` : null} />
-                    <DataRow label="Total" value={so.totalAmount !== undefined ? `R$ ${Number(so.totalAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
-                  </GridCard>
-                ))}
-              </div>
-            </SectionToggle>
-          )}
-          {!(fw.paLots as any[])?.length && !(fw.salesOrders as any[])?.length && (
-            <p className="text-white/30 text-sm pl-2">Sem dados de rastreabilidade direta.</p>
-          )}
-        </div>
-      )}
-
-      {bw && (
-        <div className="space-y-3">
-          <Separator className="bg-white/10" />
-          <div className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4 text-orange-400" />
-            <h3 className="text-sm font-semibold text-white/80">Reversa (PA → MP → Fornecedores)</h3>
-          </div>
-          {(bw.suppliers as any[])?.length > 0 && (
-            <SectionToggle title="Fornecedores" icon={Truck} iconColor="text-purple-400" count={bw.suppliers.length}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {bw.suppliers.map((s: any) => (
-                  <GridCard key={s.id}>
-                    <div className="font-medium text-sm text-white/90">{s.supplierName ?? "—"}</div>
-                    <DataRow label="NF Entrada" value={s.nfNumber} />
-                    <DataRow label="Recebimento" value={fmt(s.receivedAt)} />
-                  </GridCard>
-                ))}
-              </div>
-            </SectionToggle>
-          )}
-          {(bw.ncrs as any[])?.length > 0 && (
-            <SectionToggle title="NCRs" icon={AlertTriangle} iconColor="text-red-400" count={bw.ncrs.length}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {bw.ncrs.map((n: any) => (
-                  <GridCard key={n.id}>
-                    <div className="font-medium text-sm text-white/90">{n.title}</div>
-                    <DataRow label="Severidade" value={n.severity} />
-                    <DataRow label="Status" value={<StatusBadge status={n.status} />} />
-                  </GridCard>
-                ))}
-              </div>
-            </SectionToggle>
-          )}
-          {!(bw.suppliers as any[])?.length && !(bw.ncrs as any[])?.length && (
-            <p className="text-white/30 text-sm pl-2">Sem dados de rastreabilidade reversa.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RastreabilidadePage() {
   const [inputValue, setInputValue] = useState("");
@@ -724,7 +1061,7 @@ export default function RastreabilidadePage() {
     if (v) { setActiveLot(v); setShowSuggestions(false); }
   }, [inputValue]);
 
-  const handleSelect = useCallback((lot: string, label: string) => {
+  const handleSelect = useCallback((lot: string) => {
     setInputValue(lot);
     setActiveLot(lot);
     setShowSuggestions(false);
@@ -735,9 +1072,7 @@ export default function RastreabilidadePage() {
     if (e.key === "Escape") setShowSuggestions(false);
   }, [handleSearch]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   const printTimestamp = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
@@ -823,7 +1158,7 @@ export default function RastreabilidadePage() {
                         {suggestions.map((s, i) => (
                           <button
                             key={i}
-                            onMouseDown={() => handleSelect(s.lot, s.label)}
+                            onMouseDown={() => handleSelect(s.lot)}
                             className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
                           >
                             <div>
@@ -854,10 +1189,11 @@ export default function RastreabilidadePage() {
                   <CardTitle className="text-white text-lg font-bold">Lote: {activeLot}</CardTitle>
                 </div>
 
-                <Tabs defaultValue="combined" className="w-full">
+                <Tabs defaultValue="tree" className="w-full">
                   <TabsList className="bg-white/5 border border-white/10 no-print">
-                    <TabsTrigger value="combined" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-violet-600/40">
-                      Visão Geral
+                    <TabsTrigger value="tree" className="gap-1.5 text-white/70 data-[state=active]:text-white data-[state=active]:bg-violet-600/40">
+                      <GitBranch className="h-3.5 w-3.5" />
+                      Árvore Completa
                     </TabsTrigger>
                     <TabsTrigger value="forward" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-emerald-600/40">
                       <ArrowRight className="h-3.5 w-3.5 mr-1" />Direta (MP→Clientes)
@@ -867,8 +1203,8 @@ export default function RastreabilidadePage() {
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="combined" className="mt-4">
-                    <CombinedView lot={activeLot} />
+                  <TabsContent value="tree" className="mt-4">
+                    <TraceTreeView lot={activeLot} />
                   </TabsContent>
                   <TabsContent value="forward" className="mt-4">
                     <ForwardView lot={activeLot} />
@@ -887,6 +1223,11 @@ export default function RastreabilidadePage() {
                 <p className="text-white/40 text-sm max-w-sm">
                   Digite um número de lote e clique em <strong className="text-white/60">Rastrear</strong> ou pressione <kbd className="px-1.5 py-0.5 rounded border border-white/20 text-xs">Enter</kbd> para visualizar a cadeia completa de rastreabilidade.
                 </p>
+                <div className="flex items-center gap-6 mt-2 text-xs text-white/25">
+                  <span>Ex: LOT-AA-2024-001</span>
+                  <span>Ex: LOT-VCA-2024-001</span>
+                  <span>Ex: OP-2024-001</span>
+                </div>
               </div>
             )}
           </TabsContent>
