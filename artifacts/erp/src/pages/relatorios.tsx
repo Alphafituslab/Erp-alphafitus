@@ -53,6 +53,7 @@ import {
   BellOff,
   CheckCircle2,
   FileDown,
+  Send,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,6 +87,7 @@ import {
   useGetGoalAlertSettings,
   useUpdateGoalAlertSettings,
   useListGoalAlertLogs,
+  useTestGoalAlertSend,
 } from "@workspace/api-client-react";
 import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -1617,6 +1619,26 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
     },
   });
 
+  const { mutate: testSend, isPending: isTesting } = useTestGoalAlertSend({
+    mutation: {
+      onSuccess: (data) => {
+        const count = data.recipients?.length ?? 0;
+        const recipientList = data.recipients?.join(", ") || "(nenhum)";
+        toast({
+          title: "E-mail de teste enviado com sucesso",
+          description: count > 0
+            ? `Enviado para: ${recipientList}`
+            : "Nenhum destinatário encontrado",
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/relatorios/goal-alerts/logs"] });
+      },
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : "Erro ao enviar e-mail de teste";
+        toast({ title: message, variant: "destructive" });
+      },
+    },
+  });
+
   function handleSave() {
     const trimmed = customRecipients.trim();
     if (trimmed !== "") {
@@ -1658,12 +1680,30 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
           )}
           <CardTitle className="text-base">Alertas de Metas por E-mail</CardTitle>
         </div>
-        {settings?.lastSentDate && (
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-green-600" />
-            Último envio: {settings.lastSentDate}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {settings?.lastSentDate && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3 text-green-600" />
+              Último envio: {settings.lastSentDate}
+            </span>
+          )}
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => testSend()}
+              disabled={isTesting}
+              className="h-7 text-xs"
+            >
+              {isTesting ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Send className="h-3 w-3 mr-1" />
+              )}
+              Testar envio agora
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

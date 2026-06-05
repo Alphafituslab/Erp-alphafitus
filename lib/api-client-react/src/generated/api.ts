@@ -96,6 +96,7 @@ import type {
   GoalAlertLog,
   GoalAlertSettings,
   GoalAlertSettingsInput,
+  GoalAlertTestSendResponse,
   GoalsHistoryItem,
   HealthStatus,
   ListApsScheduleParams,
@@ -11406,6 +11407,76 @@ export const useDeleteReportSchedule = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteReportScheduleMutationOptions(options));
+    }
+
+export const getTestGoalAlertSendUrl = () => {
+
+
+
+
+  return `/api/relatorios/goal-alerts/test-send`
+}
+
+/**
+ * @summary Send a goal alert test email immediately (admin only)
+ */
+export const testGoalAlertSend = async ( options?: RequestInit): Promise<GoalAlertTestSendResponse> => {
+
+  return customFetch<GoalAlertTestSendResponse>(getTestGoalAlertSendUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getTestGoalAlertSendMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testGoalAlertSend>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testGoalAlertSend>>, TError,void, TContext> => {
+
+const mutationKey = ['testGoalAlertSend'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testGoalAlertSend>>, void> = () => {
+
+
+          return  testGoalAlertSend(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestGoalAlertSendMutationResult = NonNullable<Awaited<ReturnType<typeof testGoalAlertSend>>>
+
+    export type TestGoalAlertSendMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send a goal alert test email immediately (admin only)
+ */
+export const useTestGoalAlertSend = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testGoalAlertSend>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testGoalAlertSend>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTestGoalAlertSendMutationOptions(options));
     }
 
 export const getListGoalAlertLogsUrl = (params?: ListGoalAlertLogsParams,) => {

@@ -2399,6 +2399,11 @@ export interface GoalAlertLog {
   sentAt: string;
 }
 
+export interface GoalAlertTestSendResponse {
+  recipients: string[];
+  alertCount: number;
+}
+
 export interface GoalAlertSettings {
   id: number;
   enabled: boolean;

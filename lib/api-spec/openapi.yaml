@@ -4964,6 +4964,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/goal-alerts/test-send:
+    post:
+      operationId: testGoalAlertSend
+      tags: [relatorios]
+      summary: Send a goal alert test email immediately (admin only)
+      responses:
+        "200":
+          description: Test email sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalAlertTestSendResponse"
+        "400":
+          description: SMTP not configured or no recipients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Email send error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /relatorios/goal-alerts/logs:
     get:
       operationId: listGoalAlertLogs
@@ -11486,6 +11523,19 @@ components:
         sentAt:
           type: string
           format: date-time
+
+    GoalAlertTestSendResponse:
+      type: object
+      required:
+        - recipients
+        - alertCount
+      properties:
+        recipients:
+          type: array
+          items:
+            type: string
+        alertCount:
+          type: integer
 
     GoalAlertSettings:
       type: object

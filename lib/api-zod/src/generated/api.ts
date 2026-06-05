@@ -4397,6 +4397,15 @@ export const DeleteReportScheduleResponse = zod.object({
 
 
 /**
+ * @summary Send a goal alert test email immediately (admin only)
+ */
+export const TestGoalAlertSendResponse = zod.object({
+  "recipients": zod.array(zod.string()),
+  "alertCount": zod.number()
+})
+
+
+/**
  * @summary List goal alert history logs
  */
 export const listGoalAlertLogsQueryLimitDefault = 50;

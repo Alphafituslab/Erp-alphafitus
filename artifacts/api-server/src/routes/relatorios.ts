@@ -19,6 +19,7 @@ import {
 } from "@workspace/db";
 import type { Request, Response } from "express";
 import { sendEmail, isSmtpConfigured } from "../lib/mailer";
+import { sendGoalAlertNow } from "../lib/goal-alert-scheduler";
 import { buildReportPdf } from "./relatorios-pdf";
 
 const router: IRouter = Router();
@@ -1233,6 +1234,19 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
 });
 
 // ─── Goal Alert Logs ──────────────────────────────────────────────────────────
+
+router.post("/relatorios/goal-alerts/test-send", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdminAsync(req, res)) return;
+
+  try {
+    const result = await sendGoalAlertNow();
+    res.json(result);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao enviar e-mail de teste";
+    req.log.warn({ err }, "Goal alert test send failed");
+    res.status(500).json({ error: message });
+  }
+});
 
 router.get("/relatorios/goal-alerts/logs", async (req: Request, res: Response): Promise<void> => {
   if (!await requireManagerAsync(req, res)) return;
