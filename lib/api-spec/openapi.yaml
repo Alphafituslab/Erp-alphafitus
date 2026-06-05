@@ -1072,6 +1072,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Estoque: Analytics ──────────────────────────────────────────────────────
+
+  /estoque/analytics/turnover:
+    get:
+      operationId: getEstoqueTurnover
+      tags: [estoque]
+      summary: Stock turnover analysis — giro por produto
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD), default 90 days ago
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD), default today
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by product category
+        - name: inactiveDays
+          in: query
+          schema:
+            type: integer
+          description: Highlight products with no movement for this many days (default 30)
+      responses:
+        "200":
+          description: Turnover analytics result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTurnoverResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Estoque: Warehouses ─────────────────────────────────────────────────────
 
   /estoque/warehouses:
@@ -8798,6 +8842,88 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductLot"
+
+    StockTurnoverItem:
+      type: object
+      required:
+        - productId
+        - productName
+        - sku
+        - category
+        - currentStock
+        - totalInputQty
+        - totalOutputQty
+        - totalMovementQty
+        - avgStock
+        - turnoverRate
+        - daysSinceLastMovement
+        - isInactive
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        currentStock:
+          type: number
+        totalInputQty:
+          type: number
+        totalOutputQty:
+          type: number
+        totalMovementQty:
+          type: number
+        avgStock:
+          type: number
+        turnoverRate:
+          type: number
+          description: "Giro = (entradas + saídas no período) / saldo médio. 0 if avgStock = 0"
+        daysSinceLastMovement:
+          type: integer
+          nullable: true
+          description: "Days since the last movement. null if no movement ever"
+        lastMovementAt:
+          type: string
+          nullable: true
+        isInactive:
+          type: boolean
+          description: "True if daysSinceLastMovement >= inactiveDays threshold"
+
+    StockTurnoverResponse:
+      type: object
+      required:
+        - dateFrom
+        - dateTo
+        - inactiveDays
+        - categories
+        - items
+        - totalItems
+        - inactiveCount
+      properties:
+        dateFrom:
+          type: string
+        dateTo:
+          type: string
+        inactiveDays:
+          type: integer
+        categories:
+          type: array
+          items:
+            type: string
+        totalItems:
+          type: integer
+        inactiveCount:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockTurnoverItem"
 
     # ── Estoque: Lotes e Depósitos schemas ──────────────────────────────────────
 

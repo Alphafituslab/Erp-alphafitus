@@ -906,6 +906,36 @@ export interface EstoqueDashboard {
   quarantineLotsList?: ProductLot[];
 }
 
+export interface StockTurnoverItem {
+  productId: number;
+  productName: string;
+  sku: string | null;
+  category: string | null;
+  unit?: string;
+  currentStock: number;
+  totalInputQty: number;
+  totalOutputQty: number;
+  totalMovementQty: number;
+  avgStock: number;
+  /** Giro = saídas no período / saldo médio. null if avgStock = 0 */
+  turnoverRate: number;
+  /** Days since the last movement. null if no movement ever */
+  daysSinceLastMovement: number | null;
+  lastMovementAt?: string | null;
+  /** True if daysSinceLastMovement >= inactiveDays threshold */
+  isInactive: boolean;
+}
+
+export interface StockTurnoverResponse {
+  dateFrom: string;
+  dateTo: string;
+  inactiveDays: number;
+  categories: string[];
+  totalItems: number;
+  inactiveCount: number;
+  items: StockTurnoverItem[];
+}
+
 export interface Warehouse {
   id: number;
   name: string;
@@ -3658,6 +3688,25 @@ export const ListStockMovementsType = {
   input: 'input',
   output: 'output',
 } as const;
+
+export type GetEstoqueTurnoverParams = {
+/**
+ * Start date (YYYY-MM-DD), default 90 days ago
+ */
+dateFrom?: string;
+/**
+ * End date (YYYY-MM-DD), default today
+ */
+dateTo?: string;
+/**
+ * Filter by product category
+ */
+category?: string;
+/**
+ * Highlight products with no movement for this many days (default 30)
+ */
+inactiveDays?: number;
+};
 
 export type ListWarehousesParams = {
 active?: ListWarehousesActive;

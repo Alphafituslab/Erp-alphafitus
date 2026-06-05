@@ -11,10 +11,12 @@ import {
   useAdjustLotInventory, useTransferLot, useGetLotMovements,
   useGetProductLotLabel,
   useListSuppliers,
+  useGetEstoqueTurnover,
   getListProductsQueryKey, getListStockMovementsQueryKey,
   getGetEstoqueDashboardQueryKey, getListWarehousesQueryKey,
   getListProductLotsQueryKey, getGetLotMovementsQueryKey,
 } from "@workspace/api-client-react";
+import type { GetEstoqueTurnoverParams } from "@workspace/api-client-react";
 import type { Product, Warehouse, ProductLot } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,7 @@ import {
   TrendingDown, TrendingUp, ArrowDown, ArrowUp, Boxes,
   FlaskConical, Warehouse as WarehouseIcon, CalendarX, ArrowRightLeft,
   History, CheckCircle2, XCircle, Clock, Shield, Tag, Printer, FileCode,
+  BarChart2, Activity, AlertOctagon, ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { PdfExportDialog, addPdfHeader, addPdfFooter } from "@/components/pdf-export-dialog";
@@ -1099,6 +1102,18 @@ export default function EstoquePage() {
   const [warehouseDialog, setWarehouseDialog] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
 
+  // Turnover / Análise de Giro state
+  const [turnoverDateFrom, setTurnoverDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 90);
+    return d.toISOString().slice(0, 10);
+  });
+  const [turnoverDateTo, setTurnoverDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [turnoverCategory, setTurnoverCategory] = useState("all");
+  const [turnoverInactiveDays, setTurnoverInactiveDays] = useState(30);
+  const [turnoverOnlyInactive, setTurnoverOnlyInactive] = useState(false);
+  const [turnoverSort, setTurnoverSort] = useState<{ col: string; dir: "asc" | "desc" }>({ col: "turnoverRate", dir: "asc" });
+
   const PAGE_SIZE = 20;
   const [productsPage, setProductsPage] = useState(1);
   const [movementsPage, setMovementsPage] = useState(1);
@@ -1129,6 +1144,15 @@ export default function EstoquePage() {
   const { data: dashboard } = useGetEstoqueDashboard();
   const { data: warehouses = [] } = useListWarehouses({});
   const { data: lots = [], isLoading: lotsLoading } = useListProductLots({});
+
+  const turnoverParams = useMemo<GetEstoqueTurnoverParams>(() => ({
+    dateFrom: turnoverDateFrom,
+    dateTo: turnoverDateTo,
+    inactiveDays: turnoverInactiveDays,
+    ...(turnoverCategory !== "all" ? { category: turnoverCategory } : {}),
+  }), [turnoverDateFrom, turnoverDateTo, turnoverInactiveDays, turnoverCategory]);
+
+  const { data: turnoverData, isLoading: turnoverLoading } = useGetEstoqueTurnover(turnoverParams);
 
   const deleteMutation = useDeleteProduct();
 
@@ -1307,6 +1331,7 @@ export default function EstoquePage() {
             <TabsTrigger value="lots">Lotes</TabsTrigger>
             <TabsTrigger value="movements">Movimentações</TabsTrigger>
             <TabsTrigger value="warehouses">Depósitos</TabsTrigger>
+            <TabsTrigger value="turnover"><BarChart2 className="h-3.5 w-3.5 mr-1.5" />Análise de Giro</TabsTrigger>
           </TabsList>
 
           {/* ── DASHBOARD ─────────────────────────────────────────────── */}
@@ -1786,6 +1811,229 @@ export default function EstoquePage() {
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── ANÁLISE DE GIRO ───────────────────────────────────────── */}
+          <TabsContent value="turnover" className="space-y-4 mt-4">
+            {/* ── Filter bar ── */}
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">De</span>
+                    <Input
+                      type="date"
+                      className="w-36 h-8 text-sm"
+                      value={turnoverDateFrom}
+                      onChange={(e) => setTurnoverDateFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Até</span>
+                    <Input
+                      type="date"
+                      className="w-36 h-8 text-sm"
+                      value={turnoverDateTo}
+                      onChange={(e) => setTurnoverDateTo(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Categoria</span>
+                    <Select value={turnoverCategory} onValueChange={setTurnoverCategory}>
+                      <SelectTrigger className="w-40 h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        {(turnoverData?.categories ?? []).map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Inativo há (dias)</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="w-28 h-8 text-sm"
+                      value={turnoverInactiveDays}
+                      onChange={(e) => setTurnoverInactiveDays(Math.max(1, parseInt(e.target.value) || 30))}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pb-0.5">
+                    <input
+                      id="only-inactive"
+                      type="checkbox"
+                      className="accent-primary h-4 w-4"
+                      checked={turnoverOnlyInactive}
+                      onChange={(e) => setTurnoverOnlyInactive(e.target.checked)}
+                    />
+                    <label htmlFor="only-inactive" className="text-sm cursor-pointer select-none">
+                      Somente inativos
+                    </label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ── KPI summary row ── */}
+            {turnoverData && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Produtos analisados</CardTitle>
+                    <Boxes className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold">{turnoverData.totalItems}</p>
+                    <p className="text-xs text-muted-foreground mt-1">No período selecionado</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Inativos / Dead stock</CardTitle>
+                    <AlertOctagon className="h-4 w-4 text-destructive" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-destructive">{turnoverData.inactiveCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Sem mov. há ≥{turnoverData.inactiveDays} dias</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Com movimentação</CardTitle>
+                    <Activity className="h-4 w-4 text-emerald-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-emerald-600">{turnoverData.totalItems - turnoverData.inactiveCount}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Ativos no período</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">% Inativos</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-amber-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-semibold text-amber-600">
+                      {turnoverData.totalItems > 0
+                        ? ((turnoverData.inactiveCount / turnoverData.totalItems) * 100).toFixed(1)
+                        : "0.0"}%
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Do catálogo sem giro</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* ── Table ── */}
+            <Card>
+              <CardContent className="p-0">
+                {turnoverLoading ? (
+                  <div className="flex items-center justify-center py-20 text-muted-foreground">
+                    <Activity className="h-5 w-5 mr-2 animate-spin" />Carregando análise…
+                  </div>
+                ) : (() => {
+                  const rawItems = turnoverData?.items ?? [];
+                  const filtered = turnoverOnlyInactive ? rawItems.filter((i) => i.isInactive) : rawItems;
+                  const sorted = [...filtered].sort((a, b) => {
+                    const col = turnoverSort.col as keyof typeof a;
+                    const av = a[col] ?? 0;
+                    const bv = b[col] ?? 0;
+                    if (av < bv) return turnoverSort.dir === "asc" ? -1 : 1;
+                    if (av > bv) return turnoverSort.dir === "asc" ? 1 : -1;
+                    return 0;
+                  });
+
+                  function SortIcon({ col }: { col: string }) {
+                    if (turnoverSort.col !== col) return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-40" />;
+                    return turnoverSort.dir === "asc"
+                      ? <ChevronUp className="h-3 w-3 ml-1" />
+                      : <ChevronDown className="h-3 w-3 ml-1" />;
+                  }
+                  function thClick(col: string) {
+                    setTurnoverSort((prev) =>
+                      prev.col === col ? { col, dir: prev.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" }
+                    );
+                  }
+
+                  return (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="cursor-pointer select-none" onClick={() => thClick("productName")}>
+                            <span className="flex items-center">Produto<SortIcon col="productName" /></span>
+                          </TableHead>
+                          <TableHead>SKU</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead className="cursor-pointer select-none text-right" onClick={() => thClick("currentStock")}>
+                            <span className="flex items-center justify-end">Saldo atual<SortIcon col="currentStock" /></span>
+                          </TableHead>
+                          <TableHead className="cursor-pointer select-none text-right" onClick={() => thClick("totalInputQty")}>
+                            <span className="flex items-center justify-end">Entradas<SortIcon col="totalInputQty" /></span>
+                          </TableHead>
+                          <TableHead className="cursor-pointer select-none text-right" onClick={() => thClick("totalOutputQty")}>
+                            <span className="flex items-center justify-end">Saídas<SortIcon col="totalOutputQty" /></span>
+                          </TableHead>
+                          <TableHead className="cursor-pointer select-none text-right" onClick={() => thClick("turnoverRate")}>
+                            <span className="flex items-center justify-end">Índice de Giro<SortIcon col="turnoverRate" /></span>
+                          </TableHead>
+                          <TableHead className="cursor-pointer select-none text-right" onClick={() => thClick("daysSinceLastMovement")}>
+                            <span className="flex items-center justify-end">Dias s/ mov.<SortIcon col="daysSinceLastMovement" /></span>
+                          </TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sorted.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                              Nenhum produto encontrado para os filtros selecionados.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {sorted.map((item) => (
+                          <TableRow key={item.productId} className={item.isInactive ? "bg-destructive/5" : undefined}>
+                            <TableCell className="font-medium">{item.productName}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{item.sku ?? "—"}</TableCell>
+                            <TableCell className="text-sm">{item.category ?? "—"}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {Number(item.currentStock).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} {item.unit}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-emerald-700">
+                              +{Number(item.totalInputQty).toLocaleString("pt-BR", { maximumFractionDigits: 3 })}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-rose-700">
+                              -{Number(item.totalOutputQty).toLocaleString("pt-BR", { maximumFractionDigits: 3 })}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {item.avgStock > 0
+                                ? <span className={item.turnoverRate < 0.1 ? "text-amber-600 font-medium" : item.turnoverRate >= 1 ? "text-emerald-600 font-medium" : undefined}>
+                                    {Number(item.turnoverRate).toFixed(2)}x
+                                  </span>
+                                : <span className="text-muted-foreground">—</span>
+                              }
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {item.daysSinceLastMovement != null ? (
+                                <span className={item.isInactive ? "text-destructive font-medium" : undefined}>
+                                  {item.daysSinceLastMovement}d
+                                </span>
+                              ) : <span className="text-muted-foreground">Nunca</span>}
+                            </TableCell>
+                            <TableCell>
+                              {item.isInactive
+                                ? <Badge variant="destructive" className="text-xs">Dead stock</Badge>
+                                : <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300">Ativo</Badge>
+                              }
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

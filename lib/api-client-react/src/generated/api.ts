@@ -85,6 +85,7 @@ import type {
   GetCashflowParams,
   GetClientTopDebtorsParams,
   GetDashboardGoalsParams,
+  GetEstoqueTurnoverParams,
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
   GetGoalsHistoryParams,
@@ -209,6 +210,7 @@ import type {
   StockMovement,
   StockMovementInput,
   StockMovementPage,
+  StockTurnoverResponse,
   SuccessResponse,
   Supplier,
   SupplierAnalysisResult,
@@ -2633,6 +2635,90 @@ export function useGetEstoqueDashboard<TData = Awaited<ReturnType<typeof getEsto
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetEstoqueDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetEstoqueTurnoverUrl = (params?: GetEstoqueTurnoverParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/estoque/analytics/turnover?${stringifiedParams}` : `/api/estoque/analytics/turnover`
+}
+
+/**
+ * @summary Stock turnover analysis — giro por produto
+ */
+export const getEstoqueTurnover = async (params?: GetEstoqueTurnoverParams, options?: RequestInit): Promise<StockTurnoverResponse> => {
+
+  return customFetch<StockTurnoverResponse>(getGetEstoqueTurnoverUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEstoqueTurnoverQueryKey = (params?: GetEstoqueTurnoverParams,) => {
+    return [
+    `/api/estoque/analytics/turnover`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetEstoqueTurnoverQueryOptions = <TData = Awaited<ReturnType<typeof getEstoqueTurnover>>, TError = ErrorType<ErrorResponse>>(params?: GetEstoqueTurnoverParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEstoqueTurnover>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEstoqueTurnoverQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEstoqueTurnover>>> = ({ signal }) => getEstoqueTurnover(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEstoqueTurnover>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEstoqueTurnoverQueryResult = NonNullable<Awaited<ReturnType<typeof getEstoqueTurnover>>>
+export type GetEstoqueTurnoverQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Stock turnover analysis — giro por produto
+ */
+
+export function useGetEstoqueTurnover<TData = Awaited<ReturnType<typeof getEstoqueTurnover>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetEstoqueTurnoverParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEstoqueTurnover>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEstoqueTurnoverQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

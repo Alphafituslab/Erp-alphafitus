@@ -1020,6 +1020,42 @@ export const GetEstoqueDashboardResponse = zod.object({
 
 
 /**
+ * @summary Stock turnover analysis — giro por produto
+ */
+export const GetEstoqueTurnoverQueryParams = zod.object({
+  "dateFrom": zod.date().optional().describe('Start date (YYYY-MM-DD), default 90 days ago'),
+  "dateTo": zod.date().optional().describe('End date (YYYY-MM-DD), default today'),
+  "category": zod.coerce.string().optional().describe('Filter by product category'),
+  "inactiveDays": zod.coerce.number().optional().describe('Highlight products with no movement for this many days (default 30)')
+})
+
+export const GetEstoqueTurnoverResponse = zod.object({
+  "dateFrom": zod.string(),
+  "dateTo": zod.string(),
+  "inactiveDays": zod.number(),
+  "categories": zod.array(zod.string()),
+  "totalItems": zod.number(),
+  "inactiveCount": zod.number(),
+  "items": zod.array(zod.object({
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "sku": zod.string().nullable(),
+  "category": zod.string().nullable(),
+  "unit": zod.string().optional(),
+  "currentStock": zod.number(),
+  "totalInputQty": zod.number(),
+  "totalOutputQty": zod.number(),
+  "totalMovementQty": zod.number(),
+  "avgStock": zod.number(),
+  "turnoverRate": zod.number().describe('Giro = saídas no período \/ saldo médio. null if avgStock = 0'),
+  "daysSinceLastMovement": zod.number().nullable().describe('Days since the last movement. null if no movement ever'),
+  "lastMovementAt": zod.string().nullish(),
+  "isInactive": zod.boolean().describe('True if daysSinceLastMovement >= inactiveDays threshold')
+}))
+})
+
+
+/**
  * @summary List warehouses (depósitos)
  */
 export const ListWarehousesQueryParams = zod.object({

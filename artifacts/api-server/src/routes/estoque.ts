@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, sql, desc, like, or, isNotNull } from "drizzle-orm";
+import { and, eq, gte, lte, sql, desc, like, or, isNotNull, inArray } from "drizzle-orm";
 import {
   db, productsTable, stockMovementsTable,
   warehousesTable, productLotsTable, lotMovementsTable,
@@ -1074,6 +1074,191 @@ router.get("/estoque/dashboard", async (req: Request, res: Response): Promise<vo
     expiringLotsList,
     quarantineLotsList,
     quarantineAgingList,
+  });
+});
+
+// ─── Analytics: Stock Turnover ───────────────────────────────────────────────
+
+router.get("/estoque/analytics/turnover", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { category } = req.query as Record<string, string>;
+  const inactiveDays = Math.max(1, parseInt((req.query.inactiveDays as string) ?? "30") || 30);
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  const defaultFrom = new Date(today);
+  defaultFrom.setDate(defaultFrom.getDate() - 90);
+  defaultFrom.setHours(0, 0, 0, 0);
+
+  const dateFrom = (req.query.dateFrom as string)
+    ? new Date((req.query.dateFrom as string) + "T00:00:00")
+    : defaultFrom;
+  const dateTo = (req.query.dateTo as string)
+    ? new Date((req.query.dateTo as string) + "T23:59:59")
+    : today;
+
+  // Fetch all active products (optionally filtered by category)
+  const productFilters = [eq(productsTable.active, "true")];
+  if (category) productFilters.push(eq(productsTable.category, category));
+
+  const products = await db
+    .select()
+    .from(productsTable)
+    .where(and(...productFilters))
+    .orderBy(productsTable.name);
+
+  if (products.length === 0) {
+    res.json({
+      dateFrom: dateFrom.toISOString().slice(0, 10),
+      dateTo: dateTo.toISOString().slice(0, 10),
+      inactiveDays,
+      categories: [],
+      totalItems: 0,
+      inactiveCount: 0,
+      items: [],
+    });
+    return;
+  }
+
+  const productIds = products.map((p) => p.id);
+
+  // Run three queries in parallel:
+  // 1. Period movements (dateFrom..dateTo) — for giro numerator and closing balance
+  // 2. Post-period movements (after dateTo) — needed to derive stockAtDateTo from currentStock
+  // 3. Last-ever movement per product — for daysSinceLastMovement
+  const [periodMovements, postMovements, lastMovementRows, categoryRows] = await Promise.all([
+    db
+      .select({
+        productId: stockMovementsTable.productId,
+        type: stockMovementsTable.type,
+        quantity: stockMovementsTable.quantity,
+      })
+      .from(stockMovementsTable)
+      .where(
+        and(
+          inArray(stockMovementsTable.productId, productIds),
+          gte(stockMovementsTable.createdAt, dateFrom),
+          lte(stockMovementsTable.createdAt, dateTo),
+        )
+      ),
+
+    db
+      .select({
+        productId: stockMovementsTable.productId,
+        type: stockMovementsTable.type,
+        quantity: stockMovementsTable.quantity,
+      })
+      .from(stockMovementsTable)
+      .where(
+        and(
+          inArray(stockMovementsTable.productId, productIds),
+          sql`${stockMovementsTable.createdAt} > ${dateTo}`,
+        )
+      ),
+
+    db
+      .select({
+        productId: stockMovementsTable.productId,
+        lastAt: sql<string>`MAX(${stockMovementsTable.createdAt})`.as("last_at"),
+      })
+      .from(stockMovementsTable)
+      .where(inArray(stockMovementsTable.productId, productIds))
+      .groupBy(stockMovementsTable.productId),
+
+    db
+      .selectDistinct({ category: productsTable.category })
+      .from(productsTable)
+      .where(eq(productsTable.active, "true"))
+      .orderBy(productsTable.category),
+  ]);
+
+  const lastMovementMap = new Map<number, string>(
+    lastMovementRows.map((r) => [r.productId, r.lastAt])
+  );
+
+  // Aggregate period movements by product
+  type MovAgg = { inputQty: number; outputQty: number };
+  const periodAgg = new Map<number, MovAgg>();
+  for (const m of periodMovements) {
+    const cur = periodAgg.get(m.productId) ?? { inputQty: 0, outputQty: 0 };
+    const qty = Number(m.quantity);
+    if (m.type === "input") cur.inputQty += qty;
+    else cur.outputQty += qty;
+    periodAgg.set(m.productId, cur);
+  }
+
+  // Aggregate post-period movements by product (inputs after dateTo increase stock, outputs decrease)
+  const postAgg = new Map<number, MovAgg>();
+  for (const m of postMovements) {
+    const cur = postAgg.get(m.productId) ?? { inputQty: 0, outputQty: 0 };
+    const qty = Number(m.quantity);
+    if (m.type === "input") cur.inputQty += qty;
+    else cur.outputQty += qty;
+    postAgg.set(m.productId, cur);
+  }
+
+  const categories = categoryRows
+    .map((r) => r.category)
+    .filter((c): c is string => c != null && c.length > 0);
+
+  const nowMs = Date.now();
+
+  const items = products.map((p) => {
+    const period = periodAgg.get(p.id) ?? { inputQty: 0, outputQty: 0 };
+    const post = postAgg.get(p.id) ?? { inputQty: 0, outputQty: 0 };
+    const currentStock = Number(p.currentStock);
+
+    // Derive period-correct balances:
+    // stockAtDateTo = currentStock − post-period inputs + post-period outputs
+    const stockAtDateTo = currentStock - post.inputQty + post.outputQty;
+    // stockAtDateFrom = stockAtDateTo − period inputs + period outputs
+    const stockAtDateFrom = stockAtDateTo - period.inputQty + period.outputQty;
+
+    // avgStock = (opening + closing) / 2, clamped to zero
+    const avgStock = (Math.max(0, stockAtDateFrom) + Math.max(0, stockAtDateTo)) / 2;
+
+    // Giro = (entradas + saídas no período) / saldo médio  [per task spec]
+    const totalMovementQty = period.inputQty + period.outputQty;
+    const turnoverRate = avgStock > 0 ? totalMovementQty / avgStock : 0;
+
+    const lastAt = lastMovementMap.get(p.id) ?? null;
+    const daysSinceLastMovement = lastAt
+      ? Math.floor((nowMs - new Date(lastAt).getTime()) / 86400000)
+      : null;
+
+    const isInactive =
+      daysSinceLastMovement === null || daysSinceLastMovement >= inactiveDays;
+
+    return {
+      productId: p.id,
+      productName: p.name,
+      sku: p.sku ?? null,
+      category: p.category ?? null,
+      unit: p.unit,
+      currentStock: Math.max(0, stockAtDateTo),
+      totalInputQty: period.inputQty,
+      totalOutputQty: period.outputQty,
+      totalMovementQty,
+      avgStock,
+      turnoverRate,
+      daysSinceLastMovement,
+      lastMovementAt: lastAt,
+      isInactive,
+    };
+  });
+
+  const inactiveCount = items.filter((i) => i.isInactive).length;
+
+  res.json({
+    dateFrom: dateFrom.toISOString().slice(0, 10),
+    dateTo: dateTo.toISOString().slice(0, 10),
+    inactiveDays,
+    categories,
+    totalItems: items.length,
+    inactiveCount,
+    items,
   });
 });
 
