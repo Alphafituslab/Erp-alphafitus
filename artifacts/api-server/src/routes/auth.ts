@@ -51,6 +51,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       name: user.name,
       email: user.email,
       role: user.role,
+      sector: user.sector ?? null,
     }));
   });
 });
@@ -88,6 +89,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     name: user.name,
     email: user.email,
     role: user.role,
+    sector: user.sector ?? null,
   }));
 });
 

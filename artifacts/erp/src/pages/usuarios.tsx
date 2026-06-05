@@ -93,12 +93,22 @@ function RoleBadge({ role }: { role: string }) {
 
 // ── Create Dialog ─────────────────────────────────────────────────────────────
 
+const SECTOR_LABELS_UI: Record<string, string> = {
+  vendas: "Vendas",
+  financeiro: "Financeiro",
+  producao: "Produção",
+  separacao: "Separação",
+  faturamento: "Faturamento",
+  logistica: "Logística",
+};
+
 function CreateUsuarioDialog({ onSuccess }: { onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"admin" | "manager" | "employee">("employee");
+  const [sector, setSector] = useState<string>("");
   const { toast } = useToast();
 
   const { mutate: create, isPending } = useCreateUsuario({
@@ -117,12 +127,12 @@ function CreateUsuarioDialog({ onSuccess }: { onSuccess: () => void }) {
   });
 
   function resetForm() {
-    setName(""); setEmail(""); setPassword(""); setRole("employee");
+    setName(""); setEmail(""); setPassword(""); setRole("employee"); setSector("");
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    create({ data: { name, email, password, role } });
+    create({ data: { name, email, password, role, sector: sector || null } as any });
   }
 
   return (
@@ -163,6 +173,20 @@ function CreateUsuarioDialog({ onSuccess }: { onSuccess: () => void }) {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1">
+            <Label>Setor <span className="text-muted-foreground">(opcional — para colaboradores de Vendas)</span></Label>
+            <Select value={sector} onValueChange={setSector}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sem setor específico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Sem setor</SelectItem>
+                {Object.entries(SECTOR_LABELS_UI).map(([v, l]) => (
+                  <SelectItem key={v} value={v}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Cancelar</Button>
             <Button type="submit" disabled={isPending}>
@@ -184,6 +208,7 @@ function EditUsuarioDialog({ user, currentUserId, onSuccess }: { user: UserItem;
   const [email, setEmail] = useState(user.email);
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"admin" | "manager" | "employee">(user.role as "admin" | "manager" | "employee");
+  const [sector, setSector] = useState<string>((user as any).sector ?? "");
   const [active, setActive] = useState(user.active);
   const { toast } = useToast();
 
@@ -203,14 +228,14 @@ function EditUsuarioDialog({ user, currentUserId, onSuccess }: { user: UserItem;
 
   function handleOpen(v: boolean) {
     setOpen(v);
-    if (v) { setName(user.name); setEmail(user.email); setPassword(""); setRole(user.role as typeof role); setActive(user.active); }
+    if (v) { setName(user.name); setEmail(user.email); setPassword(""); setRole(user.role as typeof role); setSector((user as any).sector ?? ""); setActive(user.active); }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const payload: Parameters<typeof update>[0]["data"] = { name, email, role, active };
+    const payload: Record<string, unknown> = { name, email, role, active, sector: sector || null };
     if (password) payload.password = password;
-    update({ id: user.id, data: payload });
+    update({ id: user.id, data: payload as any });
   }
 
   const isSelf = user.id === currentUserId;
@@ -252,6 +277,20 @@ function EditUsuarioDialog({ user, currentUserId, onSuccess }: { user: UserItem;
               </SelectContent>
             </Select>
             {isSelf && <p className="text-xs text-muted-foreground">Você não pode alterar seu próprio perfil.</p>}
+          </div>
+          <div className="space-y-1">
+            <Label>Setor <span className="text-muted-foreground">(para fluxo de Vendas)</span></Label>
+            <Select value={sector} onValueChange={setSector}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sem setor específico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Sem setor</SelectItem>
+                {Object.entries(SECTOR_LABELS_UI).map(([v, l]) => (
+                  <SelectItem key={v} value={v}>{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
             <div>
@@ -509,6 +548,7 @@ export default function UsuariosPage() {
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Perfil</TableHead>
+                  <TableHead>Setor</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
@@ -525,6 +565,15 @@ export default function UsuariosPage() {
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell>
                       <RoleBadge role={u.role} />
+                    </TableCell>
+                    <TableCell>
+                      {(u as any).sector ? (
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {SECTOR_LABELS_UI[(u as any).sector] ?? (u as any).sector}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {u.active ? (

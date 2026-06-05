@@ -58,7 +58,8 @@ export const LoginResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'manager', 'employee'])
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish()
 })
 
 
@@ -77,7 +78,8 @@ export const GetMeResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['admin', 'manager', 'employee'])
+  "role": zod.enum(['admin', 'manager', 'employee']),
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish()
 })
 
 
@@ -458,7 +460,7 @@ export const ListSalesOrdersResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_approval', 'financial_approved', 'rejected_total', 'rejected_pending_docs', 'sent_to_production', 'ready_for_separation', 'awaiting_billing', 'partially_billed', 'fully_billed', 'with_carrier', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -544,6 +546,7 @@ export const GetSalesOrderResponse = zod.object({
   "productId": zod.number().nullish(),
   "description": zod.string(),
   "quantity": zod.string(),
+  "billedQty": zod.string().nullish(),
   "unitPrice": zod.string(),
   "totalPrice": zod.string()
 }))
@@ -586,7 +589,7 @@ export const UpdateSalesOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_approval', 'financial_approved', 'rejected_total', 'rejected_pending_docs', 'sent_to_production', 'ready_for_separation', 'awaiting_billing', 'partially_billed', 'fully_billed', 'with_carrier', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -649,7 +652,7 @@ export const ConvertQuoteToOrderResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_approval', 'financial_approved', 'rejected_total', 'rejected_pending_docs', 'sent_to_production', 'ready_for_separation', 'awaiting_billing', 'partially_billed', 'fully_billed', 'with_carrier', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -676,7 +679,7 @@ export const UpdateSalesOrderStatusParams = zod.object({
 })
 
 export const UpdateSalesOrderStatusBody = zod.object({
-  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_approval', 'financial_approved', 'rejected_total', 'rejected_pending_docs', 'sent_to_production', 'ready_for_separation', 'awaiting_billing', 'partially_billed', 'fully_billed', 'with_carrier', 'delivered', 'cancelled']),
   "notes": zod.string().nullish()
 })
 
@@ -685,7 +688,7 @@ export const UpdateSalesOrderStatusResponse = zod.object({
   "clientId": zod.number().nullish(),
   "clientName": zod.string().nullish(),
   "type": zod.enum(['quote', 'order']),
-  "status": zod.enum(['draft', 'awaiting_docs', 'sent', 'client_approved', 'client_rejected', 'credit_check', 'credit_rejected', 'financial_review', 'financial_rejected', 'technical_review', 'technical_rejected', 'regulatory_check', 'pcp_released', 'raw_material_check', 'production_planned', 'in_production', 'quality_check', 'quality_rejected', 'quality_approved', 'billing', 'invoice_issued', 'awaiting_pickup', 'shipped', 'delivered', 'cancelled']),
+  "status": zod.enum(['draft', 'awaiting_approval', 'financial_approved', 'rejected_total', 'rejected_pending_docs', 'sent_to_production', 'ready_for_separation', 'awaiting_billing', 'partially_billed', 'fully_billed', 'with_carrier', 'delivered', 'cancelled']),
   "totalAmount": zod.string(),
   "validUntil": zod.coerce.date().nullish(),
   "deliveryDate": zod.coerce.date().nullish(),
@@ -1047,7 +1050,7 @@ export const GetEstoqueTurnoverResponse = zod.object({
   "totalOutputQty": zod.number(),
   "totalMovementQty": zod.number(),
   "avgStock": zod.number(),
-  "turnoverRate": zod.number().describe('Giro = saídas no período \/ saldo médio. null if avgStock = 0'),
+  "turnoverRate": zod.number().describe('Giro = (entradas + saídas no período) \/ saldo médio. 0 if avgStock = 0'),
   "daysSinceLastMovement": zod.number().nullable().describe('Days since the last movement. null if no movement ever'),
   "lastMovementAt": zod.string().nullish(),
   "isInactive": zod.boolean().describe('True if daysSinceLastMovement >= inactiveDays threshold')
@@ -6488,6 +6491,7 @@ export const ListUsuariosResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'manager', 'employee']),
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
   "active": zod.boolean(),
   "createdAt": zod.coerce.date()
 }))
@@ -6507,7 +6511,8 @@ export const CreateUsuarioBody = zod.object({
   "name": zod.string().min(createUsuarioBodyNameMin),
   "email": zod.string().email(),
   "password": zod.string().min(createUsuarioBodyPasswordMin),
-  "role": zod.enum(['admin', 'manager', 'employee']).optional()
+  "role": zod.enum(['admin', 'manager', 'employee']).optional(),
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish()
 })
 
 
@@ -6529,6 +6534,7 @@ export const UpdateUsuarioBody = zod.object({
   "email": zod.string().email().optional(),
   "password": zod.string().min(updateUsuarioBodyPasswordMin).optional(),
   "role": zod.enum(['admin', 'manager', 'employee']).optional(),
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
   "active": zod.boolean().optional()
 })
 
@@ -6538,6 +6544,7 @@ export const UpdateUsuarioResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['admin', 'manager', 'employee']),
+  "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
   "active": zod.boolean(),
   "createdAt": zod.coerce.date()
 })

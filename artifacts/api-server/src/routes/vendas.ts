@@ -5,62 +5,113 @@ import type { Request, Response } from "express";
 
 const router: IRouter = Router();
 
+// ─── New 10-step sequential flow ─────────────────────────────────────────────
+// Each transition is locked to a specific sector (enforced server-side).
+// Managers and admins bypass sector checks. Employees need a matching sector.
 const ALL_STATUSES = [
-  "draft", "awaiting_docs", "sent",
-  "client_approved", "client_rejected",
-  "credit_check", "credit_rejected",
-  "financial_review", "financial_rejected",
-  "technical_review", "technical_rejected",
-  "regulatory_check", "pcp_released", "raw_material_check",
-  "production_planned", "in_production",
+  // New 10-step flow
+  "awaiting_approval",
+  "financial_approved",
+  "rejected_total",
+  "rejected_pending_docs",
+  "sent_to_production",
+  "ready_for_separation",
+  "awaiting_billing",
+  "partially_billed",
+  "fully_billed",
+  "with_carrier",
+  "delivered",
+  "cancelled",
+  // Legacy statuses kept for backward compatibility (existing DB rows)
+  "draft", "awaiting_docs", "sent", "client_approved", "client_rejected",
+  "credit_check", "credit_rejected", "financial_review", "financial_rejected",
+  "technical_review", "technical_rejected", "regulatory_check", "pcp_released",
+  "raw_material_check", "production_planned", "in_production",
   "quality_check", "quality_rejected", "quality_approved",
-  "billing", "invoice_issued", "awaiting_pickup",
-  "shipped", "delivered", "cancelled",
+  "billing", "invoice_issued", "awaiting_pickup", "shipped",
 ] as const;
 
 type OrderStatus = typeof ALL_STATUSES[number];
 
 const TERMINAL_STATUSES: OrderStatus[] = [
-  "delivered", "cancelled",
-  "client_rejected", "credit_rejected",
-  "financial_rejected", "technical_rejected", "quality_rejected",
+  "rejected_total", "with_carrier", "delivered", "cancelled",
+  // Legacy terminals
+  "client_rejected", "credit_rejected", "financial_rejected",
+  "technical_rejected", "quality_rejected",
 ];
 
 const OPEN_STATUSES = ALL_STATUSES.filter((s) => !TERMINAL_STATUSES.includes(s as OrderStatus));
 
 // Server-side state machine: defines allowed next statuses from each status
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  draft:              ["awaiting_docs", "sent", "cancelled"],
-  awaiting_docs:      ["sent", "cancelled"],
-  sent:               ["client_approved", "client_rejected", "cancelled"],
-  client_approved:    ["credit_check", "cancelled"],
-  client_rejected:    ["sent", "cancelled"],
-  credit_check:       ["financial_review", "credit_rejected", "cancelled"],
+  // New 10-step flow
+  awaiting_approval:     ["financial_approved", "rejected_total", "rejected_pending_docs", "cancelled"],
+  financial_approved:    ["sent_to_production", "cancelled"],
+  rejected_total:        [],
+  rejected_pending_docs: ["awaiting_approval", "rejected_total", "cancelled"],
+  sent_to_production:    ["ready_for_separation", "cancelled"],
+  ready_for_separation:  ["awaiting_billing", "cancelled"],
+  awaiting_billing:      ["partially_billed", "fully_billed", "cancelled"],
+  partially_billed:      ["fully_billed", "cancelled"],
+  fully_billed:          ["with_carrier"],
+  with_carrier:          ["delivered"],
+  delivered:             [],
+  cancelled:             [],
+  // Legacy: only manager/admin can cancel these
+  draft:              ["awaiting_approval", "cancelled"],
+  awaiting_docs:      ["cancelled"],
+  sent:               ["cancelled"],
+  client_approved:    ["cancelled"],
+  client_rejected:    ["cancelled"],
+  credit_check:       ["cancelled"],
   credit_rejected:    ["cancelled"],
-  financial_review:   ["technical_review", "financial_rejected", "cancelled"],
+  financial_review:   ["cancelled"],
   financial_rejected: ["cancelled"],
-  technical_review:   ["regulatory_check", "technical_rejected", "cancelled"],
+  technical_review:   ["cancelled"],
   technical_rejected: ["cancelled"],
-  regulatory_check:   ["pcp_released", "cancelled"],
-  pcp_released:       ["raw_material_check", "cancelled"],
-  raw_material_check: ["production_planned", "cancelled"],
-  production_planned: ["in_production", "cancelled"],
-  in_production:      ["quality_check", "cancelled"],
-  quality_check:      ["quality_approved", "quality_rejected", "cancelled"],
-  quality_rejected:   ["in_production", "cancelled"],
-  quality_approved:   ["billing", "cancelled"],
-  billing:            ["invoice_issued", "cancelled"],
-  invoice_issued:     ["awaiting_pickup", "cancelled"],
-  awaiting_pickup:    ["shipped", "cancelled"],
-  shipped:            ["delivered"],
-  delivered:          [],
-  cancelled:          [],
+  regulatory_check:   ["cancelled"],
+  pcp_released:       ["cancelled"],
+  raw_material_check: ["cancelled"],
+  production_planned: ["cancelled"],
+  in_production:      ["cancelled"],
+  quality_check:      ["cancelled"],
+  quality_rejected:   ["cancelled"],
+  quality_approved:   ["cancelled"],
+  billing:            ["cancelled"],
+  invoice_issued:     ["cancelled"],
+  awaiting_pickup:    ["cancelled"],
+  shipped:            ["cancelled"],
 };
 
-// Critical transitions that require a non-empty justification note
+// Which sectors can advance each specific transition.
+// Employees with matching sector can proceed; managers/admins bypass this check entirely.
+// Key: "fromStatus→toStatus"
+const SECTOR_TRANSITIONS: Record<string, string[]> = {
+  "awaiting_approval→financial_approved":     ["financeiro"],
+  "awaiting_approval→rejected_total":         ["financeiro"],
+  "awaiting_approval→rejected_pending_docs":  ["financeiro"],
+  "financial_approved→sent_to_production":    ["vendas"],
+  "rejected_pending_docs→awaiting_approval":  ["vendas", "financeiro"],
+  "rejected_pending_docs→rejected_total":     ["financeiro"],
+  "sent_to_production→ready_for_separation":  ["producao"],
+  "ready_for_separation→awaiting_billing":    ["separacao"],
+  "awaiting_billing→partially_billed":        ["faturamento"],
+  "awaiting_billing→fully_billed":            ["faturamento"],
+  "partially_billed→fully_billed":            ["faturamento"],
+  "fully_billed→with_carrier":                ["logistica"],
+  "with_carrier→delivered":                   ["logistica"],
+};
+
+const SECTOR_LABELS: Record<string, string> = {
+  financeiro: "Financeiro", vendas: "Vendas", producao: "Produção",
+  separacao: "Separação", faturamento: "Faturamento", logistica: "Logística",
+};
+
+// Transitions requiring a non-empty justification note
 const REQUIRE_NOTES_FOR: Set<OrderStatus> = new Set([
+  "rejected_total", "rejected_pending_docs", "cancelled",
   "client_rejected", "credit_rejected", "financial_rejected",
-  "technical_rejected", "quality_rejected", "cancelled",
+  "technical_rejected", "quality_rejected",
 ]);
 
 function requireAuth(req: Request, res: Response): boolean {
@@ -433,7 +484,8 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
     if (!ok) return;
   }
 
-  const initialStatus = status ?? "draft";
+  // New orders start at awaiting_approval; quotes stay as draft
+  const initialStatus = status ?? (type === "order" ? "awaiting_approval" : "draft");
 
   const [order] = await db
     .insert(salesOrdersTable)
@@ -657,12 +709,41 @@ router.post("/vendas/orders/:id/status", async (req: Request, res: Response): Pr
   }
 
   const fromStatus = current.status as OrderStatus;
+  const userRole = req.session.role ?? "employee";
 
   // Enforce state machine: validate the transition is allowed
   const allowedNext = ALLOWED_TRANSITIONS[fromStatus] ?? [];
   if (!allowedNext.includes(toStatus)) {
     res.status(422).json({ error: `Transição não permitida: ${fromStatus} → ${toStatus}. Próximos válidos: ${allowedNext.join(", ") || "nenhum"}` });
     return;
+  }
+
+  // Sector-based permission: employees need matching sector; managers/admins bypass
+  if (userRole === "employee") {
+    // Cancel requires at least manager
+    if (toStatus === "cancelled") {
+      res.status(403).json({ error: "Cancelamento requer perfil de gerente ou administrador." });
+      return;
+    }
+    const transitionKey = `${fromStatus}→${toStatus}`;
+    const allowedSectors = SECTOR_TRANSITIONS[transitionKey];
+    if (allowedSectors !== undefined) {
+      const [userRow] = await db
+        .select({ sector: usersTable.sector })
+        .from(usersTable)
+        .where(eq(usersTable.id, req.session.userId!))
+        .limit(1);
+      const userSector = userRow?.sector ?? null;
+      if (!userSector || !allowedSectors.includes(userSector)) {
+        const names = allowedSectors.map((s) => SECTOR_LABELS[s] ?? s).join(" ou ");
+        res.status(403).json({ error: `Esta etapa só pode ser avançada pelo setor: ${names}.` });
+        return;
+      }
+    } else {
+      // Transition not mapped to any sector = manager/admin only
+      res.status(403).json({ error: "Transição disponível apenas para gerentes ou administradores." });
+      return;
+    }
   }
 
   // Enforce mandatory justification for critical transitions

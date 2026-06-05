@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
+import { useAuth } from "@/contexts/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListClients,
@@ -73,6 +74,13 @@ function fmtDateTime(d: Date | string | null | undefined) {
 // ─── Status Config ────────────────────────────────────────────────────────────
 
 type OrderStatus =
+  // New 10-step flow
+  | "awaiting_approval" | "financial_approved"
+  | "rejected_total" | "rejected_pending_docs"
+  | "sent_to_production" | "ready_for_separation"
+  | "awaiting_billing" | "partially_billed" | "fully_billed"
+  | "with_carrier" | "delivered" | "cancelled"
+  // Legacy (kept for existing rows)
   | "draft" | "awaiting_docs" | "sent"
   | "client_approved" | "client_rejected"
   | "credit_check" | "credit_rejected"
@@ -81,10 +89,23 @@ type OrderStatus =
   | "regulatory_check" | "pcp_released" | "raw_material_check"
   | "production_planned" | "in_production"
   | "quality_check" | "quality_rejected" | "quality_approved"
-  | "billing" | "invoice_issued" | "awaiting_pickup"
-  | "shipped" | "delivered" | "cancelled";
+  | "billing" | "invoice_issued" | "awaiting_pickup" | "shipped";
 
 const STATUS_LABELS: Record<string, string> = {
+  // New flow
+  awaiting_approval:     "Aguardando aprovação",
+  financial_approved:    "Aprovado pelo financeiro",
+  rejected_total:        "Reprovado / negado total",
+  rejected_pending_docs: "Aguardando documentos",
+  sent_to_production:    "Enviado para produção",
+  ready_for_separation:  "Pronto / aguardando separação",
+  awaiting_billing:      "Aguardando faturamento",
+  partially_billed:      "Faturado parcial",
+  fully_billed:          "Faturado total",
+  with_carrier:          "Com a transportadora",
+  delivered:             "Entregue",
+  cancelled:             "Cancelado",
+  // Legacy
   draft:              "Rascunho",
   awaiting_docs:      "Aguardando Docs",
   sent:               "Enviado",
@@ -108,122 +129,117 @@ const STATUS_LABELS: Record<string, string> = {
   invoice_issued:     "NF Emitida",
   awaiting_pickup:    "Aguardando Coleta",
   shipped:            "Expedido",
-  delivered:          "Entregue",
-  cancelled:          "Cancelado",
 };
 
+// Ordered steps for pipeline/Kanban view (new flow only; legacy rows show separately)
 const PIPELINE_STAGES: OrderStatus[] = [
-  "draft", "awaiting_docs", "sent",
-  "client_approved", "credit_check",
-  "financial_review", "technical_review", "regulatory_check",
-  "pcp_released", "raw_material_check", "production_planned",
-  "in_production", "quality_check", "quality_approved",
-  "billing", "invoice_issued", "awaiting_pickup", "shipped",
+  "awaiting_approval",
+  "financial_approved",
+  "rejected_pending_docs",
+  "sent_to_production",
+  "ready_for_separation",
+  "awaiting_billing",
+  "partially_billed",
+  "fully_billed",
+  "with_carrier",
 ];
 
 const TERMINAL_STATUSES = [
-  "delivered", "cancelled",
-  "client_rejected", "credit_rejected",
-  "financial_rejected", "technical_rejected", "quality_rejected",
+  "rejected_total", "with_carrier", "delivered", "cancelled",
+  // Legacy terminals
+  "client_rejected", "credit_rejected", "financial_rejected",
+  "technical_rejected", "quality_rejected",
 ];
+
+// Sector responsible for each transition (for UI hint only — enforced server-side)
+const TRANSITION_SECTOR: Record<string, string> = {
+  "awaiting_approval→financial_approved":     "Financeiro",
+  "awaiting_approval→rejected_total":         "Financeiro",
+  "awaiting_approval→rejected_pending_docs":  "Financeiro",
+  "financial_approved→sent_to_production":    "Vendas",
+  "rejected_pending_docs→awaiting_approval":  "Vendas / Financeiro",
+  "rejected_pending_docs→rejected_total":     "Financeiro",
+  "sent_to_production→ready_for_separation":  "Produção",
+  "ready_for_separation→awaiting_billing":    "Separação",
+  "awaiting_billing→partially_billed":        "Faturamento",
+  "awaiting_billing→fully_billed":            "Faturamento",
+  "partially_billed→fully_billed":            "Faturamento",
+  "fully_billed→with_carrier":               "Logística",
+  "with_carrier→delivered":                  "Logística",
+};
 
 type Transition = { to: OrderStatus; label: string; variant?: "default" | "destructive" | "outline"; requiresNote?: boolean };
 
 const TRANSITIONS: Record<string, Transition[]> = {
+  // ── New 10-step flow ──────────────────────────────────────────────────────
+  awaiting_approval: [
+    { to: "financial_approved",    label: "Aprovar (Financeiro)",       variant: "default" },
+    { to: "rejected_pending_docs", label: "Aguardar documentos",        variant: "outline", requiresNote: true },
+    { to: "rejected_total",        label: "Reprovar / negar total",     variant: "destructive", requiresNote: true },
+    { to: "cancelled",             label: "Cancelar",                   variant: "destructive", requiresNote: true },
+  ],
+  financial_approved: [
+    { to: "sent_to_production", label: "Enviar para produção (Vendas)", variant: "default" },
+    { to: "cancelled",          label: "Cancelar",                      variant: "destructive", requiresNote: true },
+  ],
+  rejected_total:   [],
+  rejected_pending_docs: [
+    { to: "awaiting_approval", label: "Documentos OK → Reenviar",  variant: "default" },
+    { to: "rejected_total",    label: "Reprovar definitivamente",   variant: "destructive", requiresNote: true },
+    { to: "cancelled",         label: "Cancelar",                   variant: "destructive", requiresNote: true },
+  ],
+  sent_to_production: [
+    { to: "ready_for_separation", label: "Produção concluída → Separação", variant: "default" },
+    { to: "cancelled",            label: "Cancelar",                        variant: "destructive", requiresNote: true },
+  ],
+  ready_for_separation: [
+    { to: "awaiting_billing", label: "Separação concluída → Faturamento", variant: "default" },
+    { to: "cancelled",        label: "Cancelar",                           variant: "destructive", requiresNote: true },
+  ],
+  awaiting_billing: [
+    { to: "fully_billed",    label: "Faturamento total",   variant: "default" },
+    { to: "partially_billed",label: "Faturamento parcial", variant: "outline" },
+    { to: "cancelled",       label: "Cancelar",            variant: "destructive", requiresNote: true },
+  ],
+  partially_billed: [
+    { to: "fully_billed", label: "Faturamento total (restante)", variant: "default" },
+    { to: "cancelled",    label: "Cancelar",                      variant: "destructive", requiresNote: true },
+  ],
+  fully_billed: [
+    { to: "with_carrier", label: "Remeter à transportadora", variant: "default" },
+  ],
+  with_carrier: [
+    { to: "delivered", label: "Confirmar entrega", variant: "default" },
+  ],
+  delivered:  [],
+  cancelled:  [],
+  // ── Legacy statuses (admin/manager cancel only) ────────────────────────────
   draft: [
-    { to: "awaiting_docs", label: "Aguardar Documentos", variant: "outline" },
-    { to: "sent", label: "Enviar ao Cliente", variant: "default" },
+    { to: "awaiting_approval", label: "Enviar para aprovação", variant: "default" },
     { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
   ],
-  awaiting_docs: [
-    { to: "sent", label: "Enviar ao Cliente", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  sent: [
-    { to: "client_approved", label: "Aprovado pelo Cliente", variant: "default" },
-    { to: "client_rejected", label: "Reprovado pelo Cliente", variant: "destructive", requiresNote: true },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  client_approved: [
-    { to: "credit_check", label: "Iniciar Análise de Crédito", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  client_rejected: [
-    { to: "sent", label: "Reenviar ao Cliente", variant: "outline" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  credit_check: [
-    { to: "financial_review", label: "Crédito OK → Análise Financeira", variant: "default" },
-    { to: "credit_rejected", label: "Crédito Reprovado", variant: "destructive", requiresNote: true },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  credit_rejected: [
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  financial_review: [
-    { to: "technical_review", label: "Financeiro OK → Análise Técnica", variant: "default" },
-    { to: "financial_rejected", label: "Reprovar Financeiro", variant: "destructive", requiresNote: true },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  financial_rejected: [
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  technical_review: [
-    { to: "regulatory_check", label: "Técnico OK → Análise Regulatória", variant: "default" },
-    { to: "technical_rejected", label: "Reprovar Técnico", variant: "destructive", requiresNote: true },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  technical_rejected: [
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  regulatory_check: [
-    { to: "pcp_released", label: "Liberar para PCP", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  pcp_released: [
-    { to: "raw_material_check", label: "Verificar Matéria-Prima", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  raw_material_check: [
-    { to: "production_planned", label: "MP OK → Planejar Produção", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  production_planned: [
-    { to: "in_production", label: "Iniciar Produção", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  in_production: [
-    { to: "quality_check", label: "Enviar para CQ", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  quality_check: [
-    { to: "quality_approved", label: "CQ Aprovado", variant: "default" },
-    { to: "quality_rejected", label: "CQ Reprovado → Retrabalho", variant: "destructive", requiresNote: true },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  quality_rejected: [
-    { to: "in_production", label: "Retornar para Produção", variant: "outline" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  quality_approved: [
-    { to: "billing", label: "Liberar Faturamento", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  billing: [
-    { to: "invoice_issued", label: "NF Emitida", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  invoice_issued: [
-    { to: "awaiting_pickup", label: "Aguardar Coleta", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  awaiting_pickup: [
-    { to: "shipped", label: "Marcar como Expedido", variant: "default" },
-    { to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true },
-  ],
-  shipped: [
-    { to: "delivered", label: "Confirmar Entrega", variant: "default" },
-  ],
+  awaiting_docs:      [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  sent:               [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  client_approved:    [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  client_rejected:    [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  credit_check:       [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  credit_rejected:    [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  financial_review:   [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  financial_rejected: [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  technical_review:   [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  technical_rejected: [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  regulatory_check:   [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  pcp_released:       [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  raw_material_check: [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  production_planned: [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  in_production:      [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  quality_check:      [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  quality_rejected:   [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  quality_approved:   [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  billing:            [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  invoice_issued:     [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  awaiting_pickup:    [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
+  shipped:            [{ to: "cancelled", label: "Cancelar", variant: "destructive", requiresNote: true }],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -894,6 +910,7 @@ function OrderDetailSheet({
   open: boolean; onClose: () => void; order: SalesOrder | null;
   onStatusChange: () => void; clients: Client[];
 }) {
+  const { user } = useAuth();
   const { data: fullOrder } = useGetSalesOrder(order?.id ?? 0);
   const { data: logs = [] } = useListSalesOrderLogs(order?.id ?? 0);
   const [pendingTransition, setPendingTransition] = useState<Transition | null>(null);
@@ -903,6 +920,26 @@ function OrderDetailSheet({
   const statusLabel = STATUS_LABELS[order.status] ?? order.status;
   const transitions = TRANSITIONS[order.status] ?? [];
   const isTerminal = TERMINAL_STATUSES.includes(order.status);
+  const userRole = user?.role ?? "employee";
+  const userSector = (user as any)?.sector ?? null;
+
+  // Filter transitions for employees: only show ones their sector can perform
+  const visibleTransitions = transitions.filter((t) => {
+    if (userRole === "admin" || userRole === "manager") return true;
+    if (t.to === "cancelled") return false; // employees can't cancel
+    const key = `${order.status}→${t.to}`;
+    const allowed = TRANSITION_SECTOR[key];
+    if (!allowed) return false;
+    // Show the button but user will get a server-side error if wrong sector
+    return true;
+  });
+
+  // Partial billing: items with remaining qty
+  const partialItems = fullOrder?.items.filter((item) => {
+    const qty = Number(item.quantity);
+    const billed = Number((item as any).billedQty ?? 0);
+    return qty > billed;
+  }) ?? [];
 
   return (
     <>
@@ -917,15 +954,23 @@ function OrderDetailSheet({
 
           <div className="space-y-5 py-4">
             {/* Action buttons */}
-            {!isTerminal && transitions.length > 0 && (
+            {!isTerminal && visibleTransitions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Avançar Status</p>
                 <div className="flex flex-wrap gap-2">
-                  {transitions.map((t) => (
-                    <Button key={t.to} size="sm" variant={t.variant ?? "default"} onClick={() => setPendingTransition(t)}>
-                      {t.label}
-                    </Button>
-                  ))}
+                  {visibleTransitions.map((t) => {
+                    const sectorHint = TRANSITION_SECTOR[`${order.status}→${t.to}`];
+                    return (
+                      <div key={t.to} className="flex flex-col items-start gap-0.5">
+                        <Button size="sm" variant={t.variant ?? "default"} onClick={() => setPendingTransition(t)}>
+                          {t.label}
+                        </Button>
+                        {sectorHint && (
+                          <span className="text-[10px] text-muted-foreground pl-0.5">Setor: {sectorHint}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -965,6 +1010,30 @@ function OrderDetailSheet({
               )}
             </div>
 
+            {/* Partial billing info */}
+            {order.status === "partially_billed" && partialItems.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Itens Pendentes de Faturamento
+                </p>
+                <div className="space-y-1">
+                  {partialItems.map((item) => {
+                    const qty = Number(item.quantity);
+                    const billed = Number((item as any).billedQty ?? 0);
+                    const remaining = qty - billed;
+                    return (
+                      <div key={item.id} className="text-xs flex justify-between">
+                        <span className="text-foreground">{item.description}</span>
+                        <span className="text-amber-700 dark:text-amber-400 font-medium tabular-nums">
+                          {billed}/{qty} faturado — restam {remaining.toFixed(3).replace(/\.?0+$/, "")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Items */}
             {fullOrder && fullOrder.items.length > 0 && (
               <div className="space-y-2">
@@ -975,19 +1044,32 @@ function OrderDetailSheet({
                       <TableRow>
                         <TableHead>Descrição</TableHead>
                         <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead className="text-right">Fat.</TableHead>
                         <TableHead className="text-right">Preço Unit.</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {fullOrder.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.description}</TableCell>
-                          <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
-                          <TableCell className="text-right tabular-nums">{fmt(item.unitPrice)}</TableCell>
-                          <TableCell className="text-right tabular-nums font-medium">{fmt(item.totalPrice)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {fullOrder.items.map((item) => {
+                        const billed = Number((item as any).billedQty ?? 0);
+                        const qty = Number(item.quantity);
+                        const isPartial = billed > 0 && billed < qty;
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
+                            <TableCell className="text-right tabular-nums text-xs">
+                              {billed > 0 ? (
+                                <span className={isPartial ? "text-amber-600 font-medium" : "text-emerald-600"}>
+                                  {billed}
+                                </span>
+                              ) : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{fmt(item.unitPrice)}</TableCell>
+                            <TableCell className="text-right tabular-nums font-medium">{fmt(item.totalPrice)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -1189,7 +1271,7 @@ export default function VendasPage() {
       setDetailOrder(order);
     } else {
       dndStatusMutation.mutate(
-        { id: order.id, data: { status: toStatus } },
+        { id: order.id, data: { status: toStatus as any } },
         { onSuccess: () => invalidateOrders() }
       );
     }

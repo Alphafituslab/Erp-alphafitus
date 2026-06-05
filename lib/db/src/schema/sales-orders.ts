@@ -47,6 +47,7 @@ export const salesOrderItemsTable = pgTable("sales_order_items", {
   productId: integer("product_id"),
   description: text("description").notNull(),
   quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
+  billedQty: numeric("billed_qty", { precision: 12, scale: 3 }).notNull().default("0"),
   unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
   totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

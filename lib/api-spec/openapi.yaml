@@ -7522,6 +7522,10 @@ components:
         role:
           type: string
           enum: [admin, manager, employee]
+        sector:
+          type: string
+          nullable: true
+          enum: [vendas, financeiro, producao, separacao, faturamento, logistica]
         active:
           type: boolean
         createdAt:
@@ -7560,6 +7564,10 @@ components:
         role:
           type: string
           enum: [admin, manager, employee]
+        sector:
+          type: string
+          nullable: true
+          enum: [vendas, financeiro, producao, separacao, faturamento, logistica]
       required:
         - name
         - email
@@ -7580,6 +7588,10 @@ components:
         role:
           type: string
           enum: [admin, manager, employee]
+        sector:
+          type: string
+          nullable: true
+          enum: [vendas, financeiro, producao, separacao, faturamento, logistica]
         active:
           type: boolean
 
@@ -7629,6 +7641,10 @@ components:
         role:
           type: string
           enum: [admin, manager, employee]
+        sector:
+          type: string
+          nullable: true
+          enum: [vendas, financeiro, producao, separacao, faturamento, logistica]
 
     SuccessResponse:
       type: object
@@ -8149,6 +8165,9 @@ components:
           type: string
         quantity:
           type: string
+        billedQty:
+          type: string
+          nullable: true
         unitPrice:
           type: string
         totalPrice:
@@ -8224,7 +8243,7 @@ components:
           enum: [quote, order]
         status:
           type: string
-          enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
+          enum: [draft, awaiting_approval, financial_approved, rejected_total, rejected_pending_docs, sent_to_production, ready_for_separation, awaiting_billing, partially_billed, fully_billed, with_carrier, delivered, cancelled]
         totalAmount:
           type: string
         validUntil:
@@ -8413,7 +8432,7 @@ components:
       properties:
         status:
           type: string
-          enum: [draft, awaiting_docs, sent, client_approved, client_rejected, credit_check, credit_rejected, financial_review, financial_rejected, technical_review, technical_rejected, regulatory_check, pcp_released, raw_material_check, production_planned, in_production, quality_check, quality_rejected, quality_approved, billing, invoice_issued, awaiting_pickup, shipped, delivered, cancelled]
+          enum: [draft, awaiting_approval, financial_approved, rejected_total, rejected_pending_docs, sent_to_production, ready_for_separation, awaiting_billing, partially_billed, fully_billed, with_carrier, delivered, cancelled]
         notes:
           type: string
           nullable: true

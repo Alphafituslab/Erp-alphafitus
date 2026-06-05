@@ -26,11 +26,24 @@ export const UserItemRole = {
   employee: 'employee',
 } as const;
 
+export type UserItemSector = typeof UserItemSector[keyof typeof UserItemSector] | null;
+
+
+export const UserItemSector = {
+  vendas: 'vendas',
+  financeiro: 'financeiro',
+  producao: 'producao',
+  separacao: 'separacao',
+  faturamento: 'faturamento',
+  logistica: 'logistica',
+} as const;
+
 export interface UserItem {
   id: number;
   name: string;
   email: string;
   role: UserItemRole;
+  sector?: UserItemSector;
   active: boolean;
   createdAt: string;
 }
@@ -48,6 +61,18 @@ export const CreateUsuarioInputRole = {
   employee: 'employee',
 } as const;
 
+export type CreateUsuarioInputSector = typeof CreateUsuarioInputSector[keyof typeof CreateUsuarioInputSector] | null;
+
+
+export const CreateUsuarioInputSector = {
+  vendas: 'vendas',
+  financeiro: 'financeiro',
+  producao: 'producao',
+  separacao: 'separacao',
+  faturamento: 'faturamento',
+  logistica: 'logistica',
+} as const;
+
 export interface CreateUsuarioInput {
   /** @minLength 2 */
   name: string;
@@ -55,6 +80,7 @@ export interface CreateUsuarioInput {
   /** @minLength 6 */
   password: string;
   role?: CreateUsuarioInputRole;
+  sector?: CreateUsuarioInputSector;
 }
 
 export type UpdateUsuarioInputRole = typeof UpdateUsuarioInputRole[keyof typeof UpdateUsuarioInputRole];
@@ -66,6 +92,18 @@ export const UpdateUsuarioInputRole = {
   employee: 'employee',
 } as const;
 
+export type UpdateUsuarioInputSector = typeof UpdateUsuarioInputSector[keyof typeof UpdateUsuarioInputSector] | null;
+
+
+export const UpdateUsuarioInputSector = {
+  vendas: 'vendas',
+  financeiro: 'financeiro',
+  producao: 'producao',
+  separacao: 'separacao',
+  faturamento: 'faturamento',
+  logistica: 'logistica',
+} as const;
+
 export interface UpdateUsuarioInput {
   /** @minLength 2 */
   name?: string;
@@ -73,6 +111,7 @@ export interface UpdateUsuarioInput {
   /** @minLength 6 */
   password?: string;
   role?: UpdateUsuarioInputRole;
+  sector?: UpdateUsuarioInputSector;
   active?: boolean;
 }
 
@@ -99,11 +138,24 @@ export const AuthUserRole = {
   employee: 'employee',
 } as const;
 
+export type AuthUserSector = typeof AuthUserSector[keyof typeof AuthUserSector] | null;
+
+
+export const AuthUserSector = {
+  vendas: 'vendas',
+  financeiro: 'financeiro',
+  producao: 'producao',
+  separacao: 'separacao',
+  faturamento: 'faturamento',
+  logistica: 'logistica',
+} as const;
+
 export interface AuthUser {
   id: number;
   name: string;
   email: string;
   role: AuthUserRole;
+  sector?: AuthUserSector;
 }
 
 export interface SuccessResponse {
@@ -169,28 +221,16 @@ export type SalesOrderStatus = typeof SalesOrderStatus[keyof typeof SalesOrderSt
 
 export const SalesOrderStatus = {
   draft: 'draft',
-  awaiting_docs: 'awaiting_docs',
-  sent: 'sent',
-  client_approved: 'client_approved',
-  client_rejected: 'client_rejected',
-  credit_check: 'credit_check',
-  credit_rejected: 'credit_rejected',
-  financial_review: 'financial_review',
-  financial_rejected: 'financial_rejected',
-  technical_review: 'technical_review',
-  technical_rejected: 'technical_rejected',
-  regulatory_check: 'regulatory_check',
-  pcp_released: 'pcp_released',
-  raw_material_check: 'raw_material_check',
-  production_planned: 'production_planned',
-  in_production: 'in_production',
-  quality_check: 'quality_check',
-  quality_rejected: 'quality_rejected',
-  quality_approved: 'quality_approved',
-  billing: 'billing',
-  invoice_issued: 'invoice_issued',
-  awaiting_pickup: 'awaiting_pickup',
-  shipped: 'shipped',
+  awaiting_approval: 'awaiting_approval',
+  financial_approved: 'financial_approved',
+  rejected_total: 'rejected_total',
+  rejected_pending_docs: 'rejected_pending_docs',
+  sent_to_production: 'sent_to_production',
+  ready_for_separation: 'ready_for_separation',
+  awaiting_billing: 'awaiting_billing',
+  partially_billed: 'partially_billed',
+  fully_billed: 'fully_billed',
+  with_carrier: 'with_carrier',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;
@@ -566,6 +606,7 @@ export interface SalesOrderItem {
   productId?: number | null;
   description: string;
   quantity: string;
+  billedQty?: string | null;
   unitPrice: string;
   totalPrice: string;
 }
@@ -714,28 +755,16 @@ export type UpdateSalesOrderStatusInputStatus = typeof UpdateSalesOrderStatusInp
 
 export const UpdateSalesOrderStatusInputStatus = {
   draft: 'draft',
-  awaiting_docs: 'awaiting_docs',
-  sent: 'sent',
-  client_approved: 'client_approved',
-  client_rejected: 'client_rejected',
-  credit_check: 'credit_check',
-  credit_rejected: 'credit_rejected',
-  financial_review: 'financial_review',
-  financial_rejected: 'financial_rejected',
-  technical_review: 'technical_review',
-  technical_rejected: 'technical_rejected',
-  regulatory_check: 'regulatory_check',
-  pcp_released: 'pcp_released',
-  raw_material_check: 'raw_material_check',
-  production_planned: 'production_planned',
-  in_production: 'in_production',
-  quality_check: 'quality_check',
-  quality_rejected: 'quality_rejected',
-  quality_approved: 'quality_approved',
-  billing: 'billing',
-  invoice_issued: 'invoice_issued',
-  awaiting_pickup: 'awaiting_pickup',
-  shipped: 'shipped',
+  awaiting_approval: 'awaiting_approval',
+  financial_approved: 'financial_approved',
+  rejected_total: 'rejected_total',
+  rejected_pending_docs: 'rejected_pending_docs',
+  sent_to_production: 'sent_to_production',
+  ready_for_separation: 'ready_for_separation',
+  awaiting_billing: 'awaiting_billing',
+  partially_billed: 'partially_billed',
+  fully_billed: 'fully_billed',
+  with_carrier: 'with_carrier',
   delivered: 'delivered',
   cancelled: 'cancelled',
 } as const;
@@ -917,7 +946,7 @@ export interface StockTurnoverItem {
   totalOutputQty: number;
   totalMovementQty: number;
   avgStock: number;
-  /** Giro = saídas no período / saldo médio. null if avgStock = 0 */
+  /** Giro = (entradas + saídas no período) / saldo médio. 0 if avgStock = 0 */
   turnoverRate: number;
   /** Days since the last movement. null if no movement ever */
   daysSinceLastMovement: number | null;

@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   role: roleEnum("role").notNull().default("employee"),
   active: text("active").notNull().default("true"),
   employeeId: integer("employee_id"),
+  sector: text("sector"), // vendas | financeiro | producao | separacao | faturamento | logistica | null
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

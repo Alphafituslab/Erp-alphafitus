@@ -1,12 +1,15 @@
-import { CheckCircle2, Clock, XCircle, AlertTriangle, Loader2, Ban, RotateCcw, Send, Truck, Package, CircleDot, ShieldAlert, ShieldCheck, UserCheck, UserX, Timer, ArrowDown, ArrowUp } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, AlertTriangle, Loader2, Ban, RotateCcw, Send, Truck, Package, CircleDot, ShieldAlert, ShieldCheck, UserCheck, UserX, Timer, ArrowDown, ArrowUp, FileText, Scissors, DollarSign, Receipt, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type StatusVariant = "green" | "red" | "amber" | "blue" | "gray" | "purple" | "orange";
+type StatusVariant = "green" | "red" | "amber" | "blue" | "gray" | "purple" | "orange" | "custom";
 
 interface StatusConfig {
   label: string;
   variant: StatusVariant;
   icon?: React.ElementType;
+  // Custom hex colors (overrides variant classes)
+  hexBg?: string;
+  hexText?: string;
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
@@ -46,7 +49,58 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   medium:       { label: "Média",          variant: "amber",  icon: ShieldAlert },
   high:         { label: "Alta",           variant: "orange", icon: ShieldAlert },
   critical:     { label: "Crítica",        variant: "red",    icon: ShieldAlert },
-  /* Vendas pipeline */
+  /* ── Vendas pipeline — New 10-step flow (specific hex colors) ───────────── */
+  awaiting_approval: {
+    label: "Aguardando aprovação",
+    variant: "custom", icon: Clock,
+    hexBg: "#FFD600", hexText: "#5a4a00",
+  },
+  financial_approved: {
+    label: "Aprovado pelo financeiro",
+    variant: "custom", icon: CheckCircle2,
+    hexBg: "#2E7D32", hexText: "#ffffff",
+  },
+  rejected_total: {
+    label: "Reprovado / negado total",
+    variant: "custom", icon: XCircle,
+    hexBg: "#C62828", hexText: "#ffffff",
+  },
+  rejected_pending_docs: {
+    label: "Aguardando documentos",
+    variant: "custom", icon: FileText,
+    hexBg: "#EF6C00", hexText: "#ffffff",
+  },
+  sent_to_production: {
+    label: "Enviado para produção",
+    variant: "custom", icon: Send,
+    hexBg: "#1565C0", hexText: "#ffffff",
+  },
+  ready_for_separation: {
+    label: "Pronto / aguardando separação",
+    variant: "custom", icon: Scissors,
+    hexBg: "#00897B", hexText: "#ffffff",
+  },
+  awaiting_billing: {
+    label: "Aguardando faturamento",
+    variant: "custom", icon: DollarSign,
+    hexBg: "#6A1B9A", hexText: "#ffffff",
+  },
+  partially_billed: {
+    label: "Faturado parcial",
+    variant: "custom", icon: Receipt,
+    hexBg: "#D81B60", hexText: "#ffffff",
+  },
+  fully_billed: {
+    label: "Faturado total",
+    variant: "custom", icon: CheckCircle2,
+    hexBg: "#6D4C41", hexText: "#ffffff",
+  },
+  with_carrier: {
+    label: "Com a transportadora",
+    variant: "custom", icon: Truck,
+    hexBg: "#455A64", hexText: "#ffffff",
+  },
+  /* Legacy vendas statuses */
   awaiting_docs:     { label: "Aguardando Docs",      variant: "amber",  icon: Clock },
   credit_check:      { label: "Análise de Crédito",   variant: "blue",   icon: Loader2 },
   credit_rejected:   { label: "Crédito Reprovado",    variant: "red",    icon: XCircle },
@@ -76,9 +130,11 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   /* Purple */
   returned:     { label: "Devolvido",      variant: "purple", icon: RotateCcw },
   rework:       { label: "Retrabalho",     variant: "purple", icon: RotateCcw },
+  /* Location */
+  with_location: { label: "Em trânsito",   variant: "gray",   icon: MapPin },
 };
 
-const VARIANT_CLASSES: Record<StatusVariant, string> = {
+const VARIANT_CLASSES: Record<Exclude<StatusVariant, "custom">, string> = {
   green:  "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
   red:    "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
   amber:  "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
@@ -102,7 +158,23 @@ export function StatusBadge({ status, label, className, showIcon = true }: Statu
   };
   const displayLabel = label ?? config.label;
   const Icon = showIcon ? config.icon : undefined;
-  const variantClass = VARIANT_CLASSES[config.variant];
+
+  // Custom hex color statuses use inline style
+  if (config.variant === "custom" && config.hexBg) {
+    return (
+      <span
+        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap", className)}
+        style={{ backgroundColor: config.hexBg + "22", color: config.hexBg, border: `1px solid ${config.hexBg}55` }}
+      >
+        {Icon && <Icon className="h-3 w-3 flex-shrink-0" />}
+        {displayLabel}
+      </span>
+    );
+  }
+
+  const variantClass = config.variant !== "custom"
+    ? VARIANT_CLASSES[config.variant]
+    : VARIANT_CLASSES.gray;
 
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap", variantClass, className)}>
