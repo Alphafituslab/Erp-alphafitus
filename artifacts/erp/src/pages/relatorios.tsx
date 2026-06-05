@@ -1889,142 +1889,42 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
   const currentMonth = now.getMonth() + 1;
 
   async function handleExportPdf(pdfSettings: PdfSettings) {
-    if (!printRef.current || isLoading) return;
+    if (isLoading) return;
     try {
-      const [{ toPng }, { jsPDF }] = await Promise.all([
-        import("html-to-image"),
-        import("jspdf"),
-      ]);
-
-      const elW = printRef.current.offsetWidth;
-      const elH = printRef.current.offsetHeight;
-
-      const imgData = await toPng(printRef.current, {
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
+      const resp = await fetch("/api/relatorios/export-pdf", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          period,
+          companyName: pdfSettings.companyName,
+          logoBase64: pdfSettings.logoBase64 ?? null,
+          includeHeader: pdfSettings.includeHeader,
+        }),
       });
 
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const contentW = pageW - margin * 2;
-
-      const HEADER_H = pdfSettings.includeHeader ? 20 : 0;
-      const FOOTER_H = pdfSettings.includeHeader ? 10 : 0;
-      const availableH = pageH - margin * 2 - HEADER_H - FOOTER_H;
-
-      const imgH = (elH * contentW) / elW;
-      const totalPages = Math.max(1, Math.ceil(imgH / availableH));
-
-      const generatedAt = new Date().toLocaleString("pt-BR", {
-        dateStyle: "short",
-        timeStyle: "short",
-      });
-      const periodLabelText = data?.periodLabel ?? PERIOD_LABELS[period];
-
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) pdf.addPage();
-
-        // ── Content image (place first, then cover non-content zones) ──────────
-        const imgY = margin + HEADER_H - page * availableH;
-        pdf.addImage(imgData, "PNG", margin, imgY, contentW, imgH);
-
-        if (pdfSettings.includeHeader) {
-          // ── Header overlay (white background + content) ────────────────────
-          pdf.setFillColor(248, 250, 252);
-          pdf.rect(0, 0, pageW, HEADER_H, "F");
-
-          // Bottom border of header
-          pdf.setDrawColor(226, 232, 240);
-          pdf.setLineWidth(0.3);
-          pdf.line(0, HEADER_H, pageW, HEADER_H);
-
-          let xCursor = margin;
-
-          // Logo (if provided)
-          if (pdfSettings.logoBase64) {
-            try {
-              const isJpeg =
-                pdfSettings.logoBase64.startsWith("data:image/jpeg") ||
-                pdfSettings.logoBase64.startsWith("data:image/jpg");
-              const fmt = isJpeg ? "JPEG" : "PNG";
-              const logoSize = 13;
-              const logoY = (HEADER_H - logoSize) / 2;
-              pdf.addImage(pdfSettings.logoBase64, fmt, xCursor, logoY, logoSize, logoSize);
-              xCursor += logoSize + 3;
-            } catch {
-              // Skip logo if it can't be added
-            }
-          }
-
-          // Company name (bold)
-          pdf.setFontSize(13);
-          pdf.setFont("helvetica", "bold");
-          pdf.setTextColor(30, 41, 59);
-          pdf.text(pdfSettings.companyName || "NEXUS ERP", xCursor, HEADER_H / 2 - 1);
-
-          // Subtitle: report label + period
-          pdf.setFontSize(8);
-          pdf.setFont("helvetica", "normal");
-          pdf.setTextColor(100, 116, 139);
-          pdf.text(
-            `Relatório Executivo — ${periodLabelText}`,
-            xCursor,
-            HEADER_H / 2 + 4.5,
-          );
-
-          // Generated date (top-right)
-          pdf.setFontSize(7);
-          pdf.setTextColor(148, 163, 184);
-          const dateText = `Gerado em ${generatedAt}`;
-          const dateW = pdf.getTextWidth(dateText);
-          pdf.text(dateText, pageW - margin - dateW, HEADER_H / 2 - 1);
-
-          // ── Footer overlay ─────────────────────────────────────────────────
-          const footerY = pageH - FOOTER_H;
-          pdf.setFillColor(248, 250, 252);
-          pdf.rect(0, footerY, pageW, FOOTER_H, "F");
-
-          // Top border of footer
-          pdf.setDrawColor(226, 232, 240);
-          pdf.setLineWidth(0.3);
-          pdf.line(0, footerY, pageW, footerY);
-
-          const footerTextY = footerY + FOOTER_H / 2 + 1.5;
-
-          pdf.setFontSize(7);
-          pdf.setFont("helvetica", "normal");
-          pdf.setTextColor(148, 163, 184);
-          pdf.text("Documento confidencial — uso interno", margin, footerTextY);
-
-          const pageText = `Página ${page + 1} de ${totalPages}`;
-          const pageTextW = pdf.getTextWidth(pageText);
-          pdf.text(pageText, pageW - margin - pageTextW, footerTextY);
-
-          // ── White strips to clip content bleeding into header/footer margins ──
-          // Left/right margins
-          pdf.setFillColor(255, 255, 255);
-          pdf.rect(0, HEADER_H, margin, pageH - HEADER_H - FOOTER_H, "F");
-          pdf.rect(pageW - margin, HEADER_H, margin, pageH - HEADER_H - FOOTER_H, "F");
-        } else {
-          // No header: still clip left/right margins
-          pdf.setFillColor(255, 255, 255);
-          pdf.rect(0, 0, margin, pageH, "F");
-          pdf.rect(pageW - margin, 0, margin, pageH, "F");
-        }
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Erro ao gerar PDF");
       }
 
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
       const periodSlug = (data?.periodLabel ?? period)
         .toLowerCase()
         .replace(/\//g, "-")
         .replace(/\s+/g, "-");
-      pdf.save(`relatorio-executivo-${periodSlug}.pdf`);
-    } catch {
+      a.href = url;
+      a.download = `relatorio-executivo-${periodSlug}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
       toast({
         title: "Erro ao exportar PDF",
-        description: "Não foi possível gerar o relatório. Tente novamente.",
+        description: err instanceof Error ? err.message : "Não foi possível gerar o relatório.",
         variant: "destructive",
       });
     }

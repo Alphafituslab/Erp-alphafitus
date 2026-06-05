@@ -1028,6 +1028,42 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
   });
 });
 
+// ─── Export PDF ───────────────────────────────────────────────────────────────
+
+router.post("/relatorios/export-pdf", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const { period, companyName, logoBase64, includeHeader } = req.body as {
+    period?: Period;
+    companyName?: string;
+    logoBase64?: string | null;
+    includeHeader?: boolean;
+  };
+
+  const validPeriods: Period[] = ["this_month", "last_month", "this_quarter", "this_year"];
+  const safePeriod: Period = validPeriods.includes(period as Period) ? (period as Period) : "this_month";
+
+  try {
+    const pdfBuffer = await buildReportPdf(safePeriod, {
+      companyName: companyName ?? undefined,
+      logoBase64: logoBase64 ?? null,
+      includeHeader: includeHeader !== false,
+    });
+
+    const range = getDateRange(safePeriod);
+    const slug = range.label.toLowerCase().replace(/\//g, "-").replace(/\s+/g, "-");
+    const filename = `relatorio-executivo-${slug}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(pdfBuffer.length));
+    res.send(pdfBuffer);
+  } catch (err: unknown) {
+    req.log.error({ err }, "Failed to generate PDF");
+    res.status(500).json({ error: "Falha ao gerar PDF" });
+  }
+});
+
 // ─── Report Send Logs ─────────────────────────────────────────────────────────
 
 router.get("/relatorios/send-logs", async (req: Request, res: Response): Promise<void> => {
