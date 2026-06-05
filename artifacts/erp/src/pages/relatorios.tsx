@@ -74,6 +74,8 @@ import {
   useGetMyTasks,
   useGetDashboardGoals,
   useUpsertDashboardGoals,
+  useBulkUpsertDashboardGoals,
+  useGetYearGoals,
   useSendRelatorioEmail,
   useListReportSchedules,
   useCreateReportSchedule,
@@ -216,55 +218,114 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+type GoalsMode = "single" | "annual";
+
+interface AnnualMonthRow {
+  revenueGoal: string;
+  expenseGoal: string;
+  salesOrdersGoal: string;
+}
+
+function makeEmptyAnnualRows(): AnnualMonthRow[] {
+  return Array.from({ length: 12 }, () => ({ revenueGoal: "", expenseGoal: "", salesOrdersGoal: "" }));
+}
+
 function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; currentMonth: number }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<GoalsMode>("single");
+
+  // ── Single-month state ──────────────────────────────────────────────────────
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
   const [revenueGoal, setRevenueGoal] = useState("");
   const [expenseGoal, setExpenseGoal] = useState("");
   const [salesOrdersGoal, setSalesOrdersGoal] = useState("");
+
+  // ── Annual state ────────────────────────────────────────────────────────────
+  const [annualYear, setAnnualYear] = useState(currentYear);
+  const [annualRows, setAnnualRows] = useState<AnnualMonthRow[]>(makeEmptyAnnualRows);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const availableYears = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+
+  // ── Load existing goal for single-month mode ────────────────────────────────
   const { data: existingGoals, isLoading: goalsLoading } = useGetDashboardGoals(
-    open ? year : 0,
-    open ? month : 0,
+    open && mode === "single" ? year : 0,
+    open && mode === "single" ? month : 0,
   );
 
   useEffect(() => {
-    if (existingGoals) {
+    if (existingGoals && mode === "single") {
       setRevenueGoal(parseFloat(existingGoals.revenueGoal).toFixed(2));
       setExpenseGoal(parseFloat(existingGoals.expenseGoal).toFixed(2));
       setSalesOrdersGoal(String(existingGoals.salesOrdersGoal));
     }
-  }, [existingGoals]);
+  }, [existingGoals, mode]);
 
-  const { mutate: upsertGoals, isPending } = useUpsertDashboardGoals({
+  // ── Load all 12 months of goals for the selected year (annual pre-population) ─
+  const { data: yearGoals } = useGetYearGoals(open && mode === "annual" ? annualYear : 0);
+
+  useEffect(() => {
+    if (mode !== "annual" || !yearGoals) return;
+    setAnnualRows(
+      yearGoals.months.map((item) =>
+        item.hasGoal
+          ? {
+              revenueGoal: parseFloat(item.revenueGoal).toFixed(2),
+              expenseGoal: parseFloat(item.expenseGoal).toFixed(2),
+              salesOrdersGoal: String(item.salesOrdersGoal),
+            }
+          : { revenueGoal: "", expenseGoal: "", salesOrdersGoal: "" }
+      )
+    );
+  }, [yearGoals, mode]);
+
+  // ── Mutations ───────────────────────────────────────────────────────────────
+  const { mutate: upsertGoals, isPending: isSinglePending } = useUpsertDashboardGoals({
     mutation: {
       onSuccess: () => {
-        toast({ title: "Metas salvas com sucesso!" });
+        toast({ title: "Meta salva com sucesso!" });
         queryClient.invalidateQueries({ queryKey: ["/api/relatorios/dashboard"] });
         queryClient.invalidateQueries({ queryKey: [`/api/relatorios/goals/${year}/${month}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/relatorios/goals/history"] });
         setOpen(false);
       },
       onError: () => {
-        toast({
-          title: "Erro ao salvar metas",
-          description: "Verifique os valores e tente novamente.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro ao salvar meta", description: "Verifique os valores e tente novamente.", variant: "destructive" });
       },
     },
   });
 
+  const { mutate: bulkUpsert, isPending: isBulkPending } = useBulkUpsertDashboardGoals({
+    mutation: {
+      onSuccess: (data) => {
+        toast({ title: `Planejamento anual salvo!`, description: `${data.saved.length} meses atualizados para ${data.year}.` });
+        queryClient.invalidateQueries({ queryKey: ["/api/relatorios/dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/relatorios/goals/history"] });
+        queryClient.invalidateQueries({ queryKey: [`/api/relatorios/goals/year/${data.year}`] });
+        setOpen(false);
+      },
+      onError: () => {
+        toast({ title: "Erro ao salvar planejamento anual", description: "Verifique os valores e tente novamente.", variant: "destructive" });
+      },
+    },
+  });
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
   function handleOpen(isOpen: boolean) {
     setOpen(isOpen);
     if (isOpen) {
       setYear(currentYear);
       setMonth(currentMonth);
-      setRevenueGoal(existingGoals ? parseFloat(existingGoals.revenueGoal).toFixed(2) : "");
-      setExpenseGoal(existingGoals ? parseFloat(existingGoals.expenseGoal).toFixed(2) : "");
-      setSalesOrdersGoal(existingGoals ? String(existingGoals.salesOrdersGoal) : "");
+      setRevenueGoal("");
+      setExpenseGoal("");
+      setSalesOrdersGoal("");
+      setAnnualYear(currentYear);
+      setAnnualRows(makeEmptyAnnualRows());
     }
   }
 
@@ -276,7 +337,23 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
     setSalesOrdersGoal("");
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleAnnualRowChange(
+    monthIndex: number,
+    field: keyof AnnualMonthRow,
+    value: string
+  ) {
+    setAnnualRows((prev) =>
+      prev.map((row, i) => (i === monthIndex ? { ...row, [field]: value } : row))
+    );
+  }
+
+  function handleFillAll(field: keyof AnnualMonthRow) {
+    const firstValue = annualRows[0][field];
+    if (!firstValue) return;
+    setAnnualRows((prev) => prev.map((row) => ({ ...row, [field]: firstValue })));
+  }
+
+  function handleSubmitSingle(e: React.FormEvent) {
     e.preventDefault();
     upsertGoals({
       year,
@@ -289,7 +366,33 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
     });
   }
 
-  const currentYears = [currentYear - 1, currentYear, currentYear + 1];
+  function handleSubmitAnnual(e: React.FormEvent) {
+    e.preventDefault();
+    // Only send months where at least one field has been explicitly filled.
+    // Blank rows are skipped — they leave any existing goal untouched.
+    const months = annualRows
+      .map((row, i) => ({ month: i + 1, row }))
+      .filter(({ row }) =>
+        row.revenueGoal.trim() !== "" ||
+        row.expenseGoal.trim() !== "" ||
+        row.salesOrdersGoal.trim() !== ""
+      )
+      .map(({ month, row }) => ({
+        month,
+        revenueGoal: String(parseFloat(row.revenueGoal) || 0),
+        expenseGoal: String(parseFloat(row.expenseGoal) || 0),
+        salesOrdersGoal: parseInt(row.salesOrdersGoal) || 0,
+      }));
+
+    if (months.length === 0) {
+      toast({ title: "Nenhum mês preenchido", description: "Preencha ao menos um mês para salvar.", variant: "destructive" });
+      return;
+    }
+
+    bulkUpsert({ year: annualYear, data: { months } });
+  }
+
+  const isPending = isSinglePending || isBulkPending;
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -299,111 +402,259 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
           Configurar Metas
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className={mode === "annual" ? "max-w-3xl" : "max-w-md"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Configurar Metas Mensais
+            Configurar Metas
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Mês</Label>
-              <Select
-                value={String(month)}
-                onValueChange={(v) => handleMonthYearChange(year, parseInt(v))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTH_NAMES.map((name, i) => (
-                    <SelectItem key={i + 1} value={String(i + 1)}>
-                      {name}
-                    </SelectItem>
+        {/* Mode tabs */}
+        <div className="flex gap-1 rounded-lg border p-0.5 bg-muted/30 w-fit">
+          <button
+            type="button"
+            onClick={() => setMode("single")}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              mode === "single" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Mês Individual
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("annual")}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              mode === "annual" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Planejamento Anual
+          </button>
+        </div>
+
+        {/* ── Single month form ─────────────────────────────────────────── */}
+        {mode === "single" && (
+          <form onSubmit={handleSubmitSingle} className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Mês</Label>
+                <Select
+                  value={String(month)}
+                  onValueChange={(v) => handleMonthYearChange(year, parseInt(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((name, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Ano</Label>
+                <Select
+                  value={String(year)}
+                  onValueChange={(v) => handleMonthYearChange(parseInt(v), month)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {goalsLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="revenueGoal">Meta de Receita (R$)</Label>
+                  <Input
+                    id="revenueGoal"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={revenueGoal}
+                    onChange={(e) => setRevenueGoal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="expenseGoal">Meta de Despesas (R$)</Label>
+                  <Input
+                    id="expenseGoal"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={expenseGoal}
+                    onChange={(e) => setExpenseGoal(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="salesOrdersGoal">Meta de Pedidos de Venda</Label>
+                  <Input
+                    id="salesOrdersGoal"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                    value={salesOrdersGoal}
+                    onChange={(e) => setSalesOrdersGoal(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isPending || goalsLoading}>
+                {isSinglePending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Salvar Meta
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* ── Annual planning form ──────────────────────────────────────── */}
+        {mode === "annual" && (
+          <form onSubmit={handleSubmitAnnual} className="space-y-4 mt-2">
+            <div className="flex items-center gap-3">
+              <div className="space-y-1">
+                <Label>Ano</Label>
+                <Select
+                  value={String(annualYear)}
+                  onValueChange={(v) => {
+                    setAnnualYear(parseInt(v));
+                    setAnnualRows(makeEmptyAnnualRows());
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground mt-5">
+                Preencha as metas para os meses desejados. Meses deixados em branco não serão alterados — suas metas atuais serão preservadas.
+              </p>
+            </div>
+
+            <div className="rounded-md border overflow-auto max-h-[50vh]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-16 font-semibold text-xs">Mês</TableHead>
+                    <TableHead className="font-semibold text-xs">
+                      <div className="flex items-center justify-between">
+                        <span>Receita (R$)</span>
+                        <button
+                          type="button"
+                          onClick={() => handleFillAll("revenueGoal")}
+                          className="text-[10px] text-primary hover:underline ml-2 font-normal"
+                          title="Replicar valor de Janeiro para todos os meses"
+                        >
+                          replicar ↓
+                        </button>
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-xs">
+                      <div className="flex items-center justify-between">
+                        <span>Despesas (R$)</span>
+                        <button
+                          type="button"
+                          onClick={() => handleFillAll("expenseGoal")}
+                          className="text-[10px] text-primary hover:underline ml-2 font-normal"
+                          title="Replicar valor de Janeiro para todos os meses"
+                        >
+                          replicar ↓
+                        </button>
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-xs">
+                      <div className="flex items-center justify-between">
+                        <span>Pedidos</span>
+                        <button
+                          type="button"
+                          onClick={() => handleFillAll("salesOrdersGoal")}
+                          className="text-[10px] text-primary hover:underline ml-2 font-normal"
+                          title="Replicar valor de Janeiro para todos os meses"
+                        >
+                          replicar ↓
+                        </button>
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {MONTH_SHORT.map((name, i) => (
+                    <TableRow key={i} className="hover:bg-muted/30">
+                      <TableCell className="py-1.5 font-medium text-sm text-muted-foreground w-16">{name}</TableCell>
+                      <TableCell className="py-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0,00"
+                          value={annualRows[i].revenueGoal}
+                          onChange={(e) => handleAnnualRowChange(i, "revenueGoal", e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell className="py-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0,00"
+                          value={annualRows[i].expenseGoal}
+                          onChange={(e) => handleAnnualRowChange(i, "expenseGoal", e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell className="py-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={annualRows[i].salesOrdersGoal}
+                          onChange={(e) => handleAnnualRowChange(i, "salesOrdersGoal", e.target.value)}
+                          className="h-7 text-sm"
+                        />
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </SelectContent>
-              </Select>
+                </TableBody>
+              </Table>
             </div>
-            <div className="space-y-1">
-              <Label>Ano</Label>
-              <Select
-                value={String(year)}
-                onValueChange={(v) => handleMonthYearChange(parseInt(v), month)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currentYears.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isPending}>
+                {isBulkPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Salvar Planejamento Anual
+              </Button>
             </div>
-          </div>
-
-          {goalsLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <Label htmlFor="revenueGoal">Meta de Receita (R$)</Label>
-                <Input
-                  id="revenueGoal"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={revenueGoal}
-                  onChange={(e) => setRevenueGoal(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="expenseGoal">Meta de Despesas (R$)</Label>
-                <Input
-                  id="expenseGoal"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={expenseGoal}
-                  onChange={(e) => setExpenseGoal(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="salesOrdersGoal">Meta de Pedidos de Venda</Label>
-                <Input
-                  id="salesOrdersGoal"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={salesOrdersGoal}
-                  onChange={(e) => setSalesOrdersGoal(e.target.value)}
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending || goalsLoading}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Salvar Metas
-            </Button>
-          </div>
-        </form>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

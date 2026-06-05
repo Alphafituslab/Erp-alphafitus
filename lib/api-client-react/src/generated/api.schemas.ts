@@ -2448,6 +2448,47 @@ export interface DashboardGoalInput {
   salesOrdersGoal: number;
 }
 
+export interface YearGoalMonthItem {
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  month: number;
+  hasGoal: boolean;
+  revenueGoal: string;
+  expenseGoal: string;
+  salesOrdersGoal: number;
+}
+
+export interface YearGoals {
+  year: number;
+  months: YearGoalMonthItem[];
+}
+
+export interface BulkGoalMonthInput {
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  month: number;
+  revenueGoal: string;
+  expenseGoal: string;
+  salesOrdersGoal: number;
+}
+
+export interface BulkGoalsInput {
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  months: BulkGoalMonthInput[];
+}
+
+export interface BulkGoalsResult {
+  year: number;
+  saved: DashboardGoal[];
+}
+
 export type RelatoriSendEmailInputPeriod = typeof RelatoriSendEmailInputPeriod[keyof typeof RelatoriSendEmailInputPeriod];
 
 

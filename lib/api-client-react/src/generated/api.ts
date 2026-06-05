@@ -36,6 +36,8 @@ import type {
   AuthUser,
   BackupLog,
   BackwardTraceResult,
+  BulkGoalsInput,
+  BulkGoalsResult,
   CapaAction,
   CapaActionInput,
   CapaDashboard,
@@ -216,7 +218,8 @@ import type {
   Warehouse,
   WarehouseInput,
   WorkCenter,
-  WorkCenterInput
+  WorkCenterInput,
+  YearGoals
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -10710,6 +10713,155 @@ export function useGetGoalsHistory<TData = Awaited<ReturnType<typeof getGoalsHis
 
 
 
+
+export const getGetYearGoalsUrl = (year: number,) => {
+
+
+
+
+  return `/api/relatorios/goals/year/${year}`
+}
+
+/**
+ * @summary Get goals for all 12 months of a given year
+ */
+export const getYearGoals = async (year: number, options?: RequestInit): Promise<YearGoals> => {
+
+  return customFetch<YearGoals>(getGetYearGoalsUrl(year),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetYearGoalsQueryKey = (year: number,) => {
+    return [
+    `/api/relatorios/goals/year/${year}`
+    ] as const;
+    }
+
+
+export const getGetYearGoalsQueryOptions = <TData = Awaited<ReturnType<typeof getYearGoals>>, TError = ErrorType<ErrorResponse>>(year: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetYearGoalsQueryKey(year);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getYearGoals>>> = ({ signal }) => getYearGoals(year, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(year), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetYearGoalsQueryResult = NonNullable<Awaited<ReturnType<typeof getYearGoals>>>
+export type GetYearGoalsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get goals for all 12 months of a given year
+ */
+
+export function useGetYearGoals<TData = Awaited<ReturnType<typeof getYearGoals>>, TError = ErrorType<ErrorResponse>>(
+ year: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYearGoals>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetYearGoalsQueryOptions(year,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getBulkUpsertDashboardGoalsUrl = (year: number,) => {
+
+
+
+
+  return `/api/relatorios/goals/bulk/${year}`
+}
+
+/**
+ * @summary Bulk create or update goals for all 12 months of a year (annual planning)
+ */
+export const bulkUpsertDashboardGoals = async (year: number,
+    bulkGoalsInput: BulkGoalsInput, options?: RequestInit): Promise<BulkGoalsResult> => {
+
+  return customFetch<BulkGoalsResult>(getBulkUpsertDashboardGoalsUrl(year),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkGoalsInput,)
+  }
+);}
+
+
+
+
+export const getBulkUpsertDashboardGoalsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpsertDashboardGoals>>, TError,{year: number;data: BodyType<BulkGoalsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpsertDashboardGoals>>, TError,{year: number;data: BodyType<BulkGoalsInput>}, TContext> => {
+
+const mutationKey = ['bulkUpsertDashboardGoals'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpsertDashboardGoals>>, {year: number;data: BodyType<BulkGoalsInput>}> = (props) => {
+          const {year,data} = props ?? {};
+
+          return  bulkUpsertDashboardGoals(year,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpsertDashboardGoalsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpsertDashboardGoals>>>
+    export type BulkUpsertDashboardGoalsMutationBody = BodyType<BulkGoalsInput>
+    export type BulkUpsertDashboardGoalsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Bulk create or update goals for all 12 months of a year (annual planning)
+ */
+export const useBulkUpsertDashboardGoals = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpsertDashboardGoals>>, TError,{year: number;data: BodyType<BulkGoalsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpsertDashboardGoals>>,
+        TError,
+        {year: number;data: BodyType<BulkGoalsInput>},
+        TContext
+      > => {
+      return useMutation(getBulkUpsertDashboardGoalsMutationOptions(options));
+    }
 
 export const getGetDashboardGoalsUrl = (year: number,
     month: number,) => {

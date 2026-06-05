@@ -600,6 +600,106 @@ router.get("/relatorios/goals/history", async (req: Request, res: Response): Pro
   res.json(history);
 });
 
+// ─── Goals: GET all months for a year ────────────────────────────────────────
+
+router.get("/relatorios/goals/year/:year", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const year = parseInt(req.params.year as string, 10);
+  if (isNaN(year) || year < 2000 || year > 2100) {
+    res.status(400).json({ error: "Ano inválido" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(dashboardGoalsTable)
+    .where(eq(dashboardGoalsTable.year, year));
+
+  // Return one entry per month (1–12); months without a row return null
+  const goalsByMonth: (typeof rows[number] | null)[] = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    return rows.find((r) => r.month === m) ?? null;
+  });
+
+  const result = goalsByMonth.map((row, i) => ({
+    month: i + 1,
+    hasGoal: row != null,
+    revenueGoal: row?.revenueGoal ?? "0",
+    expenseGoal: row?.expenseGoal ?? "0",
+    salesOrdersGoal: row?.salesOrdersGoal ?? 0,
+  }));
+
+  res.json({ year, months: result });
+});
+
+// ─── Goals: Bulk upsert (annual planning) ─────────────────────────────────────
+
+router.put("/relatorios/goals/bulk/:year", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const year = parseInt(req.params.year as string, 10);
+  if (isNaN(year) || year < 2000 || year > 2100) {
+    res.status(400).json({ error: "Ano inválido" });
+    return;
+  }
+
+  const { months } = req.body as {
+    months?: { month: number; revenueGoal: string; expenseGoal: string; salesOrdersGoal: number }[];
+  };
+
+  if (!Array.isArray(months) || months.length === 0) {
+    res.status(400).json({ error: "Campo obrigatório: months (array)" });
+    return;
+  }
+
+  for (const entry of months) {
+    const m = Number(entry.month);
+    if (isNaN(m) || m < 1 || m > 12) {
+      res.status(400).json({ error: `Mês inválido: ${entry.month}` });
+      return;
+    }
+    if (entry.revenueGoal === undefined || entry.expenseGoal === undefined || entry.salesOrdersGoal === undefined) {
+      res.status(400).json({ error: `Campos obrigatórios por mês: revenueGoal, expenseGoal, salesOrdersGoal (mês ${m})` });
+      return;
+    }
+  }
+
+  const saved = await Promise.all(
+    months.map(async (entry) => {
+      const [upserted] = await db
+        .insert(dashboardGoalsTable)
+        .values({
+          year,
+          month: entry.month,
+          revenueGoal: String(entry.revenueGoal),
+          expenseGoal: String(entry.expenseGoal),
+          salesOrdersGoal: Number(entry.salesOrdersGoal),
+        })
+        .onConflictDoUpdate({
+          target: [dashboardGoalsTable.year, dashboardGoalsTable.month],
+          set: {
+            revenueGoal: String(entry.revenueGoal),
+            expenseGoal: String(entry.expenseGoal),
+            salesOrdersGoal: Number(entry.salesOrdersGoal),
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return {
+        id: upserted.id,
+        year: upserted.year,
+        month: upserted.month,
+        revenueGoal: upserted.revenueGoal,
+        expenseGoal: upserted.expenseGoal,
+        salesOrdersGoal: upserted.salesOrdersGoal,
+      };
+    })
+  );
+
+  res.json({ year, saved });
+});
+
 // ─── Goals: GET ────────────────────────────────────────────────────────────
 
 router.get("/relatorios/goals/:year/:month", async (req: Request, res: Response): Promise<void> => {

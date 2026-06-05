@@ -4607,6 +4607,80 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/goals/year/{year}:
+    get:
+      operationId: getYearGoals
+      tags: [relatorios]
+      summary: Get goals for all 12 months of a given year
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: All 12 months of goals for the year (hasGoal=false for months without a row)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YearGoals"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /relatorios/goals/bulk/{year}:
+    put:
+      operationId: bulkUpsertDashboardGoals
+      tags: [relatorios]
+      summary: Bulk create or update goals for all 12 months of a year (annual planning)
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkGoalsInput"
+      responses:
+        "200":
+          description: Array of upserted goals (one per month)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkGoalsResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /relatorios/goals/{year}/{month}:
     get:
       operationId: getDashboardGoals
@@ -11421,6 +11495,85 @@ components:
           type: string
         salesOrdersGoal:
           type: integer
+
+    YearGoalMonthItem:
+      type: object
+      required:
+        - month
+        - hasGoal
+        - revenueGoal
+        - expenseGoal
+        - salesOrdersGoal
+      properties:
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        hasGoal:
+          type: boolean
+        revenueGoal:
+          type: string
+        expenseGoal:
+          type: string
+        salesOrdersGoal:
+          type: integer
+
+    YearGoals:
+      type: object
+      required:
+        - year
+        - months
+      properties:
+        year:
+          type: integer
+        months:
+          type: array
+          items:
+            $ref: "#/components/schemas/YearGoalMonthItem"
+
+    BulkGoalMonthInput:
+      type: object
+      required:
+        - month
+        - revenueGoal
+        - expenseGoal
+        - salesOrdersGoal
+      properties:
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        revenueGoal:
+          type: string
+        expenseGoal:
+          type: string
+        salesOrdersGoal:
+          type: integer
+
+    BulkGoalsInput:
+      type: object
+      required:
+        - months
+      properties:
+        months:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkGoalMonthInput"
+          minItems: 1
+          maxItems: 12
+
+    BulkGoalsResult:
+      type: object
+      required:
+        - saved
+        - year
+      properties:
+        year:
+          type: integer
+        saved:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardGoal"
 
     RelatoriSendEmailInput:
       type: object

@@ -4102,6 +4102,64 @@ export const GetGoalsHistoryResponse = zod.array(GetGoalsHistoryResponseItem)
 
 
 /**
+ * @summary Get goals for all 12 months of a given year
+ */
+export const GetYearGoalsParams = zod.object({
+  "year": zod.coerce.number()
+})
+
+export const getYearGoalsResponseMonthsItemMonthMax = 12;
+
+
+
+export const GetYearGoalsResponse = zod.object({
+  "year": zod.number(),
+  "months": zod.array(zod.object({
+  "month": zod.number().min(1).max(getYearGoalsResponseMonthsItemMonthMax),
+  "hasGoal": zod.boolean(),
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
+}))
+})
+
+
+/**
+ * @summary Bulk create or update goals for all 12 months of a year (annual planning)
+ */
+export const BulkUpsertDashboardGoalsParams = zod.object({
+  "year": zod.coerce.number()
+})
+
+export const bulkUpsertDashboardGoalsBodyMonthsItemMonthMax = 12;
+
+export const bulkUpsertDashboardGoalsBodyMonthsMax = 12;
+
+
+
+export const BulkUpsertDashboardGoalsBody = zod.object({
+  "months": zod.array(zod.object({
+  "month": zod.number().min(1).max(bulkUpsertDashboardGoalsBodyMonthsItemMonthMax),
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
+})).min(1).max(bulkUpsertDashboardGoalsBodyMonthsMax)
+})
+
+export const BulkUpsertDashboardGoalsResponse = zod.object({
+  "year": zod.number(),
+  "saved": zod.array(zod.object({
+  "id": zod.number().nullish(),
+  "year": zod.number(),
+  "month": zod.number(),
+  "revenueGoal": zod.string(),
+  "expenseGoal": zod.string(),
+  "salesOrdersGoal": zod.number()
+}))
+})
+
+
+/**
  * @summary Get monthly goals for the executive dashboard
  */
 export const GetDashboardGoalsParams = zod.object({
