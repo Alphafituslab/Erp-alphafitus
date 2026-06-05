@@ -1,0 +1,69 @@
+Sugestão de status oficiais do sistema, organizados em sequência operacional:
+Ordem	Status	Cor sugerida	Hex	Finalidade
+1	Aguardando aprovação	Amarelo vivo	#FFD600	Status inicial aguardando análise/liberação.
+2	Aprovado pelo financeiro	Verde	#2E7D32	Pedido liberado para seguir no fluxo.
+3	Reprovado / negado total	Vermelho	#C62828	Pedido bloqueado ou recusado definitivamente.
+4	Reprovado / aguardando documentos	Laranja	#EF6C00	Há pendência documental e o processo não pode avançar.
+5	Pedido enviado para produzir	Azul	#1565C0	Pedido liberado e em andamento operacional.
+6	Pedido pronto aguardando separação	Turquesa	#00897B	Pedido já produzido, aguardando a separação.
+7	Pedido aguardando faturamento	Roxo	#6A1B9A	Pedido pronto para etapa fiscal.
+8	Pedido faturado parcial	Rosa / magenta	#D81B60	Somente parte do pedido foi faturada.
+9	Pedido faturado total	Marrom	#6D4C41	Pedido faturado integralmente.
+10	Pedido com a transportadora	Cinza grafite	#455A64	Pedido saiu da operação interna e está com a transportadora.
+Observação importante: seria muito importante que quando o pedido for faturado parcial ele fique aparecendo apenas a quantidade faltante, para não ter que ir ate o final para ver os itens, isso ajuda muito 
+4. Responsáveis por etapa
+
+Vendedor / Televendas
+•	Cadastrar o pedido no sistema.
+•	Acompanhar pedidos em análise e pendências documentais.
+•	Fazer interface com o cliente quando houver necessidade de documentos ou ajustes.
+Financeiro
+•	Analisar o pedido para aprovação ou reprovação.
+•	Definir se o pedido será aprovado, negado ou ficará aguardando documentos.
+Separação
+•	Atuar nos pedidos que já foram produzidos e estão prontos para separação.
+Faturamento
+•	Emitir faturamento parcial ou total conforme o caso.
+Transportadora / Logística
+•	Assumir a etapa final após o faturamento e expedição do pedido.
+5. Visibilidade recomendada por perfil de usuário
+
+Perfil	Deve visualizar com prioridade	Observação
+Vendedor / Televendas	Aguardando aprovação; Reprovado / aguardando documentos; Reprovado / negado total; acompanhamento geral do pedido.	Pode consultar o andamento completo, mas a tela principal deve destacar apenas o que exige ação comercial.
+Financeiro	Aguardando aprovação; Aprovado pelo financeiro; Reprovado / negado total; Reprovado / aguardando documentos.	Não precisa ter foco visual nas etapas operacionais posteriores.
+Separação	Pedido pronto aguardando separação.	A tela deve mostrar o que entrou para separar e o que está atrasado.
+Faturamento	Pedido aguardando faturamento; Pedido faturado parcial; Pedido faturado total.	Ideal permitir emissão, conferência e histórico do faturamento.
+Transportadora / Logística	Pedido com a transportadora.	Opcionalmente pode haver substatus logísticos em fase futura.
+6. Requisitos funcionais sugeridos para o software
+
+•	Painel geral em formato de colunas (estilo Kanban) para visão macro da operação.
+•	Painel individual por setor, mostrando apenas os pedidos relevantes para aquele usuário.
+•	Filtros por cliente, vendedor, data, prioridade e status.
+•	Alertas para pedidos parados há muito tempo.
+•	Alerta para pendência de documentos.
+•	Alerta para pedidos aguardando faturamento.
+•	Registro de data e hora de cada mudança de status.
+•	Histórico de movimentações do pedido.
+•	Campo de observação por setor (comercial, financeiro, separação, faturamento e logística).
+•	Possibilidade de gestores visualizarem todo o fluxo.
+7. Fluxo operacional resumido
+
+1.	Aguardando aprovação → análise do financeiro.
+2.	Aprovado pelo financeiro → pedido liberado para produção.
+3.	Reprovado / negado total → pedido encerrado.
+4.	Reprovado / aguardando documentos → aguardando ação do cliente/comercial.
+5.	Pedido enviado para produzir → etapa operacional em andamento.
+6.	Pedido pronto aguardando separação → aguardando separação física.
+7.	Pedido aguardando faturamento → pronto para emissão fiscal.
+8.	Pedido faturado parcial → faturamento incompleto.
+9.	Pedido faturado total → faturamento concluído.
+10.	Pedido com a transportadora → pedido expedido.
+8. Texto pronto para encaminhamento à empresa do software
+
+Solicitamos o desenvolvimento de um fluxo de pedidos no sistema com etapas padronizadas, cores exclusivas e bem distintas entre si, além de visão segmentada por setor. O objetivo é garantir clareza operacional, facilitar o acompanhamento dos pedidos e permitir que cada usuário visualize prioritariamente apenas as etapas que exigem sua ação.
+
+Status desejados: Aguardando aprovação; Aprovado pelo financeiro; Reprovado/negado total; Reprovado/aguardando documentos; Pedido enviado para produzir; Pedido pronto aguardando separação; Pedido aguardando faturamento; Pedido faturado parcial; Pedido faturado total; Pedido com a transportadora.
+
+Também solicitamos filtros por setor, histórico de movimentações, alertas de pendências e painel geral para acompanhamento dos gestores.
+9. Considerações finais
+A padronização proposta visa reduzir erros, acelerar a leitura visual dos pedidos e tornar o fluxo mais intuitivo. A principal orientação deste documento é que as cores sejam nitidamente diferentes umas das outras, evitando confusão entre etapas próximas do processo.
