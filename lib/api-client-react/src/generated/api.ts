@@ -34,6 +34,7 @@ import type {
   AttendanceLogInput,
   AttendanceSummary,
   AuthUser,
+  BackupConfig,
   BackupLog,
   BackupSchedule,
   BackupScheduleInput,
@@ -17274,6 +17275,84 @@ export function useGetBackupDownloadUrl<TData = Awaited<ReturnType<typeof getBac
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetBackupDownloadUrlQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBackupConfigUrl = () => {
+
+
+
+
+  return `/api/admin/backup/config`
+}
+
+/**
+ * Returns whether encryption is configured for backup files.
+ * @summary Get backup configuration (admin only)
+ */
+export const getBackupConfig = async ( options?: RequestInit): Promise<BackupConfig> => {
+
+  return customFetch<BackupConfig>(getGetBackupConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBackupConfigQueryKey = () => {
+    return [
+    `/api/admin/backup/config`
+    ] as const;
+    }
+
+
+export const getGetBackupConfigQueryOptions = <TData = Awaited<ReturnType<typeof getBackupConfig>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBackupConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBackupConfig>>> = ({ signal }) => getBackupConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBackupConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBackupConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getBackupConfig>>>
+export type GetBackupConfigQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get backup configuration (admin only)
+ */
+
+export function useGetBackupConfig<TData = Awaited<ReturnType<typeof getBackupConfig>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBackupConfigQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

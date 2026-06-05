@@ -6638,6 +6638,15 @@ export const GetBackupDownloadUrlParams = zod.object({
 
 
 /**
+ * Returns whether encryption is configured for backup files.
+ * @summary Get backup configuration (admin only)
+ */
+export const GetBackupConfigResponse = zod.object({
+  "encryptionEnabled": zod.boolean().describe('Whether BACKUP_ENCRYPTION_KEY is configured and backups will be AES-256 encrypted')
+})
+
+
+/**
  * @summary Get current automatic backup schedule (admin only)
  */
 export const getBackupScheduleResponseHourMin = 0;

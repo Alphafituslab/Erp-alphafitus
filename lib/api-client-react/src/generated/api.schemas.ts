@@ -34,6 +34,11 @@ export interface BackupLog {
   createdAt: string;
 }
 
+export interface BackupConfig {
+  /** Whether BACKUP_ENCRYPTION_KEY is configured and backups will be AES-256 encrypted */
+  encryptionEnabled: boolean;
+}
+
 export interface BackupSchedule {
   id: number;
   enabled: boolean;

@@ -7608,6 +7608,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/backup/config:
+    get:
+      operationId: getBackupConfig
+      tags: [admin]
+      summary: Get backup configuration (admin only)
+      description: Returns whether encryption is configured for backup files.
+      responses:
+        "200":
+          description: Backup configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupConfig"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/backup/schedule:
     get:
       operationId: getBackupSchedule
@@ -7699,6 +7725,14 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    BackupConfig:
+      type: object
+      required: [encryptionEnabled]
+      properties:
+        encryptionEnabled:
+          type: boolean
+          description: Whether BACKUP_ENCRYPTION_KEY is configured and backups will be AES-256 encrypted
 
     BackupSchedule:
       type: object

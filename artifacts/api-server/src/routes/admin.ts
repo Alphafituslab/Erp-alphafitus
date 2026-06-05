@@ -1,11 +1,33 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { spawn } from "child_process";
 import { createGzip } from "zlib";
+import { randomBytes, createCipheriv, pbkdf2Sync } from "crypto";
 import { desc, eq } from "drizzle-orm";
 import { db, usersTable, backupLogsTable, backupSchedulesTable } from "@workspace/db";
 import { uploadBackupToStorage, generateBackupDownloadUrl } from "../lib/backupStorage.js";
 
 const router: IRouter = Router();
+
+// ─── OpenSSL-compatible AES-256-CBC + PBKDF2 encryption helpers ───────────────
+// Produces a file readable by:
+//   openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY -in backup.sql.gz.enc | gunzip | psql ...
+//
+// OpenSSL -pbkdf2 uses: PBKDF2-HMAC-SHA256, 10000 iterations, 8-byte random salt.
+// The output format is the standard OpenSSL salted file: magic "Salted__" + 8-byte salt + ciphertext.
+
+const PBKDF2_ITERATIONS = 10000;
+const PBKDF2_DIGEST = "sha256";
+
+function encryptOpenSSL(data: Buffer, password: string): Buffer {
+  const salt = randomBytes(8);
+  const keyIv = pbkdf2Sync(Buffer.from(password, "utf8"), salt, PBKDF2_ITERATIONS, 48, PBKDF2_DIGEST);
+  const key = keyIv.subarray(0, 32);
+  const iv = keyIv.subarray(32, 48);
+  const cipher = createCipheriv("aes-256-cbc", key, iv);
+  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+  // OpenSSL salted-file format: "Salted__" magic + 8-byte salt + ciphertext
+  return Buffer.concat([Buffer.from("Salted__", "ascii"), salt, encrypted]);
+}
 
 async function requireAdmin(req: Request, res: Response): Promise<boolean> {
   if (!req.session.userId) {
@@ -55,9 +77,12 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   const user = parsedUrl.username;
   const password = parsedUrl.password;
 
+  const encryptionKey = process.env.BACKUP_ENCRYPTION_KEY?.trim() || null;
+
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
-  const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
+  const baseFilename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const filename = encryptionKey ? `${baseFilename}.sql.gz.enc` : `${baseFilename}.sql.gz`;
 
   const env: NodeJS.ProcessEnv = { ...process.env, PGPASSWORD: password };
 
@@ -121,18 +146,19 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const buffer = Buffer.concat(chunks);
-    const fileSizeBytes = buffer.length;
+    const rawBuffer = Buffer.concat(chunks);
+    const finalBuffer = encryptionKey ? encryptOpenSSL(rawBuffer, encryptionKey) : rawBuffer;
+    const fileSizeBytes = finalBuffer.length;
 
-    res.setHeader("Content-Type", "application/gzip");
+    res.setHeader("Content-Type", encryptionKey ? "application/octet-stream" : "application/gzip");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", String(fileSizeBytes));
     res.setHeader("Cache-Control", "no-cache");
-    res.end(buffer);
+    res.end(finalBuffer);
 
     let storageUrl: string | null = null;
     try {
-      storageUrl = await uploadBackupToStorage(filename, buffer);
+      storageUrl = await uploadBackupToStorage(filename, finalBuffer);
       req.log.info({ filename, storageUrl }, "Backup uploaded to object storage");
     } catch (uploadErr) {
       req.log.error({ uploadErr }, "Failed to upload backup to object storage");
@@ -176,6 +202,13 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   pgdump.stdout.once("data", () => clearTimeout(startupTimeout));
   pgdump.once("error", () => clearTimeout(startupTimeout));
   pgdump.once("close", () => clearTimeout(startupTimeout));
+});
+
+// ─── GET /admin/backup/config ─────────────────────────────────────────────────
+
+router.get("/admin/backup/config", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+  res.json({ encryptionEnabled: !!(process.env.BACKUP_ENCRYPTION_KEY?.trim()) });
 });
 
 // ─── GET /admin/backup/logs ───────────────────────────────────────────────────

@@ -61,6 +61,8 @@ import {
   CalendarClock,
   XCircle,
   Cloud,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -77,6 +79,7 @@ import {
   useGetBackupSchedule,
   useUpdateBackupSchedule,
   getGetBackupScheduleQueryKey,
+  useGetBackupConfig,
 } from "@workspace/api-client-react";
 import type { UserItem, BackupLog, BackupSchedule } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -642,13 +645,16 @@ function BackupPanel() {
   const [lastFilename, setLastFilename] = useState<string | null>(null);
 
   const { data: logs, isLoading: logsLoading } = useListBackupLogs();
+  const { data: backupConfig } = useGetBackupConfig();
+  const encryptionEnabled = backupConfig?.encryptionEnabled ?? false;
 
   const { mutate: generateBackup, isPending } = useGenerateBackup({
     mutation: {
       onSuccess: (blob) => {
         const now = new Date();
         const pad = (n: number) => String(n).padStart(2, "0");
-        const filename = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.sql.gz`;
+        const base = `nexus-erp-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+        const filename = encryptionEnabled ? `${base}.sql.gz.enc` : `${base}.sql.gz`;
         setLastFilename(filename);
 
         const url = URL.createObjectURL(blob);
@@ -681,6 +687,15 @@ function BackupPanel() {
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5 text-muted-foreground" />
             <CardTitle className="text-base">Backup do Banco de Dados</CardTitle>
+            {encryptionEnabled ? (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                <Lock className="h-3 w-3" /> Criptografado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                <LockOpen className="h-3 w-3" /> Sem criptografia
+              </span>
+            )}
           </div>
           <Button
             size="sm"
@@ -703,6 +718,29 @@ function BackupPanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {encryptionEnabled ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 space-y-2">
+            <div className="flex items-center gap-2 font-medium">
+              <Lock className="h-4 w-4 shrink-0" />
+              Backup protegido com AES-256-CBC
+            </div>
+            <p className="text-xs leading-relaxed">
+              O arquivo gerado (<span className="font-mono">.sql.gz.enc</span>) é criptografado com a chave <span className="font-mono">BACKUP_ENCRYPTION_KEY</span>.
+              Para descriptografar e restaurar, execute no terminal:
+            </p>
+            <pre className="text-xs bg-emerald-900/10 rounded px-3 py-2 font-mono whitespace-pre-wrap break-all leading-relaxed">
+              {`openssl enc -d -aes-256-cbc -pbkdf2 \\\n  -pass env:BACKUP_ENCRYPTION_KEY \\\n  -in backup.sql.gz.enc \\\n  | gunzip \\\n  | psql -h HOST -U USER -d DATABASE`}
+            </pre>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+            <LockOpen className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Criptografia não configurada. Defina o secret <span className="font-mono font-medium">BACKUP_ENCRYPTION_KEY</span> no painel de configurações para proteger os arquivos de backup com AES-256.
+            </span>
+          </div>
+        )}
+
         {isPending && (
           <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
             <Loader2 className="h-4 w-4 animate-spin shrink-0" />
@@ -797,8 +835,9 @@ function BackupPanel() {
 
         <p className="text-xs text-muted-foreground flex items-start gap-1.5">
           <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-          O arquivo gerado é um dump SQL completo comprimido (.sql.gz). Guarde-o em local seguro.
-          Restore deve ser realizado diretamente no servidor com <code className="font-mono">psql</code> ou <code className="font-mono">pg_restore</code>.
+          {encryptionEnabled
+            ? "O arquivo gerado é um dump SQL criptografado com AES-256-CBC (.sql.gz.enc). Guarde a chave de criptografia em local seguro."
+            : "O arquivo gerado é um dump SQL completo comprimido (.sql.gz). Guarde-o em local seguro."}
         </p>
       </CardContent>
     </Card>
