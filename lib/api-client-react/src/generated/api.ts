@@ -17209,6 +17209,83 @@ export function useListBackupLogs<TData = Awaited<ReturnType<typeof listBackupLo
 
 
 
+export const getGetBackupDownloadUrlUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/backup/download/${id}`
+}
+
+/**
+ * @summary Generate a signed download URL for a backup stored in object storage (admin only)
+ */
+export const getBackupDownloadUrl = async (id: number, options?: RequestInit): Promise<unknown> => {
+
+  return customFetch<unknown>(getGetBackupDownloadUrlUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBackupDownloadUrlQueryKey = (id: number,) => {
+    return [
+    `/api/admin/backup/download/${id}`
+    ] as const;
+    }
+
+
+export const getGetBackupDownloadUrlQueryOptions = <TData = Awaited<ReturnType<typeof getBackupDownloadUrl>>, TError = ErrorType<void | ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupDownloadUrl>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBackupDownloadUrlQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBackupDownloadUrl>>> = ({ signal }) => getBackupDownloadUrl(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBackupDownloadUrl>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBackupDownloadUrlQueryResult = NonNullable<Awaited<ReturnType<typeof getBackupDownloadUrl>>>
+export type GetBackupDownloadUrlQueryError = ErrorType<void | ErrorResponse>
+
+
+/**
+ * @summary Generate a signed download URL for a backup stored in object storage (admin only)
+ */
+
+export function useGetBackupDownloadUrl<TData = Awaited<ReturnType<typeof getBackupDownloadUrl>>, TError = ErrorType<void | ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBackupDownloadUrl>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBackupDownloadUrlQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetBackupScheduleUrl = () => {
 
 

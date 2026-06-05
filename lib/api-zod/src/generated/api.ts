@@ -6623,9 +6623,18 @@ export const ListBackupLogsResponseItem = zod.object({
   "source": zod.enum(['manual', 'scheduled']),
   "status": zod.enum(['success', 'error']),
   "errorMessage": zod.string().nullish(),
+  "storageUrl": zod.string().nullish().describe('GCS object URL (gs:\/\/bucket\/path) if uploaded to object storage'),
   "createdAt": zod.coerce.date()
 })
 export const ListBackupLogsResponse = zod.array(ListBackupLogsResponseItem)
+
+
+/**
+ * @summary Generate a signed download URL for a backup stored in object storage (admin only)
+ */
+export const GetBackupDownloadUrlParams = zod.object({
+  "id": zod.coerce.number().describe('Backup log ID')
+})
 
 
 /**

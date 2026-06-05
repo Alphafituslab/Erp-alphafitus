@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import { createGzip } from "zlib";
 import { desc, eq } from "drizzle-orm";
 import { db, usersTable, backupLogsTable, backupSchedulesTable } from "@workspace/db";
+import { uploadBackupToStorage, generateBackupDownloadUrl } from "../lib/backupStorage.js";
 
 const router: IRouter = Router();
 
@@ -72,7 +73,7 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   let pgDumpHadData = false;
   let pgDumpFailed = false;
   let pgDumpStderr = "";
-  let fileSizeBytes = 0;
+  const chunks: Buffer[] = [];
 
   pgdump.stdout.on("data", () => {
     pgDumpHadData = true;
@@ -104,14 +105,7 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
   });
 
   gzip.on("data", (chunk: Buffer) => {
-    if (!pgDumpHadData) return;
-    fileSizeBytes += chunk.length;
-    if (!res.headersSent) {
-      res.setHeader("Content-Type", "application/gzip");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      res.setHeader("Cache-Control", "no-cache");
-    }
-    res.write(chunk);
+    chunks.push(chunk);
   });
 
   gzip.on("end", async () => {
@@ -127,7 +121,22 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    res.end();
+    const buffer = Buffer.concat(chunks);
+    const fileSizeBytes = buffer.length;
+
+    res.setHeader("Content-Type", "application/gzip");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(fileSizeBytes));
+    res.setHeader("Cache-Control", "no-cache");
+    res.end(buffer);
+
+    let storageUrl: string | null = null;
+    try {
+      storageUrl = await uploadBackupToStorage(filename, buffer);
+      req.log.info({ filename, storageUrl }, "Backup uploaded to object storage");
+    } catch (uploadErr) {
+      req.log.error({ uploadErr }, "Failed to upload backup to object storage");
+    }
 
     try {
       await db.insert(backupLogsTable).values({
@@ -137,6 +146,7 @@ router.post("/admin/backup", async (req: Request, res: Response): Promise<void> 
         source: "manual",
         status: "success",
         errorMessage: null,
+        storageUrl,
       });
     } catch (logErr) {
       req.log.error({ logErr }, "Failed to insert backup log");
@@ -187,8 +197,45 @@ router.get("/admin/backup/logs", async (req: Request, res: Response): Promise<vo
     source: l.source,
     status: l.status,
     errorMessage: l.errorMessage,
+    storageUrl: l.storageUrl ?? null,
     createdAt: l.createdAt.toISOString(),
   })));
+});
+
+// ─── GET /admin/backup/download/:id ──────────────────────────────────────────
+
+router.get("/admin/backup/download/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  const id = parseInt(String(req.params.id ?? ""), 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "ID inválido." });
+    return;
+  }
+
+  const [log] = await db
+    .select()
+    .from(backupLogsTable)
+    .where(eq(backupLogsTable.id, id))
+    .limit(1);
+
+  if (!log) {
+    res.status(404).json({ error: "Log de backup não encontrado." });
+    return;
+  }
+
+  if (!log.storageUrl) {
+    res.status(404).json({ error: "Este backup não possui arquivo no storage externo." });
+    return;
+  }
+
+  try {
+    const signedUrl = await generateBackupDownloadUrl(log.storageUrl, 3600);
+    res.redirect(302, signedUrl);
+  } catch (err) {
+    req.log.error({ err }, "Failed to generate signed download URL");
+    res.status(500).json({ error: "Erro ao gerar link de download." });
+  }
 });
 
 // ─── GET /admin/backup/schedule ──────────────────────────────────────────────
@@ -199,7 +246,6 @@ router.get("/admin/backup/schedule", async (req: Request, res: Response): Promis
   const rows = await db.select().from(backupSchedulesTable).limit(1);
 
   if (!rows.length) {
-    // Return default config (not yet persisted)
     res.json({
       id: 0,
       enabled: false,

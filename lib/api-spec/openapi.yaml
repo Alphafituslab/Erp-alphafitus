@@ -7568,6 +7568,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/backup/download/{id}:
+    get:
+      operationId: getBackupDownloadUrl
+      tags: [admin]
+      summary: Generate a signed download URL for a backup stored in object storage (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Backup log ID
+      responses:
+        "302":
+          description: Redirect to signed download URL
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Backup not found or no storage URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Failed to generate signed URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/backup/schedule:
     get:
       operationId: getBackupSchedule
@@ -7652,6 +7692,10 @@ components:
         errorMessage:
           type: string
           nullable: true
+        storageUrl:
+          type: string
+          nullable: true
+          description: GCS object URL (gs://bucket/path) if uploaded to object storage
         createdAt:
           type: string
           format: date-time

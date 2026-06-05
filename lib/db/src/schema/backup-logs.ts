@@ -9,6 +9,7 @@ export const backupLogsTable = pgTable("backup_logs", {
   source: text("source").notNull().default("manual"),
   status: text("status").notNull().default("success"),
   errorMessage: text("error_message"),
+  storageUrl: text("storage_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -60,6 +60,7 @@ import {
   Clock,
   CalendarClock,
   XCircle,
+  Cloud,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -737,6 +738,7 @@ function BackupPanel() {
                     <TableHead className="text-xs">Gerado em</TableHead>
                     <TableHead className="text-xs">Origem</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Storage</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -767,6 +769,22 @@ function BackupPanel() {
                           <span className="inline-flex items-center gap-1 text-red-600" title={log.errorMessage ?? ""}>
                             <XCircle className="h-3 w-3" /> Falha
                           </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {log.storageUrl ? (
+                          <a
+                            href={`/api/admin/backup/download/${log.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                            title="Baixar do storage externo (link válido por 1 hora)"
+                          >
+                            <Cloud className="h-3 w-3" />
+                            Baixar
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
                         )}
                       </TableCell>
                     </TableRow>

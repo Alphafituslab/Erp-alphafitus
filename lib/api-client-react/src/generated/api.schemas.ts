@@ -29,6 +29,8 @@ export interface BackupLog {
   source: BackupLogSource;
   status: BackupLogStatus;
   errorMessage?: string | null;
+  /** GCS object URL (gs://bucket/path) if uploaded to object storage */
+  storageUrl?: string | null;
   createdAt: string;
 }
 
