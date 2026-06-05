@@ -1519,6 +1519,10 @@ function GoalsHistorySection() {
         )
       : null;
 
+  const rankedMonths = chartData.filter((d) => d.pct != null).sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0));
+  const bestMonth = rankedMonths[0] ?? null;
+  const worstMonth = rankedMonths[rankedMonths.length - 1] ?? null;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -1568,6 +1572,32 @@ function GoalsHistorySection() {
       </CardHeader>
 
       <CardContent>
+        {/* Best / worst month ranking cards */}
+        {!isLoading && bestMonth && worstMonth && rankedMonths.length >= 2 && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 mb-1">
+                🏆 Melhor mês
+              </p>
+              <p className="text-sm font-bold text-emerald-800">{bestMonth.monthLabel}</p>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                {fmtVal(bestMonth.actual)}{" "}
+                <span className="font-semibold">({bestMonth.pct!.toFixed(1)}% da meta)</span>
+              </p>
+            </div>
+            <div className="rounded-lg border bg-red-50 border-red-200 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-red-500 mb-1">
+                📉 Pior mês
+              </p>
+              <p className="text-sm font-bold text-red-700">{worstMonth.monthLabel}</p>
+              <p className="text-xs text-red-600 mt-0.5">
+                {fmtVal(worstMonth.actual)}{" "}
+                <span className="font-semibold">({worstMonth.pct!.toFixed(1)}% da meta)</span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
