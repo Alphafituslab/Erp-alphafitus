@@ -36,35 +36,49 @@ Sistema ERP exclusivo da empresa, unificando todos os módulos de gestão em uma
 ## Database Schema
 
 Tables defined (all in `lib/db/src/schema/`):
-- `users` — authentication, roles (admin/manager/employee)
-- `clients` — client registry
-- `suppliers` — supplier registry
-- `products` — product catalog with stock levels
-- `stock_movements` — inventory input/output movements
-- `purchase_orders` + `purchase_order_items` — purchasing workflow
-- `sales_orders` + `sales_order_items` — sales/quotes workflow
+- `users` — authentication, roles (admin/manager/employee), `employee_id` FK for unified access
+- `clients` — client registry (full: razão social, CNPJ, endereços cobrança/entrega, limite crédito)
+- `suppliers` — supplier registry (full: CNPJ, endereço, contato, dados bancários, qualificação)
+- `products` — product catalog (full: NCM, CEST, shelf life, storage conditions, regulatory info)
+- `product_lots` — lot control with CQ status (quarantine/approved/rejected/blocked), FEFO
+- `stock_movements` — inventory input/output movements with lot reference
+- `warehouses` — depot/warehouse registry for lot transfers
+- `purchase_orders` + `purchase_order_items` — purchasing workflow (draft→sent→received)
+- `purchase_requests` — purchase requisitions with approval workflow
+- `quotations` + `quotation_items` — multi-supplier quoting with winner selection
+- `sales_orders` + `sales_order_items` + `sales_order_logs` — full 25-status commercial flow
 - `employees` + `departments` + `attendance_logs` — HR module
-- `financial_entries` — accounts payable/receivable
-- `fiscal_documents` — NF-e/NFS-e registry
+- `trainings` + `employee_trainings` — training/certification tracking with compliance matrix
+- `financial_entries` — accounts payable/receivable with cashflow
+- `fiscal_documents` — NF-e/NFS-e registry with XML import
 - `projects` + `project_tasks` — project management
-- `quality_inspections` + `quality_ncrs` — quality control module
+- `quality_analyses` + `analysis_parameters` + `quality_certificates` — CQ with PDF laudos
+- `quality_inspections` + `quality_ncrs` — inspections and non-conformances
+- `formulas` + `formula_items` — product formulas/recipes with versioning
+- `production_orders` + `production_stages` + `production_material_consumptions` — full OP flow
+- `aps_work_centers` + `aps_shifts` + `aps_schedule` — APS planning with Gantt
+- `backup_logs` — admin backup audit trail
+- `report_schedules` + `dashboard_goals` + `goal_alert_settings` — reports and KPI goals
 
 ## ERP Modules (all at /erp/)
 
 | Route | Module | Status |
 |-------|--------|--------|
 | /login | Login | Done |
-| /dashboard | Home dashboard | Done |
-| /financeiro | Financeiro | Done |
-| /vendas | Vendas/Comercial | Done |
-| /estoque | Estoque | Done |
-| /compras | Compras | Done |
-| /rh | RH | Done |
-| /projetos | Projetos | Done |
-| /fiscal | Fiscal | Done |
-| /relatorios | Relatórios | Done |
-| /aps | APS (Planejamento Avançado) | Done |
-| /qualidade | Controle de Qualidade | Done |
+| /dashboard | Painel Executivo (KPIs + alertas + gráfico) | Done |
+| /financeiro | Financeiro (CP/CR, fluxo de caixa realizado+projetado) | Done |
+| /vendas | Vendas (25 status, pipeline Kanban, timeline, NF) | Done |
+| /estoque | Estoque (lotes, FEFO, alertas vencimento, transferências) | Done |
+| /compras | Compras (solicitação, cotação multi-fornecedor, recebimento, quarentena) | Done |
+| /producao | Produção (fórmulas, OPs, etapas, apontamento, rastreabilidade) | Done |
+| /aps | APS (Gantt, centros de trabalho, turnos, simulação, OEE) | Done |
+| /qualidade | Qualidade (análises, parâmetros, laudos PDF, NCRs, certificados) | Done |
+| /rastreabilidade | Rastreabilidade (forward/backward trace por lote) | Done |
+| /rh | RH (funcionários, treinamentos, matriz competências, acesso unificado) | Done |
+| /projetos | Projetos (tarefas, Kanban, cronograma) | Done |
+| /fiscal | Fiscal (NFs, impostos, importação XML NF-e) | Done |
+| /relatorios | Relatórios (dashboard gerencial, metas, agendamento, alertas) | Done |
+| /usuarios | Usuários (gestão de usuários, backup banco de dados) | Done |
 
 ## Test Users (dev)
 
