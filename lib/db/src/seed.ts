@@ -83,6 +83,9 @@ async function cleanup() {
   await db.delete(schema.clientsTable);
   await db.delete(schema.suppliersTable);
   await db.delete(schema.dashboardGoalsTable);
+  // Log/audit tables accumulated by app usage — clear on reset
+  await db.delete(schema.goalAlertLogsTable);
+  await db.delete(schema.reportSendLogsTable);
   // usersTable is intentionally preserved — system users must survive re-seed
 }
 
@@ -97,7 +100,7 @@ export async function seed() {
   console.log("👤  Inserindo usuários...");
   const passwordHash = await bcrypt.hash("Admin@2025", 10);
 
-  const [admin] = await db
+  const seedUsers = await db
     .insert(schema.usersTable)
     .values([
       {
@@ -122,8 +125,12 @@ export async function seed() {
         active: "true",
       },
     ])
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: schema.usersTable.email,
+      set: { passwordHash, active: "true" },
+    })
     .returning();
+  const [admin] = seedUsers;
 
   // ── 2. DEPARTMENTS ──────────────────────────────────────────────────────────
   console.log("🏢  Inserindo departamentos...");
