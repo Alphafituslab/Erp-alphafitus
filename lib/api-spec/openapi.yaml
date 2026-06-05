@@ -7639,6 +7639,12 @@ components:
           enum: [vendas, financeiro, producao, separacao, faturamento, logistica]
         active:
           type: boolean
+        employeeId:
+          type: integer
+          nullable: true
+        employeeName:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time

@@ -58,6 +58,8 @@ export interface UserItem {
   role: UserItemRole;
   sector?: UserItemSector;
   active: boolean;
+  employeeId?: number | null;
+  employeeName?: string | null;
   createdAt: string;
 }
 

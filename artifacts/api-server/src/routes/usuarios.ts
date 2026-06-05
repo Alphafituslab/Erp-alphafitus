@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, usersTable, userModuleAccessTable } from "@workspace/db";
+import { db, usersTable, userModuleAccessTable, employeesTable } from "@workspace/db";
 import { CreateUsuarioBody, UpdateUsuarioBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -34,7 +34,7 @@ async function requireAdminAsync(req: Request, res: Response): Promise<boolean> 
   return true;
 }
 
-function formatUser(u: typeof usersTable.$inferSelect) {
+function formatUser(u: typeof usersTable.$inferSelect, employeeName?: string | null) {
   return {
     id: u.id,
     name: u.name,
@@ -42,14 +42,23 @@ function formatUser(u: typeof usersTable.$inferSelect) {
     role: u.role,
     sector: u.sector ?? null,
     active: u.active === "true",
+    employeeId: u.employeeId ?? null,
+    employeeName: employeeName ?? null,
     createdAt: u.createdAt.toISOString(),
   };
 }
 
 router.get("/usuarios", async (req, res): Promise<void> => {
   if (!await requireAdminAsync(req, res)) return;
-  const users = await db.select().from(usersTable).orderBy(usersTable.name);
-  res.json({ users: users.map(formatUser) });
+  const rows = await db
+    .select({
+      user: usersTable,
+      employeeName: employeesTable.name,
+    })
+    .from(usersTable)
+    .leftJoin(employeesTable, eq(usersTable.employeeId, employeesTable.id))
+    .orderBy(usersTable.name);
+  res.json({ users: rows.map((r) => formatUser(r.user, r.employeeName)) });
 });
 
 router.post("/usuarios", async (req, res): Promise<void> => {

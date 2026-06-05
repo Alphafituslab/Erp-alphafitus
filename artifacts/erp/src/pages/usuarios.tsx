@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/contexts/auth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,7 @@ import {
   CheckCircle,
   AlertCircle,
   ShieldCheck,
+  Link2,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -623,6 +624,7 @@ function BackupPanel() {
 export default function UsuariosPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   if (user?.role !== "admin") {
     return <Redirect to="/dashboard" />;
@@ -720,10 +722,25 @@ export default function UsuariosPage() {
                 {users.map((u) => (
                   <TableRow key={u.id} className={!u.active ? "opacity-50" : undefined}>
                     <TableCell className="font-medium">
-                      {u.name}
-                      {u.id === user?.id && (
-                        <span className="ml-2 text-xs text-muted-foreground">(você)</span>
-                      )}
+                      <div className="flex flex-col gap-0.5">
+                        <span>
+                          {u.name}
+                          {u.id === user?.id && (
+                            <span className="ml-2 text-xs text-muted-foreground">(você)</span>
+                          )}
+                        </span>
+                        {u.employeeId && u.employeeName && (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit cursor-pointer"
+                            title="Abrir ficha do funcionário no módulo RH"
+                            onClick={() => setLocation(`/rh?tab=employees&employeeId=${u.employeeId}`)}
+                          >
+                            <Link2 className="h-3 w-3" />
+                            {u.employeeName}
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell>

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useSearch } from "wouter";
 import { AppLayout } from "@/components/layout";
 import { useAuth } from "@/contexts/auth";
 import { PageHeader } from "@/components/page-header";
@@ -73,6 +74,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -454,97 +461,170 @@ function EmployeeDialog({
   );
 }
 
-// ─── Employee Profile Dialog ──────────────────────────────────────────────────
+// ─── Employee Drawer ──────────────────────────────────────────────────────────
 
-function EmployeeProfileDialog({
+function EmployeeDrawer({
   employeeId,
   onClose,
+  onEdit,
 }: {
   employeeId: number | null;
   onClose: () => void;
+  onEdit: (emp: Employee) => void;
 }) {
   const { data: emp } = useGetEmployee(employeeId ?? 0, {
     query: { enabled: employeeId !== null } as any,
   });
   const profile = emp as EmployeeWithAttendance | undefined;
+  const lu = profile
+    ? ((profile as any).linkedUser as { id: number; email: string; role: string; active: string } | null)
+    : null;
 
-  if (!employeeId) return null;
+  const ROLE_LABELS: Record<string, string> = {
+    admin: "Administrador",
+    manager: "Gerente",
+    employee: "Colaborador",
+  };
 
   return (
-    <Dialog open={employeeId !== null} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Perfil — {profile?.name ?? "…"}</DialogTitle>
-        </DialogHeader>
-        {profile && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-muted-foreground">CPF:</span> {profile.cpf ?? "—"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Cargo:</span> {profile.role}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Depto:</span>{" "}
-                {profile.department ?? "—"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Admissão:</span>{" "}
-                {fmtDate(profile.hireDate)}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Salário:</span>{" "}
-                {fmtCurrency(profile.salary)}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status:</span>{" "}
-                {statusBadge(profile.status)}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Email:</span> {profile.email ?? "—"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Telefone:</span> {profile.phone ?? "—"}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold mb-2">Histórico de Ponto (últimos 30)</h3>
-              {!profile.attendance || profile.attendance.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum registro de ponto.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Entrada</TableHead>
-                      <TableHead>Saída</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {profile.attendance.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell>{a.date}</TableCell>
-                        <TableCell>{a.checkIn ?? "—"}</TableCell>
-                        <TableCell>{a.checkOut ?? "—"}</TableCell>
-                        <TableCell>{attendanceBadge(a.status)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+    <Sheet open={employeeId !== null} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent className="w-[480px] sm:max-w-[480px] flex flex-col overflow-hidden p-0">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b">
+          <SheetTitle className="text-lg">{profile?.name ?? "Carregando…"}</SheetTitle>
+          {profile && (
+            <div className="flex items-center gap-2 mt-1">
+              {statusBadge(profile.status)}
+              {lu && lu.active === "true" && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <KeyRound className="h-3 w-3" />
+                  {ROLE_LABELS[lu.role] ?? lu.role}
+                </Badge>
               )}
             </div>
-          </div>
-        )}
-        <DialogFooter>
+          )}
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+          {profile && (
+            <>
+              {/* Personal Info */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                  Dados Pessoais
+                </h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">CPF:</span>{" "}
+                    <span className="font-medium">{profile.cpf ?? "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Cargo:</span>{" "}
+                    <span className="font-medium">{profile.role}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Departamento:</span>{" "}
+                    <span className="font-medium">{profile.department ?? "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Admissão:</span>{" "}
+                    <span className="font-medium">{fmtDate(profile.hireDate)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Salário:</span>{" "}
+                    <span className="font-medium">{fmtCurrency(profile.salary)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Email:</span>{" "}
+                    <span className="font-medium">{profile.email ?? "—"}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Telefone:</span>{" "}
+                    <span className="font-medium">{profile.phone ?? "—"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Access */}
+              <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold">Acesso ao Sistema</span>
+                </div>
+                {lu && lu.active === "true" ? (
+                  <div className="space-y-1.5 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Login:</span>{" "}
+                      <span className="font-medium">{lu.email}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Perfil:</span>{" "}
+                      <span className="font-medium">{ROLE_LABELS[lu.role] ?? lu.role}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium mt-1">
+                      <UserCheck className="h-3.5 w-3.5" /> Acesso ativo
+                    </div>
+                  </div>
+                ) : lu && lu.active === "false" ? (
+                  <div className="space-y-1.5 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Login:</span>{" "}
+                      <span className="font-medium">{lu.email}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium mt-1">
+                      <UserX className="h-3.5 w-3.5" /> Acesso inativo
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Sem acesso ao sistema. Use o botão Editar para habilitar.
+                  </p>
+                )}
+              </div>
+
+              {/* Recent Attendance */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                  Ponto Recente (últimos 7)
+                </h3>
+                {!profile.attendance || profile.attendance.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum registro de ponto.</p>
+                ) : (
+                  <div className="space-y-0 border rounded-lg overflow-hidden">
+                    {profile.attendance.slice(0, 7).map((a) => (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between px-3 py-2 text-sm border-b last:border-b-0 bg-background"
+                      >
+                        <span className="text-muted-foreground w-24">{a.date}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {a.checkIn ?? "—"} → {a.checkOut ?? "—"}
+                        </span>
+                        {attendanceBadge(a.status)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t flex gap-2">
+          <Button
+            onClick={() => {
+              if (profile) onEdit(profile as unknown as Employee);
+              onClose();
+            }}
+          >
+            <Pencil className="h-4 w-4 mr-2" /> Editar
+          </Button>
           <Button variant="outline" onClick={onClose}>
             Fechar
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -1320,6 +1400,7 @@ export default function RhPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { canEditModule } = useAuth();
+  const search = useSearch();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Employee state
@@ -1330,6 +1411,20 @@ export default function RhPage() {
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [profileEmpId, setProfileEmpId] = useState<number | null>(null);
   const [deleteEmp, setDeleteEmp] = useState<Employee | null>(null);
+
+  // Deep-link: open employee drawer from URL query params
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    const params = new URLSearchParams(search);
+    const empId = params.get("employeeId");
+    const tab = params.get("tab");
+    if (empId) {
+      deepLinkHandled.current = true;
+      if (tab) setActiveTab(tab);
+      setProfileEmpId(Number(empId));
+    }
+  }, [search]);
 
   // Department state
   const [deptDialog, setDeptDialog] = useState(false);
@@ -1877,7 +1972,11 @@ export default function RhPage() {
                     {filteredEmployees.map((e) => {
                       const lu = (e as any).linkedUser as { id: number; email: string; role: string; active: string } | null;
                       return (
-                      <TableRow key={e.id}>
+                      <TableRow
+                        key={e.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setProfileEmpId(e.id)}
+                      >
                         <TableCell className="font-medium">{e.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{e.cpf ?? "—"}</TableCell>
                         <TableCell>{e.role}</TableCell>
@@ -1898,10 +1997,7 @@ export default function RhPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver perfil" onClick={() => setProfileEmpId(e.id)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                          <div className="flex justify-end gap-1" onClick={(ev) => ev.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => { setEditingEmp(e); setEmpDialog(true); }}>
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -2592,9 +2688,10 @@ export default function RhPage() {
         departments={departments}
       />
 
-      <EmployeeProfileDialog
+      <EmployeeDrawer
         employeeId={profileEmpId}
         onClose={() => setProfileEmpId(null)}
+        onEdit={(emp) => { setEditingEmp(emp); setEmpDialog(true); }}
       />
 
       <DepartmentDialog

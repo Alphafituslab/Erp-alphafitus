@@ -6501,6 +6501,8 @@ export const ListUsuariosResponse = zod.object({
   "role": zod.enum(['admin', 'manager', 'employee']),
   "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
   "active": zod.boolean(),
+  "employeeId": zod.number().nullish(),
+  "employeeName": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 }))
 })
@@ -6554,6 +6556,8 @@ export const UpdateUsuarioResponse = zod.object({
   "role": zod.enum(['admin', 'manager', 'employee']),
   "sector": zod.enum(['vendas', 'financeiro', 'producao', 'separacao', 'faturamento', 'logistica']).nullish(),
   "active": zod.boolean(),
+  "employeeId": zod.number().nullish(),
+  "employeeName": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 })
