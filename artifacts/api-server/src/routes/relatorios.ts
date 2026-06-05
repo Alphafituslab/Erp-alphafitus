@@ -799,6 +799,7 @@ router.post("/relatorios/schedules", async (req: Request, res: Response): Promis
     subject?: string;
     message?: string;
     active?: boolean;
+    modules?: string[];
   };
 
   const { frequency, hour, minute, period, recipients, subject } = body;
@@ -835,6 +836,14 @@ router.post("/relatorios/schedules", async (req: Request, res: Response): Promis
     res.status(400).json({ error: "dayOfMonth deve ser entre 1 e 28 para frequência mensal" });
     return;
   }
+  const VALID_MODULES = ["financeiro", "vendas", "estoque", "compras", "rh", "projetos"] as const;
+  if (Array.isArray(body.modules) && body.modules.length > 0) {
+    const invalid = body.modules.filter((m: string) => !(VALID_MODULES as readonly string[]).includes(m));
+    if (invalid.length > 0) {
+      res.status(400).json({ error: `Módulos inválidos: ${invalid.join(", ")}` });
+      return;
+    }
+  }
 
   const [created] = await db.insert(reportSchedulesTable).values({
     frequency: frequency as "weekly" | "monthly",
@@ -847,6 +856,7 @@ router.post("/relatorios/schedules", async (req: Request, res: Response): Promis
     subject: subject.trim(),
     message: body.message?.trim() || null,
     active: body.active !== false,
+    modules: Array.isArray(body.modules) && body.modules.length > 0 ? body.modules as import("@workspace/db").InsertReportSchedule["modules"] : null,
   }).returning();
 
   res.status(201).json(created);
@@ -869,6 +879,7 @@ router.put("/relatorios/schedules/:id", async (req: Request, res: Response): Pro
     subject?: string;
     message?: string;
     active?: boolean;
+    modules?: string[];
   };
 
   const { frequency, hour, minute, period, recipients, subject } = body;
@@ -891,6 +902,13 @@ router.put("/relatorios/schedules/:id", async (req: Request, res: Response): Pro
   if (!subject || typeof subject !== "string" || subject.trim() === "") {
     res.status(400).json({ error: "subject é obrigatório" }); return;
   }
+  const VALID_MODULES_PUT = ["financeiro", "vendas", "estoque", "compras", "rh", "projetos"] as const;
+  if (Array.isArray(body.modules) && body.modules.length > 0) {
+    const invalid = body.modules.filter((m: string) => !(VALID_MODULES_PUT as readonly string[]).includes(m));
+    if (invalid.length > 0) {
+      res.status(400).json({ error: `Módulos inválidos: ${invalid.join(", ")}` }); return;
+    }
+  }
 
   const [updated] = await db
     .update(reportSchedulesTable)
@@ -905,6 +923,7 @@ router.put("/relatorios/schedules/:id", async (req: Request, res: Response): Pro
       subject: subject.trim(),
       message: body.message?.trim() || null,
       active: body.active !== false,
+      modules: Array.isArray(body.modules) && body.modules.length > 0 ? body.modules as import("@workspace/db").InsertReportSchedule["modules"] : null,
       updatedAt: new Date(),
     })
     .where(eq(reportSchedulesTable.id, id))

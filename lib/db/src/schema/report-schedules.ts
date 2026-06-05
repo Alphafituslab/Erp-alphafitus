@@ -5,7 +5,11 @@ import {
   integer,
   text,
   boolean,
+  json,
 } from "drizzle-orm/pg-core";
+
+export const REPORT_MODULES = ["financeiro", "vendas", "estoque", "compras", "rh", "projetos"] as const;
+export type ReportModule = typeof REPORT_MODULES[number];
 
 export const reportSchedulesTable = pgTable("report_schedules", {
   id: serial("id").primaryKey(),
@@ -23,6 +27,7 @@ export const reportSchedulesTable = pgTable("report_schedules", {
   subject: text("subject").notNull(),
   message: text("message"),
   active: boolean("active").notNull().default(true),
+  modules: json("modules").$type<ReportModule[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

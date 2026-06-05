@@ -4163,6 +4163,7 @@ export const ListReportSchedulesResponseItem = zod.object({
   "subject": zod.string(),
   "message": zod.string().nullish(),
   "active": zod.boolean(),
+  "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4195,7 +4196,8 @@ export const CreateReportScheduleBody = zod.object({
   "recipients": zod.string(),
   "subject": zod.string(),
   "message": zod.string().nullish(),
-  "active": zod.boolean().optional()
+  "active": zod.boolean().optional(),
+  "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish()
 })
 
 
@@ -4229,7 +4231,8 @@ export const UpdateReportScheduleBody = zod.object({
   "recipients": zod.string(),
   "subject": zod.string(),
   "message": zod.string().nullish(),
-  "active": zod.boolean().optional()
+  "active": zod.boolean().optional(),
+  "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish()
 })
 
 export const updateReportScheduleResponseDayOfWeekMin = 0;
@@ -4257,6 +4260,7 @@ export const UpdateReportScheduleResponse = zod.object({
   "subject": zod.string(),
   "message": zod.string().nullish(),
   "active": zod.boolean(),
+  "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

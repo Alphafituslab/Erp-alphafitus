@@ -86,7 +86,7 @@ import {
   useGetGoalAlertSettings,
   useUpdateGoalAlertSettings,
 } from "@workspace/api-client-react";
-import type { ReportSchedule } from "@workspace/api-client-react";
+import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -997,6 +997,16 @@ const PERIOD_OPTIONS = [
   { value: "this_year", label: "Este ano" },
 ];
 
+const MODULE_OPTIONS = [
+  { value: "financeiro", label: "Financeiro" },
+  { value: "vendas",     label: "Vendas" },
+  { value: "estoque",    label: "Estoque" },
+  { value: "compras",    label: "Compras" },
+  { value: "rh",         label: "RH" },
+  { value: "projetos",   label: "Projetos" },
+] as const;
+const ALL_MODULE_VALUES = MODULE_OPTIONS.map((m) => m.value);
+
 function ScheduleDialog({
   schedule,
   onClose,
@@ -1015,6 +1025,17 @@ function ScheduleDialog({
   const [subject, setSubject] = useState(schedule?.subject ?? "Relatório Executivo — NEXUS ERP");
   const [message, setMessage] = useState(schedule?.message ?? "");
   const [active, setActive] = useState(schedule?.active ?? true);
+  const [modules, setModules] = useState<string[]>(
+    schedule?.modules && (schedule.modules as string[]).length > 0
+      ? (schedule.modules as string[])
+      : ALL_MODULE_VALUES,
+  );
+
+  function toggleModule(value: string) {
+    setModules((prev) =>
+      prev.includes(value) ? prev.filter((m) => m !== value) : [...prev, value],
+    );
+  }
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1056,6 +1077,7 @@ function ScheduleDialog({
       subject: subject.trim(),
       message: message.trim() || undefined,
       active,
+      modules: modules.length < ALL_MODULE_VALUES.length ? modules as ReportScheduleInputModulesItem[] : undefined,
     };
     if (isEdit) {
       updateSchedule({ id: schedule!.id, data: payload });
@@ -1167,6 +1189,31 @@ function ScheduleDialog({
           />
         </div>
 
+        <div className="space-y-2">
+          <Label>Módulos incluídos no relatório</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {MODULE_OPTIONS.map((mod) => (
+              <div key={mod.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`mod-${mod.value}`}
+                  checked={modules.includes(mod.value)}
+                  onCheckedChange={() => toggleModule(mod.value)}
+                />
+                <Label htmlFor={`mod-${mod.value}`} className="cursor-pointer font-normal">
+                  {mod.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {modules.length === ALL_MODULE_VALUES.length
+              ? "Todos os módulos serão incluídos."
+              : modules.length === 0
+                ? "Nenhum módulo selecionado — todos serão incluídos."
+                : `${modules.length} de ${ALL_MODULE_VALUES.length} módulos selecionados.`}
+          </p>
+        </div>
+
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -1253,17 +1300,26 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
                 <TableRow>
                   <TableHead>Recorrência</TableHead>
                   <TableHead>Período</TableHead>
+                  <TableHead>Módulos</TableHead>
                   <TableHead>Destinatários</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {schedules?.map((s) => (
+                {schedules?.map((s) => {
+                  const mods = s.modules as string[] | null | undefined;
+                  const modLabels = (mods && mods.length > 0 && mods.length < ALL_MODULE_VALUES.length)
+                    ? mods.map((v) => MODULE_OPTIONS.find((m) => m.value === v)?.label ?? v).join(", ")
+                    : "Todos";
+                  return (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm font-medium">{describeSchedule(s)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{periodLabel(s.period)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.recipients}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[160px]">
+                      <span title={modLabels} className="block truncate">{modLabels}</span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">{s.recipients}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                         {s.active ? "Ativo" : "Inativo"}
@@ -1292,7 +1348,8 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
                       </TableCell>
                     )}
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}

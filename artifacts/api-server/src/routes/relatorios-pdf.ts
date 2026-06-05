@@ -14,10 +14,14 @@ import PDFDocument from "pdfkit";
 
 type Period = "this_month" | "last_month" | "this_quarter" | "this_year";
 
+export const ALL_REPORT_MODULES = ["financeiro", "vendas", "estoque", "compras", "rh", "projetos"] as const;
+export type ReportModuleKey = typeof ALL_REPORT_MODULES[number];
+
 export interface PdfOptions {
   companyName?: string;
   logoBase64?: string | null;
   includeHeader?: boolean;
+  modules?: string[] | null;
 }
 
 const MONTH_LABELS = [
@@ -97,6 +101,12 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
 
   const companyName = options.companyName?.trim() || "NEXUS ERP";
   const includeHeader = options.includeHeader !== false;
+
+  // Determine active modules — empty/null means all
+  const activeModules: Set<string> = (options.modules && options.modules.length > 0)
+    ? new Set(options.modules)
+    : new Set(ALL_REPORT_MODULES);
+  const inc = (m: string) => activeModules.has(m);
 
   let logoBuffer: Buffer | null = null;
   let logoFormat: string = "PNG";
@@ -324,55 +334,68 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
 
     // ── Page 1 content ────────────────────────────────────────────────────────
 
-    // KPI 2-column grid — financial
-    sectionTitle("Indicadores Financeiros");
-
     const col1X = MARGIN;
     const col2X = MARGIN + (CONTENT_W - 8) / 2 + 8;
     const BOX_H = 52;
 
-    checkPageBreak(BOX_H * 2 + 16);
-    kpiBox(col1X, y, "Receita do Período", fmtBRL(revenueTotal), `vs. ant.: ${pctChange(revCur, revPrev)}`, CLR_GREEN);
-    kpiBox(col2X, y, "Despesas do Período", fmtBRL(expenseTotal), `vs. ant.: ${pctChange(expCur, expPrev)}`, CLR_RED);
-    y += BOX_H + 8;
+    // KPI 2-column grid — financial
+    if (inc("financeiro")) {
+      sectionTitle("Indicadores Financeiros");
 
-    const netColor = net >= 0 ? CLR_GREEN : CLR_RED;
-    const netLabel = net >= 0 ? "▲ Resultado Positivo" : "▼ Resultado Negativo";
-    kpiBox(col1X, y, "Saldo Líquido (Receita – Despesas)", fmtBRL(netBalance), netLabel, netColor);
-    y += BOX_H + 14;
+      checkPageBreak(BOX_H * 2 + 16);
+      kpiBox(col1X, y, "Receita do Período", fmtBRL(revenueTotal), `vs. ant.: ${pctChange(revCur, revPrev)}`, CLR_GREEN);
+      kpiBox(col2X, y, "Despesas do Período", fmtBRL(expenseTotal), `vs. ant.: ${pctChange(expCur, expPrev)}`, CLR_RED);
+      y += BOX_H + 8;
 
-    // Trend chart
-    sectionTitle("Tendência Financeira — Últimos 6 Meses");
-    checkPageBreak(110);
-    const chartH = drawBarChart(monthlyTrend, y);
-    y += chartH + 6;
+      const netColor = net >= 0 ? CLR_GREEN : CLR_RED;
+      const netLabel = net >= 0 ? "▲ Resultado Positivo" : "▼ Resultado Negativo";
+      kpiBox(col1X, y, "Saldo Líquido (Receita – Despesas)", fmtBRL(netBalance), netLabel, netColor);
+      y += BOX_H + 14;
 
-    // KPI grid — operational
-    sectionTitle("Indicadores Operacionais");
+      // Trend chart
+      sectionTitle("Tendência Financeira — Últimos 6 Meses");
+      checkPageBreak(110);
+      const chartH = drawBarChart(monthlyTrend, y);
+      y += chartH + 6;
+    }
 
+    // KPI grid — operational (filter by active modules)
     const opKpis = [
-      { label: "Pedidos em Aberto (backlog)", value: String(openSalesRow[0]?.count ?? 0), sub: "status: rascunho ou confirmado", color: CLR_BLUE_MID },
-      { label: "Novos Pedidos no Período", value: String(newSalesRow[0]?.count ?? 0), sub: "excluindo cancelados", color: CLR_BLUE },
-      { label: "Produtos com Estoque Baixo", value: String(lowStockRow[0]?.count ?? 0), sub: "abaixo do estoque mínimo", color: lowStockRow[0]?.count ? CLR_AMBER : CLR_GREEN },
-      { label: "Compras Pendentes", value: String(pendingPurchaseRow[0]?.count ?? 0), sub: "rascunho ou enviado", color: CLR_AMBER },
-      { label: "Funcionários Ativos", value: String(activeEmployeesRow[0]?.count ?? 0), sub: "colaboradores em atividade", color: CLR_BLUE_MID },
-      { label: "Projetos Ativos", value: String(activeProjectsRow[0]?.count ?? 0), sub: "projetos em andamento", color: CLR_BLUE },
+      ...(inc("vendas") ? [
+        { label: "Pedidos em Aberto (backlog)", value: String(openSalesRow[0]?.count ?? 0), sub: "status: rascunho ou confirmado", color: CLR_BLUE_MID },
+        { label: "Novos Pedidos no Período", value: String(newSalesRow[0]?.count ?? 0), sub: "excluindo cancelados", color: CLR_BLUE },
+      ] : []),
+      ...(inc("estoque") ? [
+        { label: "Produtos com Estoque Baixo", value: String(lowStockRow[0]?.count ?? 0), sub: "abaixo do estoque mínimo", color: lowStockRow[0]?.count ? CLR_AMBER : CLR_GREEN },
+      ] : []),
+      ...(inc("compras") ? [
+        { label: "Compras Pendentes", value: String(pendingPurchaseRow[0]?.count ?? 0), sub: "rascunho ou enviado", color: CLR_AMBER },
+      ] : []),
+      ...(inc("rh") ? [
+        { label: "Funcionários Ativos", value: String(activeEmployeesRow[0]?.count ?? 0), sub: "colaboradores em atividade", color: CLR_BLUE_MID },
+      ] : []),
+      ...(inc("projetos") ? [
+        { label: "Projetos Ativos", value: String(activeProjectsRow[0]?.count ?? 0), sub: "projetos em andamento", color: CLR_BLUE },
+      ] : []),
     ];
 
-    for (let i = 0; i < opKpis.length; i += 2) {
-      checkPageBreak(BOX_H + 8);
-      const left = opKpis[i];
-      const right = opKpis[i + 1];
-      kpiBox(col1X, y, left.label, left.value, left.sub, left.color);
-      if (right) {
-        kpiBox(col2X, y, right.label, right.value, right.sub, right.color);
+    if (opKpis.length > 0) {
+      sectionTitle("Indicadores Operacionais");
+      for (let i = 0; i < opKpis.length; i += 2) {
+        checkPageBreak(BOX_H + 8);
+        const left = opKpis[i];
+        const right = opKpis[i + 1];
+        kpiBox(col1X, y, left.label, left.value, left.sub, left.color);
+        if (right) {
+          kpiBox(col2X, y, right.label, right.value, right.sub, right.color);
+        }
+        y += BOX_H + 8;
       }
-      y += BOX_H + 8;
+      y += 6;
     }
-    y += 6;
 
     // Top 5 Clients table
-    if (topClientRows.length > 0) {
+    if (inc("vendas") && topClientRows.length > 0) {
       sectionTitle("Top 5 Clientes por Receita no Período");
 
       const colNo   = { label: "#",        x: MARGIN,       w: 22,                  align: "center" as const };
@@ -397,7 +420,7 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
     }
 
     // Top 5 Products table
-    if (topProductRows.length > 0) {
+    if (inc("estoque") && topProductRows.length > 0) {
       sectionTitle("Top 5 Produtos por Movimentação no Período");
 
       const colNo   = { label: "#",             x: MARGIN,      w: 22,              align: "center" as const };

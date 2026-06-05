@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ReportScheduleInputFrequency } from './reportScheduleInputFrequency';
+import type { ReportScheduleInputModulesItem } from './reportScheduleInputModulesItem';
 import type { ReportScheduleInputPeriod } from './reportScheduleInputPeriod';
 
 export interface ReportScheduleInput {
@@ -35,4 +36,5 @@ export interface ReportScheduleInput {
   subject: string;
   message?: string | null;
   active?: boolean;
+  modules?: ReportScheduleInputModulesItem[] | null;
 }

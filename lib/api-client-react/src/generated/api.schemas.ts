@@ -2224,6 +2224,18 @@ export const ReportSchedulePeriod = {
   this_year: 'this_year',
 } as const;
 
+export type ReportScheduleModulesItem = typeof ReportScheduleModulesItem[keyof typeof ReportScheduleModulesItem];
+
+
+export const ReportScheduleModulesItem = {
+  financeiro: 'financeiro',
+  vendas: 'vendas',
+  estoque: 'estoque',
+  compras: 'compras',
+  rh: 'rh',
+  projetos: 'projetos',
+} as const;
+
 export interface ReportSchedule {
   id: number;
   frequency: ReportScheduleFrequency;
@@ -2252,6 +2264,7 @@ export interface ReportSchedule {
   subject: string;
   message?: string | null;
   active: boolean;
+  modules?: ReportScheduleModulesItem[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2272,6 +2285,18 @@ export const ReportScheduleInputPeriod = {
   last_month: 'last_month',
   this_quarter: 'this_quarter',
   this_year: 'this_year',
+} as const;
+
+export type ReportScheduleInputModulesItem = typeof ReportScheduleInputModulesItem[keyof typeof ReportScheduleInputModulesItem];
+
+
+export const ReportScheduleInputModulesItem = {
+  financeiro: 'financeiro',
+  vendas: 'vendas',
+  estoque: 'estoque',
+  compras: 'compras',
+  rh: 'rh',
+  projetos: 'projetos',
 } as const;
 
 export interface ReportScheduleInput {
@@ -2301,6 +2326,7 @@ export interface ReportScheduleInput {
   subject: string;
   message?: string | null;
   active?: boolean;
+  modules?: ReportScheduleInputModulesItem[] | null;
 }
 
 export type ReportSendLogTriggerType = typeof ReportSendLogTriggerType[keyof typeof ReportSendLogTriggerType];

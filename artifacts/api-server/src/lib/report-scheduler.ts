@@ -42,6 +42,7 @@ async function runScheduledSend(
   recipients: string[],
   subject: string,
   message: string | null | undefined,
+  modules: string[] | null | undefined,
 ): Promise<void> {
   const range = getDateRange(period);
   const periodLabel = range.label;
@@ -61,7 +62,7 @@ async function runScheduledSend(
   }
 
   try {
-    const pdfBuffer = await buildReportPdf(period);
+    const pdfBuffer = await buildReportPdf(period, { modules: modules ?? null });
     const filename = `relatorio-executivo-${periodLabel.toLowerCase().replace(/\//g, "-")}.pdf`;
 
     await sendEmail({
@@ -154,6 +155,7 @@ async function checkAndFireSchedules(): Promise<void> {
         recipients,
         schedule.subject,
         schedule.message,
+        schedule.modules as string[] | null,
       );
     }
   } catch (err) {

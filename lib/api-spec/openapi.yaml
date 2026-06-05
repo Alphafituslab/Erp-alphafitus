@@ -11117,6 +11117,12 @@ components:
           nullable: true
         active:
           type: boolean
+        modules:
+          type: array
+          nullable: true
+          items:
+            type: string
+            enum: [financeiro, vendas, estoque, compras, rh, projetos]
         createdAt:
           type: string
           format: date-time
@@ -11167,6 +11173,12 @@ components:
           nullable: true
         active:
           type: boolean
+        modules:
+          type: array
+          nullable: true
+          items:
+            type: string
+            enum: [financeiro, vendas, estoque, compras, rh, projetos]
 
     ReportSendLog:
       type: object
