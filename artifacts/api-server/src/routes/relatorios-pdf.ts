@@ -9,6 +9,7 @@ import {
   purchaseOrdersTable,
   employeesTable,
   projectsTable,
+  dashboardGoalsTable,
 } from "@workspace/db";
 import PDFDocument from "pdfkit";
 
@@ -227,6 +228,78 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
     .orderBy(desc(sql`COUNT(${stockMovementsTable.id})`))
     .limit(5);
 
+  // ── Goals history (last 12 months) ─────────────────────────────────────────
+  const GOALS_MONTHS = 12;
+  const goalsHistStart = new Date(now.getFullYear(), now.getMonth() - (GOALS_MONTHS - 1), 1);
+
+  const [goalRows, revGoalActual, expGoalActual, soGoalActual] = await Promise.all([
+    db.select().from(dashboardGoalsTable).where(
+      sql`(${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) >= ${goalsHistStart.getFullYear() * 100 + (goalsHistStart.getMonth() + 1)} AND (${dashboardGoalsTable.year} * 100 + ${dashboardGoalsTable.month}) <= ${now.getFullYear() * 100 + (now.getMonth() + 1)}`
+    ),
+    db.select({
+      year: sql<number>`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})::int`,
+      month: sql<number>`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})::int`,
+      total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text`,
+    }).from(financialEntriesTable)
+      .where(and(eq(financialEntriesTable.type, "income"), eq(financialEntriesTable.status, "paid"), gte(financialEntriesTable.paidAt, goalsHistStart)))
+      .groupBy(sql`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})`, sql`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})`),
+    db.select({
+      year: sql<number>`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})::int`,
+      month: sql<number>`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})::int`,
+      total: sql<string>`COALESCE(SUM(${financialEntriesTable.amount}), 0)::text`,
+    }).from(financialEntriesTable)
+      .where(and(eq(financialEntriesTable.type, "expense"), eq(financialEntriesTable.status, "paid"), gte(financialEntriesTable.paidAt, goalsHistStart)))
+      .groupBy(sql`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})`, sql`EXTRACT(MONTH FROM ${financialEntriesTable.paidAt})`),
+    db.select({
+      year: sql<number>`EXTRACT(YEAR FROM ${salesOrdersTable.createdAt})::int`,
+      month: sql<number>`EXTRACT(MONTH FROM ${salesOrdersTable.createdAt})::int`,
+      count: sql<number>`COUNT(*)::int`,
+    }).from(salesOrdersTable)
+      .where(and(sql`${salesOrdersTable.status} NOT IN ('cancelled')`, gte(salesOrdersTable.createdAt, goalsHistStart)))
+      .groupBy(sql`EXTRACT(YEAR FROM ${salesOrdersTable.createdAt})`, sql`EXTRACT(MONTH FROM ${salesOrdersTable.createdAt})`),
+  ]);
+
+  const goalsMap = new Map(goalRows.map((r) => [`${r.year}-${r.month}`, r]));
+  const revActualMap = new Map(revGoalActual.map((r) => [`${r.year}-${r.month}`, r.total]));
+  const expActualMap = new Map(expGoalActual.map((r) => [`${r.year}-${r.month}`, r.total]));
+  const soActualMap = new Map(soGoalActual.map((r) => [`${r.year}-${r.month}`, r.count]));
+
+  const goalsHistory = Array.from({ length: GOALS_MONTHS }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (GOALS_MONTHS - 1) + i, 1);
+    const yr = d.getFullYear();
+    const mo = d.getMonth() + 1;
+    const key = `${yr}-${mo}`;
+    const goal = goalsMap.get(key);
+    const revActual = parseFloat(revActualMap.get(key) ?? "0");
+    const expActual = parseFloat(expActualMap.get(key) ?? "0");
+    const revGoal = parseFloat(goal?.revenueGoal ?? "0");
+    const expGoal = parseFloat(goal?.expenseGoal ?? "0");
+    const soActual = soActualMap.get(key) ?? 0;
+    const soGoal = goal?.salesOrdersGoal ?? 0;
+    const revPct = revGoal > 0 ? Math.round((revActual / revGoal) * 100) : null;
+    const expPct = expGoal > 0 ? Math.round((expActual / expGoal) * 100) : null;
+    const soPct = soGoal > 0 ? Math.round((soActual / soGoal) * 100) : null;
+    return {
+      label: `${MONTH_LABELS[mo - 1]}/${String(yr).slice(2)}`,
+      revActual,
+      revGoal,
+      revPct,
+      expActual,
+      expGoal,
+      expPct,
+      soActual,
+      soGoal,
+      soPct,
+      hasGoal: goal != null,
+    };
+  });
+
+  const goalsWithGoal = goalsHistory.filter((g) => g.hasGoal);
+  const revMonthsMet = goalsWithGoal.filter((g) => g.revPct != null && g.revPct >= 100).length;
+  const revAvgPct = goalsWithGoal.length > 0
+    ? Math.round(goalsWithGoal.filter((g) => g.revPct != null).reduce((s, g) => s + (g.revPct ?? 0), 0) / goalsWithGoal.length)
+    : null;
+
   // ── Build PDF ──────────────────────────────────────────────────────────────
 
   const generatedAt = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -332,6 +405,48 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
       return CHART_H + 8;
     }
 
+    // ── Goals bar chart helper ────────────────────────────────────────────────
+
+    function drawGoalsChart(
+      data: Array<{ label: string; actual: number; goal: number }>,
+      chartY: number,
+    ) {
+      const CHART_H = 100;
+      const CHART_W = CONTENT_W;
+      const barGroupW = CHART_W / data.length;
+      const BAR_W = Math.min(16, barGroupW * 0.3);
+      const maxVal = Math.max(...data.flatMap((d) => [d.actual, d.goal]), 1);
+      const SCALE = (CHART_H - 20) / maxVal;
+
+      doc.rect(MARGIN, chartY, CHART_W, CHART_H).fill("#f8fafc").stroke(CLR_BORDER);
+
+      data.forEach((d, i) => {
+        const groupX = MARGIN + i * barGroupW + barGroupW / 2;
+        const actualH = Math.max(2, d.actual * SCALE);
+        const goalH = Math.max(2, d.goal * SCALE);
+
+        if (d.goal > 0) {
+          doc.rect(groupX - BAR_W - 1, chartY + CHART_H - 14 - goalH, BAR_W, goalH).fill(CLR_MUTED);
+        }
+        const barColor = d.goal > 0 && d.actual >= d.goal ? CLR_GREEN : CLR_BLUE_MID;
+        doc.rect(groupX + 1, chartY + CHART_H - 14 - actualH, BAR_W, actualH).fill(barColor);
+
+        doc.fontSize(6.5).font("Helvetica").fillColor(CLR_MUTED)
+          .text(d.label, groupX - barGroupW / 2, chartY + CHART_H - 12, { width: barGroupW, align: "center" });
+      });
+
+      const legendX = MARGIN + CHART_W - 160;
+      const legendY = chartY + 6;
+      doc.rect(legendX, legendY, 8, 8).fill(CLR_MUTED);
+      doc.fontSize(7).font("Helvetica").fillColor(CLR_MUTED).text("Meta", legendX + 11, legendY + 1);
+      doc.rect(legendX + 45, legendY, 8, 8).fill(CLR_BLUE_MID);
+      doc.fontSize(7).font("Helvetica").fillColor(CLR_MUTED).text("Real", legendX + 56, legendY + 1);
+      doc.rect(legendX + 90, legendY, 8, 8).fill(CLR_GREEN);
+      doc.fontSize(7).font("Helvetica").fillColor(CLR_MUTED).text("Real (meta atingida)", legendX + 101, legendY + 1);
+
+      return CHART_H + 8;
+    }
+
     // ── Page 1 content ────────────────────────────────────────────────────────
 
     const col1X = MARGIN;
@@ -357,6 +472,70 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
       checkPageBreak(110);
       const chartH = drawBarChart(monthlyTrend, y);
       y += chartH + 6;
+    }
+
+    // ── Goals history section ─────────────────────────────────────────────────
+
+    if (goalsWithGoal.length > 0) {
+      sectionTitle("Histórico de Metas — Real vs. Planejado (12 meses)");
+
+      // Summary row
+      checkPageBreak(22);
+      const pillW = 140;
+      const pillH = 18;
+      doc.rect(MARGIN, y, pillW, pillH).fill("#dcfce7").stroke("#bbf7d0");
+      doc.fontSize(8).font("Helvetica-Bold").fillColor(CLR_GREEN)
+        .text(`✓ ${revMonthsMet}/${goalsWithGoal.length} meses atingidos (receita)`, MARGIN + 6, y + 5, { width: pillW - 12 });
+      if (revAvgPct != null) {
+        doc.rect(MARGIN + pillW + 8, y, pillW, pillH).fill("#dbeafe").stroke("#bfdbfe");
+        doc.fontSize(8).font("Helvetica-Bold").fillColor(CLR_BLUE)
+          .text(`Ø ${revAvgPct}% média de atingimento`, MARGIN + pillW + 14, y + 5, { width: pillW - 12 });
+      }
+      y += pillH + 10;
+
+      // Revenue actual vs goal chart
+      const goalsChartData = goalsHistory.map((g) => ({
+        label: g.label,
+        actual: g.revActual,
+        goal: g.revGoal,
+      }));
+      checkPageBreak(120);
+      const goalsChartH = drawGoalsChart(goalsChartData, y);
+      y += goalsChartH + 6;
+
+      // Month-by-month table
+      checkPageBreak(20 + goalsHistory.length * 16 + 8);
+
+      const COL_MES   = { label: "MÊS",       x: MARGIN,                       w: 52,  align: "left"   as const };
+      const COL_RREAL = { label: "REC. REAL",  x: MARGIN + 56,                  w: 80,  align: "right"  as const };
+      const COL_RMETA = { label: "REC. META",  x: MARGIN + 140,                 w: 80,  align: "right"  as const };
+      const COL_RPCT  = { label: "% REC.",     x: MARGIN + 224,                 w: 36,  align: "center" as const };
+      const COL_PREAL = { label: "PED. REAL",  x: MARGIN + 264,                 w: 46,  align: "center" as const };
+      const COL_PMETA = { label: "PED. META",  x: MARGIN + 314,                 w: 46,  align: "center" as const };
+      const COL_PPCT  = { label: "% PED.",     x: MARGIN + 364,                 w: 36,  align: "center" as const };
+      const COL_STAT  = { label: "STATUS",     x: MARGIN + 404,                 w: 56,  align: "center" as const };
+
+      tableHeader([COL_MES, COL_RREAL, COL_RMETA, COL_RPCT, COL_PREAL, COL_PMETA, COL_PPCT, COL_STAT]);
+
+      goalsHistory.forEach((g, i) => {
+        const revPctStr = g.revPct != null ? `${g.revPct}%` : "—";
+        const soPctStr = g.soPct != null ? `${g.soPct}%` : "—";
+        const revPctColor = g.revPct == null ? CLR_MUTED : g.revPct >= 100 ? CLR_GREEN : g.revPct >= 70 ? CLR_AMBER : CLR_RED;
+        const statusStr = !g.hasGoal ? "Sem meta" : g.revPct != null && g.revPct >= 100 ? "Atingido" : "Abaixo";
+        const statusColor = !g.hasGoal ? CLR_MUTED : g.revPct != null && g.revPct >= 100 ? CLR_GREEN : CLR_RED;
+        tableRow([
+          { value: g.label,                        x: COL_MES.x,   w: COL_MES.w,   align: "left"   },
+          { value: g.revGoal > 0 ? fmtBRL(g.revActual) : "—", x: COL_RREAL.x, w: COL_RREAL.w, align: "right"  },
+          { value: g.revGoal > 0 ? fmtBRL(g.revGoal)   : "—", x: COL_RMETA.x, w: COL_RMETA.w, align: "right"  },
+          { value: revPctStr, x: COL_RPCT.x, w: COL_RPCT.w, align: "center", color: revPctColor },
+          { value: g.soGoal > 0 ? String(g.soActual) : "—", x: COL_PREAL.x, w: COL_PREAL.w, align: "center" },
+          { value: g.soGoal > 0 ? String(g.soGoal)   : "—", x: COL_PMETA.x, w: COL_PMETA.w, align: "center" },
+          { value: soPctStr, x: COL_PPCT.x, w: COL_PPCT.w, align: "center", color: g.soPct == null ? CLR_MUTED : g.soPct >= 100 ? CLR_GREEN : CLR_AMBER },
+          { value: statusStr, x: COL_STAT.x, w: COL_STAT.w, align: "center", color: statusColor },
+        ], i % 2 === 1);
+      });
+
+      y += 8;
     }
 
     // KPI grid — operational (filter by active modules)
