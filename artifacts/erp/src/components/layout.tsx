@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth";
 import { Redirect } from "wouter";
 import {
@@ -27,11 +27,11 @@ import {
   LogOut,
   LayoutDashboard,
   ClipboardCheck,
-  ChevronRight,
   Factory,
   CalendarClock,
   GitBranch,
   UserCog,
+  ChevronRight,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
@@ -50,9 +50,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span className="text-sm text-muted-foreground">Carregando...</span>
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative h-10 w-10">
+            <div className="h-10 w-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+            <div className="absolute inset-2 rounded-full bg-primary/10" />
+          </div>
+          <span className="text-sm text-muted-foreground font-medium">Carregando sistema…</span>
         </div>
       </div>
     );
@@ -119,12 +122,12 @@ const NAV_GROUPS: NavGroup[] = [
 
 function NavGroupSection({ group, location }: { group: NavGroup; location: string }) {
   return (
-    <SidebarGroup className="py-1">
-      <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40 px-3 mb-0.5">
+    <SidebarGroup className="py-0.5">
+      <SidebarGroupLabel className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/30 px-3 mb-1 mt-2">
         {group.label}
       </SidebarGroupLabel>
       <SidebarGroupContent>
-        <SidebarMenu>
+        <SidebarMenu className="gap-0.5">
           {group.items.map((item) => {
             const isActive = location === item.href || location.startsWith(item.href + "/");
             return (
@@ -134,17 +137,22 @@ function NavGroupSection({ group, location }: { group: NavGroup; location: strin
                   isActive={isActive}
                   tooltip={item.label}
                   className={cn(
-                    "relative h-9 rounded-md text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
-                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    "relative h-8 rounded-md px-3 text-sidebar-foreground/65 hover:text-sidebar-foreground/90 hover:bg-sidebar-accent transition-all duration-150",
+                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                   )}
                 >
                   <Link href={item.href}>
                     {isActive && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-sidebar-primary" />
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-sidebar-primary shadow-[0_0_6px_1px_rgba(52,211,153,0.35)]" />
                     )}
-                    <item.icon className={cn("size-4 flex-shrink-0", isActive ? "text-sidebar-primary" : item.iconColor)} />
-                    <span className="text-sm">{item.label}</span>
-                    {isActive && <ChevronRight className="ml-auto size-3 opacity-50" />}
+                    <item.icon
+                      className={cn(
+                        "size-3.5 flex-shrink-0 transition-colors",
+                        isActive ? "text-sidebar-primary" : item.iconColor
+                      )}
+                    />
+                    <span className="text-[13px] tracking-[-0.01em]">{item.label}</span>
+                    {isActive && <ChevronRight className="ml-auto size-3 text-sidebar-foreground/30" />}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -153,6 +161,20 @@ function NavGroupSection({ group, location }: { group: NavGroup; location: strin
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
+  );
+}
+
+function TopbarClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const dateStr = now.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+  return (
+    <span className="text-xs text-muted-foreground/70 tabular-nums hidden lg:block capitalize">
+      {dateStr}
+    </span>
   );
 }
 
@@ -178,10 +200,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(userRole)) }))
     .filter((g) => g.items.length > 0);
 
-  const currentLabel =
-    NAV_GROUPS.flatMap((g) => g.items).find(
-      (i) => location === i.href || location.startsWith(i.href + "/")
-    )?.label ?? "alphafitus ERP";
+  const currentItem = NAV_GROUPS.flatMap((g) => g.items).find(
+    (i) => location === i.href || location.startsWith(i.href + "/")
+  );
+  const currentLabel = currentItem?.label ?? "alphafitus ERP";
+  const CurrentIcon = currentItem?.icon;
 
   const userInitials = user?.name
     ?.split(" ")
@@ -190,14 +213,27 @@ export function AppLayout({ children }: { children: ReactNode }) {
     .join("")
     .toUpperCase() ?? "?";
 
+  const roleLabel: Record<string, string> = {
+    admin: "Administrador",
+    manager: "Gerente",
+    employee: "Colaborador",
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background overflow-hidden">
-        <Sidebar variant="inset" collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-          {/* Logo header */}
-          <SidebarHeader className="px-3 py-4 border-b border-sidebar-border/60">
-            <div className="flex items-center gap-2.5 px-1">
-              <div className="flex-shrink-0 h-7 w-7 rounded-md overflow-hidden flex items-center justify-center">
+
+        {/* ── Sidebar ──────────────────────────────────────────────────── */}
+        <Sidebar
+          variant="inset"
+          collapsible="icon"
+          className="border-r border-sidebar-border/50 bg-sidebar"
+          style={{ background: "linear-gradient(180deg, hsl(168 52% 7%) 0%, hsl(168 48% 6%) 100%)" }}
+        >
+          {/* Logo */}
+          <SidebarHeader className="px-4 py-4 border-b border-sidebar-border/40">
+            <div className="flex items-center gap-2.5 px-0.5">
+              <div className="flex-shrink-0 h-7 w-7 rounded-lg overflow-hidden ring-1 ring-sidebar-primary/20">
                 <img
                   src={`${import.meta.env.BASE_URL}logo-alphafitus.png`}
                   alt="alphafitus"
@@ -205,33 +241,33 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 />
               </div>
               <div className="flex flex-col leading-tight overflow-hidden">
-                <span className="font-bold text-sm text-sidebar-foreground tracking-tight">alphafitus</span>
-                <span className="text-[10px] text-sidebar-foreground/50 tracking-wider uppercase">Industrial ERP</span>
+                <span className="font-bold text-[13px] text-sidebar-foreground tracking-tight">alphafitus</span>
+                <span className="text-[9.5px] text-sidebar-foreground/40 tracking-[0.1em] uppercase font-medium">Industrial ERP</span>
               </div>
             </div>
           </SidebarHeader>
 
           {/* Navigation */}
-          <SidebarContent className="pt-2 pb-2">
+          <SidebarContent className="pt-1 pb-2 overflow-y-auto">
             {visibleGroups.map((group) => (
               <NavGroupSection key={group.label} group={group} location={location} />
             ))}
           </SidebarContent>
 
           {/* User footer */}
-          <SidebarFooter className="border-t border-sidebar-border/60 p-3">
+          <SidebarFooter className="border-t border-sidebar-border/40 p-3">
             <div className="flex items-center gap-2.5">
-              <Avatar className="h-8 w-8 flex-shrink-0 ring-1 ring-sidebar-border bg-sidebar-accent">
-                <AvatarFallback className="text-sidebar-foreground text-xs font-semibold bg-transparent">
+              <Avatar className="h-7 w-7 flex-shrink-0 ring-1 ring-sidebar-primary/30">
+                <AvatarFallback className="text-[10px] font-bold text-sidebar-primary bg-sidebar-primary/10">
                   {userInitials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 overflow-hidden min-w-0">
-                <span className="text-xs font-medium text-sidebar-foreground truncate leading-tight">
+                <span className="text-[12px] font-semibold text-sidebar-foreground/90 truncate leading-tight">
                   {user?.name}
                 </span>
-                <span className="text-[10px] text-sidebar-foreground/50 truncate capitalize">
-                  {user?.role}
+                <span className="text-[10px] text-sidebar-foreground/40 truncate">
+                  {roleLabel[userRole] ?? userRole}
                 </span>
               </div>
               <Tooltip>
@@ -239,27 +275,50 @@ export function AppLayout({ children }: { children: ReactNode }) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 flex-shrink-0 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                    className="h-7 w-7 flex-shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
                     onClick={handleLogout}
                   >
                     <LogOut className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Sair</TooltipContent>
+                <TooltipContent side="right" className="text-xs">Sair do sistema</TooltipContent>
               </Tooltip>
             </div>
           </SidebarFooter>
         </Sidebar>
 
-        {/* Main content area */}
-        <main className="flex-1 flex flex-col min-w-0">
-          {/* Top bar */}
-          <header className="h-12 flex items-center gap-3 border-b bg-card px-5 shrink-0">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="text-xs font-medium text-foreground/80">{currentLabel}</span>
+        {/* ── Main content ─────────────────────────────────────────────── */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+          {/* Top header bar */}
+          <header className="h-13 flex items-center gap-4 border-b border-border/70 bg-card px-5 shrink-0"
+                  style={{ boxShadow: "0 1px 4px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)" }}>
+
+            {/* Left: current module label */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              {CurrentIcon && (
+                <div className="h-6 w-6 rounded-md bg-primary/8 flex items-center justify-center flex-shrink-0">
+                  <CurrentIcon className="h-3.5 w-3.5 text-primary" />
+                </div>
+              )}
+              <span className="text-sm font-semibold text-foreground truncate">{currentLabel}</span>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              {/* slot for top-right actions */}
+
+            {/* Right: date + user */}
+            <div className="ml-auto flex items-center gap-4">
+              <TopbarClock />
+              <div className="h-5 w-px bg-border hidden sm:block" />
+              <div className="flex items-center gap-2.5">
+                <div className="text-right hidden md:block">
+                  <p className="text-xs font-semibold text-foreground leading-tight">{user?.name}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{roleLabel[userRole] ?? userRole}</p>
+                </div>
+                <Avatar className="h-7 w-7 ring-1 ring-border">
+                  <AvatarFallback className="text-[10px] font-bold text-primary bg-primary/8">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
             </div>
           </header>
 

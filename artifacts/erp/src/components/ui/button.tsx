@@ -5,34 +5,38 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0" +
-" hover-elevate active-elevate-2",
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium",
+    "transition-all duration-150",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1",
+    "disabled:pointer-events-none disabled:opacity-45",
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  ].join(" "),
   {
     variants: {
       variant: {
         default:
-           // @replit: no hover, and add primary border
-           "bg-primary text-primary-foreground border border-primary-border",
+          "bg-primary text-primary-foreground border border-primary/80 shadow-sm hover:bg-primary/90 active:scale-[0.98] active:shadow-none",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm border-destructive-border",
+          "bg-destructive text-destructive-foreground border border-destructive/80 shadow-sm hover:bg-destructive/90 active:scale-[0.98]",
         outline:
-          // @replit Shows the background color of whatever card / sidebar / accent background it is inside of.
-          // Inherits the current text color. Uses shadow-xs. no shadow on active
-          // No hover state
-          " border [border-color:var(--button-outline)] shadow-xs active:shadow-none ",
+          "border border-border/80 bg-card shadow-xs hover:bg-muted/60 hover:border-border active:scale-[0.98]",
         secondary:
-          // @replit border, no hover, no shadow, secondary border.
-          "border bg-secondary text-secondary-foreground border border-secondary-border ",
-        // @replit no hover, transparent border
-        ghost: "border border-transparent",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-border/50 bg-secondary text-secondary-foreground hover:bg-secondary/80 active:scale-[0.98]",
+        ghost:
+          "border border-transparent hover:bg-muted/70 hover:text-foreground active:scale-[0.98]",
+        link:
+          "text-primary underline-offset-4 hover:underline border-transparent",
+        soft:
+          "bg-primary/10 text-primary border border-primary/15 hover:bg-primary/15 active:scale-[0.98]",
       },
       size: {
-        // @replit changed sizes
-        default: "min-h-9 px-4 py-2",
-        sm: "min-h-8 rounded-md px-3 text-xs",
-        lg: "min-h-10 rounded-md px-8",
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-6 text-sm",
+        xl: "h-11 rounded-lg px-8 text-base",
         icon: "h-9 w-9",
+        "icon-sm": "h-7 w-7 rounded-md [&_svg]:size-3.5",
       },
     },
     defaultVariants: {
