@@ -135,6 +135,8 @@ export interface Client {
   contactName?: string | null;
   contactPhone?: string | null;
   creditLimit?: string | null;
+  /** Sum of totalAmount of open (non-terminal) sales orders for this client (computed) */
+  creditUsed?: string | null;
   defaultDiscountPct?: string | null;
   taxRegime?: string | null;
   address?: string | null;
@@ -513,6 +515,16 @@ export interface CashflowMonth {
   cumulativeBalance: number;
   /** Running cumulative balance including projected entries */
   cumulativeProjected: number;
+}
+
+export interface ClientCreditSummary {
+  id: number;
+  name: string;
+  document?: string | null;
+  creditLimit?: string | null;
+  creditUsed: string;
+  /** Percentage of credit limit used (0-100+) */
+  creditPct: number;
 }
 
 export interface ClientInput {
@@ -3527,6 +3539,14 @@ export const ListClientsActive = {
   true: 'true',
   false: 'false',
 } as const;
+
+export type GetClientTopDebtorsParams = {
+/**
+ * @minimum 1
+ * @maximum 20
+ */
+limit?: number;
+};
 
 export type ListSalesOrdersParams = {
 type?: ListSalesOrdersType;

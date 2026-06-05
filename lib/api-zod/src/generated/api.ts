@@ -264,6 +264,7 @@ export const ListClientsResponse = zod.object({
   "contactName": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
   "creditLimit": zod.string().nullish(),
+  "creditUsed": zod.string().nullish().describe('Sum of totalAmount of open (non-terminal) sales orders for this client (computed)'),
   "defaultDiscountPct": zod.string().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
@@ -316,6 +317,29 @@ export const CreateClientBody = zod.object({
   "notes": zod.string().nullish(),
   "active": zod.string().nullish()
 })
+
+
+/**
+ * @summary Top clients by open credit exposure
+ */
+export const getClientTopDebtorsQueryLimitDefault = 10;
+export const getClientTopDebtorsQueryLimitMax = 20;
+
+
+
+export const GetClientTopDebtorsQueryParams = zod.object({
+  "limit": zod.coerce.number().min(1).max(getClientTopDebtorsQueryLimitMax).default(getClientTopDebtorsQueryLimitDefault)
+})
+
+export const GetClientTopDebtorsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "creditLimit": zod.string().nullish(),
+  "creditUsed": zod.string(),
+  "creditPct": zod.number().describe('Percentage of credit limit used (0-100+)')
+})
+export const GetClientTopDebtorsResponse = zod.array(GetClientTopDebtorsResponseItem)
 
 
 /**
@@ -383,6 +407,7 @@ export const UpdateClientResponse = zod.object({
   "contactName": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
   "creditLimit": zod.string().nullish(),
+  "creditUsed": zod.string().nullish().describe('Sum of totalAmount of open (non-terminal) sales orders for this client (computed)'),
   "defaultDiscountPct": zod.string().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),

@@ -435,6 +435,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /vendas/clients/top-debtors:
+    get:
+      operationId: getClientTopDebtors
+      tags: [vendas]
+      summary: Top clients by open credit exposure
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 20
+      responses:
+        "200":
+          description: List of clients with credit usage sorted by amount
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientCreditSummary"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /vendas/clients/{id}:
     put:
       operationId: updateClient
@@ -7905,6 +7934,10 @@ components:
         creditLimit:
           type: string
           nullable: true
+        creditUsed:
+          type: string
+          nullable: true
+          description: Sum of totalAmount of open (non-terminal) sales orders for this client (computed)
         defaultDiscountPct:
           type: string
           nullable: true
@@ -7931,6 +7964,30 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    ClientCreditSummary:
+      type: object
+      required:
+        - id
+        - name
+        - creditUsed
+        - creditPct
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        creditLimit:
+          type: string
+          nullable: true
+        creditUsed:
+          type: string
+        creditPct:
+          type: integer
+          description: Percentage of credit limit used (0-100+)
 
     ClientInput:
       type: object

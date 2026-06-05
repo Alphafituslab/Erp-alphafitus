@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, sql, desc, isNotNull } from "drizzle-orm";
+import { and, eq, gte, lte, sql, desc, isNotNull, inArray, notInArray } from "drizzle-orm";
 import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable, usersTable, stockMovementsTable, productsTable, financialEntriesTable } from "@workspace/db";
 import type { Request, Response } from "express";
 
@@ -82,6 +82,101 @@ function parseId(param: string | string[], res: Response): number | null {
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
+async function computeCreditUsed(clientIds: number[], excludeOrderId?: number): Promise<Record<number, number>> {
+  if (clientIds.length === 0) return {};
+  // Only count actual sales orders (type = 'order'), not quotes.
+  // Only count open (non-terminal) orders — these represent real financial exposure.
+  const conditions = [
+    isNotNull(salesOrdersTable.clientId),
+    inArray(salesOrdersTable.clientId, clientIds),
+    eq(salesOrdersTable.type, "order"),
+    notInArray(salesOrdersTable.status, TERMINAL_STATUSES as unknown as string[]),
+  ];
+  if (excludeOrderId !== undefined) {
+    conditions.push(sql`${salesOrdersTable.id} != ${excludeOrderId}`);
+  }
+  const rows = await db
+    .select({
+      clientId: salesOrdersTable.clientId,
+      creditUsed: sql<string>`COALESCE(SUM(${salesOrdersTable.totalAmount}::numeric), 0)::text`,
+    })
+    .from(salesOrdersTable)
+    .where(and(...conditions))
+    .groupBy(salesOrdersTable.clientId);
+
+  const map: Record<number, number> = {};
+  for (const row of rows) {
+    if (row.clientId !== null) map[row.clientId] = parseFloat(row.creditUsed);
+  }
+  return map;
+}
+
+async function checkCreditLimit(
+  clientId: number,
+  newAmount: number,
+  res: Response,
+  excludeOrderId?: number
+): Promise<boolean> {
+  const [clientRow] = await db
+    .select({ creditLimit: clientsTable.creditLimit })
+    .from(clientsTable)
+    .where(eq(clientsTable.id, clientId));
+
+  if (!clientRow?.creditLimit) return true; // no limit set — allow
+  const limit = parseFloat(String(clientRow.creditLimit));
+  if (limit <= 0) return true;
+
+  const usageMap = await computeCreditUsed([clientId], excludeOrderId);
+  const used = usageMap[clientId] ?? 0;
+  if (used + newAmount > limit) {
+    res.status(422).json({
+      error: `Limite de crédito excedido. Limite: R$ ${limit.toFixed(2)}, Em aberto: R$ ${used.toFixed(2)}, Valor do pedido: R$ ${newAmount.toFixed(2)}.`,
+      code: "credit_limit_exceeded",
+      creditLimit: limit,
+      creditUsed: used,
+      orderTotal: newAmount,
+    });
+    return false;
+  }
+  return true;
+}
+
+router.get("/vendas/clients/top-debtors", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const limit = Math.min(20, Math.max(1, parseInt((req.query.limit as string) ?? "10") || 10));
+
+  const clients = await db
+    .select({
+      id: clientsTable.id,
+      name: clientsTable.name,
+      document: clientsTable.document,
+      creditLimit: clientsTable.creditLimit,
+    })
+    .from(clientsTable)
+    .where(and(eq(clientsTable.active, "true"), isNotNull(clientsTable.creditLimit)));
+
+  const clientIds = clients.map((c) => c.id);
+  const usageMap = await computeCreditUsed(clientIds);
+
+  const withUsage = clients
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      document: c.document,
+      creditLimit: c.creditLimit,
+      creditUsed: String(usageMap[c.id] ?? 0),
+      creditPct: c.creditLimit && Number(c.creditLimit) > 0
+        ? Math.round((usageMap[c.id] ?? 0) / Number(c.creditLimit) * 100)
+        : 0,
+    }))
+    .filter((c) => Number(c.creditUsed) > 0 || Number(c.creditLimit) > 0)
+    .sort((a, b) => Number(b.creditUsed) - Number(a.creditUsed))
+    .slice(0, limit);
+
+  res.json(withUsage);
+});
+
 router.get("/vendas/clients", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
@@ -107,7 +202,15 @@ router.get("/vendas/clients", async (req: Request, res: Response): Promise<void>
   ]);
 
   const total = countResult[0]?.count ?? 0;
-  res.json({ items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
+
+  const clientIds = items.map((c) => c.id);
+  const usageMap = await computeCreditUsed(clientIds);
+  const itemsWithCredit = items.map((c) => ({
+    ...c,
+    creditUsed: String(usageMap[c.id] ?? 0),
+  }));
+
+  res.json({ items: itemsWithCredit, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 });
 
 router.post("/vendas/clients", async (req: Request, res: Response): Promise<void> => {
@@ -324,6 +427,12 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
     return sum + Number(item.quantity) * Number(item.unitPrice);
   }, 0);
 
+  // Credit limit check: only applies to actual sales orders (not quotes)
+  if (type === "order" && clientId) {
+    const ok = await checkCreditLimit(parseInt(clientId), totalAmount, res);
+    if (!ok) return;
+  }
+
   const initialStatus = status ?? "draft";
 
   const [order] = await db
@@ -411,6 +520,14 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
     return sum + Number(item.quantity) * Number(item.unitPrice);
   }, 0);
 
+  // Credit check for updates: if the order is (or will become) type='order', validate.
+  // Exclude the current order from the exposure calculation (delta-check).
+  const effectiveType = type ?? (await db.select({ type: salesOrdersTable.type }).from(salesOrdersTable).where(eq(salesOrdersTable.id, id)).then((r) => r[0]?.type));
+  if (effectiveType === "order" && clientId) {
+    const ok = await checkCreditLimit(parseInt(clientId), totalAmount, res, id);
+    if (!ok) return;
+  }
+
   const [order] = await db
     .update(salesOrdersTable)
     .set({
@@ -489,6 +606,13 @@ router.post("/vendas/orders/:id/convert", async (req: Request, res: Response): P
   if (order.type !== "quote") {
     res.status(400).json({ error: "Apenas orçamentos podem ser convertidos em pedidos" });
     return;
+  }
+
+  // Credit check: converting a quote to an order commits real financial exposure
+  if (order.clientId) {
+    const orderAmount = parseFloat(String(order.totalAmount ?? "0"));
+    const ok = await checkCreditLimit(order.clientId, orderAmount, res);
+    if (!ok) return;
   }
 
   const [updated] = await db

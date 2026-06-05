@@ -16,11 +16,12 @@ import {
   useGetVendasDashboard,
   useGetSalesOrder,
   useListSalesOrderLogs,
+  useGetClientTopDebtors,
   getListClientsQueryKey,
   getListSalesOrdersQueryKey,
   getGetVendasDashboardQueryKey,
 } from "@workspace/api-client-react";
-import type { Client, SalesOrder, SalesOrderLog } from "@workspace/api-client-react";
+import type { Client, SalesOrder, SalesOrderLog, ClientCreditSummary } from "@workspace/api-client-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -601,7 +602,10 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
   const watchedItems = form.watch("items");
   const total = watchedItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0);
 
+  const [creditError, setCreditError] = useState<string | null>(null);
+
   const onSubmit = form.handleSubmit((data) => {
+    setCreditError(null);
     const payload = {
       type: data.type,
       clientId: data.clientId ? parseInt(data.clientId) : null,
@@ -622,7 +626,15 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload as any }, { onSuccess: () => { invalidateOrders(); onClose(); } });
     } else {
-      createMutation.mutate({ data: payload as any }, { onSuccess: () => { invalidateOrders(); onClose(); form.reset(); } });
+      createMutation.mutate({ data: payload as any }, {
+        onSuccess: () => { invalidateOrders(); onClose(); form.reset(); },
+        onError: (err: any) => {
+          const body = err?.data ?? err;
+          if (body?.code === "credit_limit_exceeded" || (typeof body?.error === "string" && body.error.includes("Limite de crédito"))) {
+            setCreditError(body.error ?? "Limite de crédito excedido para este cliente.");
+          }
+        },
+      });
     }
   });
 
@@ -785,6 +797,13 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
               <div className="flex justify-end pt-1">
                 <span className="text-sm font-semibold">Total: {fmt(total)}</span>
               </div>
+            </div>
+          )}
+
+          {creditError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{creditError}</span>
             </div>
           )}
 
@@ -1135,6 +1154,7 @@ export default function VendasPage() {
 
   const { data: clientsData } = useListClients({ page: clientsPage, pageSize: PAGE_SIZE });
   const { data: allClientsData } = useListClients({ pageSize: 500 });
+  const { data: topDebtors = [] } = useGetClientTopDebtors({ limit: 8 });
   const clients = clientsData?.items ?? [];
   const activeClients = useMemo(() => (allClientsData?.items ?? []).filter((c) => c.active === "true"), [allClientsData]);
 
@@ -1503,6 +1523,43 @@ export default function VendasPage() {
 
           {/* ── CLIENTS TAB ───────────────────────────────────────────────── */}
           <TabsContent value="clients" className="space-y-4 mt-4">
+            {/* Top Debtors Panel */}
+            {topDebtors.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Exposição de Crédito — Top Devedores
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="space-y-3">
+                    {topDebtors.map((debtor) => {
+                      const pct = Math.min(100, debtor.creditPct);
+                      const over = debtor.creditPct > 100;
+                      return (
+                        <div key={debtor.id} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium truncate max-w-[200px]">{debtor.name}</span>
+                            <span className={`text-xs tabular-nums ${over ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                              {fmt(debtor.creditUsed)} / {debtor.creditLimit ? fmt(debtor.creditLimit) : "—"}
+                              {over && <span className="ml-1 font-bold">({debtor.creditPct}%)</span>}
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${over ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex gap-3 items-center justify-between">
               <Input
                 className="max-w-xs"
@@ -1523,7 +1580,7 @@ export default function VendasPage() {
                       <TableHead>Nome</TableHead>
                       <TableHead>CNPJ/CPF</TableHead>
                       <TableHead>E-mail</TableHead>
-                      <TableHead>Telefone</TableHead>
+                      <TableHead>Crédito Utilizado</TableHead>
                       <TableHead>Cidade/UF</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -1532,27 +1589,54 @@ export default function VendasPage() {
                     {filteredClients.length === 0 && (
                       <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10">Nenhum cliente encontrado</TableCell></TableRow>
                     )}
-                    {filteredClients.map((client) => (
-                      <TableRow key={client.id}>
-                        <TableCell className="font-medium">{client.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground font-mono">{client.document ?? "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{client.email ?? "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{client.phone ?? "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {[client.city, client.state].filter(Boolean).join("/") || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingClient(client); setClientDialog(true); }}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteClient(client)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredClients.map((client) => {
+                      const used = parseFloat(client.creditUsed ?? "0");
+                      const limit = parseFloat(client.creditLimit ?? "0");
+                      const hasLimit = limit > 0;
+                      const pct = hasLimit ? Math.min(100, Math.round(used / limit * 100)) : 0;
+                      const over = hasLimit && used > limit;
+                      return (
+                        <TableRow key={client.id}>
+                          <TableCell className="font-medium">{client.name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground font-mono">{client.document ?? "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{client.email ?? "—"}</TableCell>
+                          <TableCell className="min-w-[160px]">
+                            {hasLimit ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`text-xs tabular-nums ${over ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                                    {fmt(used)} / {fmt(limit)}
+                                  </span>
+                                  {over && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+                                </div>
+                                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${over ? "bg-destructive" : pct >= 80 ? "bg-amber-500" : "bg-primary"}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem limite</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {[client.billingCity, client.billingState].filter(Boolean).join("/") ||
+                             [client.city, client.state].filter(Boolean).join("/") || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingClient(client); setClientDialog(true); }}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteClient(client)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 {(clientsData?.totalPages ?? 1) > 1 && (

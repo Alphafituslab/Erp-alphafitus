@@ -45,6 +45,7 @@ import type {
   CapaTransitionInput,
   CashflowMonth,
   Client,
+  ClientCreditSummary,
   ClientInput,
   ClientPage,
   CompanySettings,
@@ -82,6 +83,7 @@ import type {
   ForwardTraceResult,
   GetAttendanceSummaryParams,
   GetCashflowParams,
+  GetClientTopDebtorsParams,
   GetDashboardGoalsParams,
   GetExecutiveDashboardParams,
   GetFiscalTaxSummaryParams,
@@ -1294,6 +1296,90 @@ export const useCreateClient = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getCreateClientMutationOptions(options));
     }
+
+export const getGetClientTopDebtorsUrl = (params?: GetClientTopDebtorsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/vendas/clients/top-debtors?${stringifiedParams}` : `/api/vendas/clients/top-debtors`
+}
+
+/**
+ * @summary Top clients by open credit exposure
+ */
+export const getClientTopDebtors = async (params?: GetClientTopDebtorsParams, options?: RequestInit): Promise<ClientCreditSummary[]> => {
+
+  return customFetch<ClientCreditSummary[]>(getGetClientTopDebtorsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientTopDebtorsQueryKey = (params?: GetClientTopDebtorsParams,) => {
+    return [
+    `/api/vendas/clients/top-debtors`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientTopDebtorsQueryOptions = <TData = Awaited<ReturnType<typeof getClientTopDebtors>>, TError = ErrorType<ErrorResponse>>(params?: GetClientTopDebtorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientTopDebtors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientTopDebtorsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientTopDebtors>>> = ({ signal }) => getClientTopDebtors(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientTopDebtors>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientTopDebtorsQueryResult = NonNullable<Awaited<ReturnType<typeof getClientTopDebtors>>>
+export type GetClientTopDebtorsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Top clients by open credit exposure
+ */
+
+export function useGetClientTopDebtors<TData = Awaited<ReturnType<typeof getClientTopDebtors>>, TError = ErrorType<ErrorResponse>>(
+ params?: GetClientTopDebtorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientTopDebtors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientTopDebtorsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getUpdateClientUrl = (id: number,) => {
 
