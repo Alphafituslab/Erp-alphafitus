@@ -4162,6 +4162,117 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── RH: Payroll ──────────────────────────────────────────────────────────
+
+  /rh/payroll:
+    get:
+      operationId: listPayrollEntries
+      tags: [rh]
+      summary: List payroll entries with optional filters
+      parameters:
+        - name: periodYear
+          in: query
+          schema:
+            type: integer
+        - name: periodMonth
+          in: query
+          schema:
+            type: integer
+        - name: employeeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closed, paid]
+      responses:
+        "200":
+          description: List of payroll entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayrollEntryWithEmployee"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/payroll/generate:
+    post:
+      operationId: generatePayroll
+      tags: [rh]
+      summary: Generate payroll entries for all active employees in a period
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollGenerateInput"
+      responses:
+        "200":
+          description: Generated payroll entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayrollEntryWithEmployee"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rh/payroll/{id}/status:
+    patch:
+      operationId: updatePayrollStatus
+      tags: [rh]
+      summary: Update payroll entry status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollStatusUpdate"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollEntryWithEmployee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── Projetos: Projects ───────────────────────────────────────────────────
 
   /projetos/projects:
@@ -11003,6 +11114,111 @@ components:
           nullable: true
         daysUntilExpiry:
           type: integer
+          nullable: true
+
+  # ─── RH: Payroll schemas ──────────────────────────────────────────────────
+
+    PayrollEntry:
+      type: object
+      required:
+        - id
+        - employeeId
+        - periodYear
+        - periodMonth
+        - baseSalary
+        - workingDays
+        - presentDays
+        - absentDays
+        - overtimeHours
+        - deductions
+        - extras
+        - netSalary
+        - status
+        - generatedAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        periodYear:
+          type: integer
+        periodMonth:
+          type: integer
+        baseSalary:
+          type: string
+        workingDays:
+          type: integer
+        presentDays:
+          type: integer
+        absentDays:
+          type: integer
+        overtimeHours:
+          type: string
+        deductions:
+          type: string
+        extras:
+          type: string
+        netSalary:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, paid]
+        notes:
+          type: string
+          nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PayrollEntryWithEmployee:
+      allOf:
+        - $ref: "#/components/schemas/PayrollEntry"
+        - type: object
+          properties:
+            employeeName:
+              type: string
+            employeeRole:
+              type: string
+              nullable: true
+            employeeDepartment:
+              type: string
+              nullable: true
+
+    PayrollGenerateInput:
+      type: object
+      required:
+        - periodYear
+        - periodMonth
+      properties:
+        periodYear:
+          type: integer
+          description: Year (e.g. 2026)
+        periodMonth:
+          type: integer
+          description: Month 1-12
+
+    PayrollStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [open, closed, paid]
+        notes:
+          type: string
           nullable: true
 
   # ─── Projetos schemas ─────────────────────────────────────────────────────

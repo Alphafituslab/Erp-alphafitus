@@ -60,6 +60,31 @@ export const employeeTrainingsTable = pgTable("employee_trainings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
+export const payrollEntriesTable = pgTable("payroll_entries", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employee_id").notNull().references(() => employeesTable.id),
+  periodYear: integer("period_year").notNull(),
+  periodMonth: integer("period_month").notNull(),
+  baseSalary: numeric("base_salary", { precision: 12, scale: 2 }).notNull(),
+  workingDays: integer("working_days").notNull(),
+  presentDays: integer("present_days").notNull().default(0),
+  absentDays: integer("absent_days").notNull().default(0),
+  overtimeHours: numeric("overtime_hours", { precision: 6, scale: 2 }).notNull().default("0"),
+  deductions: numeric("deductions", { precision: 12, scale: 2 }).notNull().default("0"),
+  extras: numeric("extras", { precision: 12, scale: 2 }).notNull().default("0"),
+  netSalary: numeric("net_salary", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("open"), // open | closed | paid
+  notes: text("notes"),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const insertPayrollEntrySchema = createInsertSchema(payrollEntriesTable).omit({ id: true, createdAt: true, updatedAt: true, generatedAt: true });
+export type InsertPayrollEntry = z.infer<typeof insertPayrollEntrySchema>;
+export type PayrollEntry = typeof payrollEntriesTable.$inferSelect;
+
 export const insertDepartmentSchema = createInsertSchema(departmentsTable).omit({ id: true, createdAt: true });
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type Department = typeof departmentsTable.$inferSelect;

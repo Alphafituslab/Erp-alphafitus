@@ -3748,6 +3748,116 @@ export const GetTrainingComplianceResponse = zod.array(GetTrainingComplianceResp
 
 
 /**
+ * @summary List payroll entries with optional filters
+ */
+export const ListPayrollEntriesQueryParams = zod.object({
+  "periodYear": zod.coerce.number().optional(),
+  "periodMonth": zod.coerce.number().optional(),
+  "employeeId": zod.coerce.number().optional(),
+  "status": zod.enum(['open', 'closed', 'paid']).optional()
+})
+
+export const ListPayrollEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "periodYear": zod.number(),
+  "periodMonth": zod.number(),
+  "baseSalary": zod.string(),
+  "workingDays": zod.number(),
+  "presentDays": zod.number(),
+  "absentDays": zod.number(),
+  "overtimeHours": zod.string(),
+  "deductions": zod.string(),
+  "extras": zod.string(),
+  "netSalary": zod.string(),
+  "status": zod.enum(['open', 'closed', 'paid']),
+  "notes": zod.string().nullish(),
+  "generatedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "employeeName": zod.string().optional(),
+  "employeeRole": zod.string().nullish(),
+  "employeeDepartment": zod.string().nullish()
+}))
+export const ListPayrollEntriesResponse = zod.array(ListPayrollEntriesResponseItem)
+
+
+/**
+ * @summary Generate payroll entries for all active employees in a period
+ */
+export const GeneratePayrollBody = zod.object({
+  "periodYear": zod.number().describe('Year (e.g. 2026)'),
+  "periodMonth": zod.number().describe('Month 1-12')
+})
+
+export const GeneratePayrollResponseItem = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "periodYear": zod.number(),
+  "periodMonth": zod.number(),
+  "baseSalary": zod.string(),
+  "workingDays": zod.number(),
+  "presentDays": zod.number(),
+  "absentDays": zod.number(),
+  "overtimeHours": zod.string(),
+  "deductions": zod.string(),
+  "extras": zod.string(),
+  "netSalary": zod.string(),
+  "status": zod.enum(['open', 'closed', 'paid']),
+  "notes": zod.string().nullish(),
+  "generatedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "employeeName": zod.string().optional(),
+  "employeeRole": zod.string().nullish(),
+  "employeeDepartment": zod.string().nullish()
+}))
+export const GeneratePayrollResponse = zod.array(GeneratePayrollResponseItem)
+
+
+/**
+ * @summary Update payroll entry status
+ */
+export const UpdatePayrollStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePayrollStatusBody = zod.object({
+  "status": zod.enum(['open', 'closed', 'paid']),
+  "notes": zod.string().nullish()
+})
+
+export const UpdatePayrollStatusResponse = zod.object({
+  "id": zod.number(),
+  "employeeId": zod.number(),
+  "periodYear": zod.number(),
+  "periodMonth": zod.number(),
+  "baseSalary": zod.string(),
+  "workingDays": zod.number(),
+  "presentDays": zod.number(),
+  "absentDays": zod.number(),
+  "overtimeHours": zod.string(),
+  "deductions": zod.string(),
+  "extras": zod.string(),
+  "netSalary": zod.string(),
+  "status": zod.enum(['open', 'closed', 'paid']),
+  "notes": zod.string().nullish(),
+  "generatedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "employeeName": zod.string().optional(),
+  "employeeRole": zod.string().nullish(),
+  "employeeDepartment": zod.string().nullish()
+}))
+
+
+/**
  * @summary List projects with optional filters
  */
 export const ListProjectsQueryParams = zod.object({

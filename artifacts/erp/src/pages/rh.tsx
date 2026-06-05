@@ -28,6 +28,9 @@ import {
   useListEmployeeTrainings,
   useAddEmployeeTraining,
   useDeleteEmployeeTraining,
+  useListPayrollEntries,
+  useGeneratePayroll,
+  useUpdatePayrollStatus,
   getListEmployeesQueryKey,
   getListDepartmentsQueryKey,
   getListAttendanceLogsQueryKey,
@@ -36,6 +39,7 @@ import {
   getGetTrainingMatrixQueryKey,
   getGetTrainingComplianceQueryKey,
   getListEmployeeTrainingsQueryKey,
+  getListPayrollEntriesQueryKey,
 } from "@workspace/api-client-react";
 import type {
   Employee,
@@ -44,6 +48,7 @@ import type {
   AttendanceLog,
   Training,
   EmployeeTraining,
+  PayrollEntryWithEmployee,
 } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +114,9 @@ import {
   Upload,
   Filter,
   KeyRound,
+  DollarSign,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useForm, Controller } from "react-hook-form";
@@ -1389,6 +1397,61 @@ export default function RhPage() {
     return list;
   }, [trainings, trainingTypeFilter, trainingSearch]);
 
+  // Payroll state
+  const [payrollMonth, setPayrollMonth] = useState(currentMonth);
+  const [payrollStatusFilter, setPayrollStatusFilter] = useState("all");
+  const [payrollEmpFilter, setPayrollEmpFilter] = useState("all");
+
+  const payrollYear = parseInt(payrollMonth.split("-")[0]!);
+  const payrollMonthNum = parseInt(payrollMonth.split("-")[1]!);
+
+  const { data: payrollEntries = [], isLoading: payrollLoading } = useListPayrollEntries({
+    periodYear: payrollYear,
+    periodMonth: payrollMonthNum,
+    ...(payrollStatusFilter !== "all" ? { status: payrollStatusFilter as "open" | "closed" | "paid" } : {}),
+    ...(payrollEmpFilter !== "all" ? { employeeId: parseInt(payrollEmpFilter) } : {}),
+  });
+
+  const generatePayrollM = useGeneratePayroll();
+  const updatePayrollStatusM = useUpdatePayrollStatus();
+
+  const handleGeneratePayroll = () => {
+    generatePayrollM.mutate(
+      { data: { periodYear: payrollYear, periodMonth: payrollMonthNum } },
+      {
+        onSuccess: (data) => {
+          toast({ title: `Folha gerada — ${data.length} funcionário(s)` });
+          qc.invalidateQueries({ queryKey: getListPayrollEntriesQueryKey() });
+        },
+        onError: (e: any) => toast({ title: "Erro ao gerar folha", description: e?.message, variant: "destructive" }),
+      }
+    );
+  };
+
+  const handlePayrollStatusChange = (entry: PayrollEntryWithEmployee, status: string) => {
+    updatePayrollStatusM.mutate(
+      { id: entry.id, data: { status: status as "open" | "closed" | "paid" } },
+      {
+        onSuccess: () => {
+          toast({ title: "Status atualizado" });
+          qc.invalidateQueries({ queryKey: getListPayrollEntriesQueryKey() });
+        },
+        onError: (e: any) => toast({ title: "Erro", description: e?.message, variant: "destructive" }),
+      }
+    );
+  };
+
+  const payrollTotals = useMemo(() => {
+    const filtered = payrollStatusFilter === "all"
+      ? payrollEntries
+      : payrollEntries.filter((e) => e.status === payrollStatusFilter);
+    const totalBruto = filtered.reduce((s, e) => s + parseFloat(e.baseSalary), 0);
+    const totalDescontos = filtered.reduce((s, e) => s + parseFloat(e.deductions), 0);
+    const totalExtras = filtered.reduce((s, e) => s + parseFloat(e.extras), 0);
+    const totalLiquido = filtered.reduce((s, e) => s + parseFloat(e.netSalary), 0);
+    return { totalBruto, totalDescontos, totalExtras, totalLiquido, count: filtered.length };
+  }, [payrollEntries, payrollStatusFilter]);
+
   const deleteEmpM = useDeleteEmployee();
   const deleteDeptM = useDeleteDepartment();
   const deleteAttM = useDeleteAttendanceLog();
@@ -1494,6 +1557,7 @@ export default function RhPage() {
             <TabsTrigger value="attendance">Ponto</TabsTrigger>
             <TabsTrigger value="trainings">Treinamentos</TabsTrigger>
             <TabsTrigger value="matrix">Matriz</TabsTrigger>
+            <TabsTrigger value="payroll">Folha de Pagamento</TabsTrigger>
           </TabsList>
 
           {/* ── DASHBOARD TAB ──────────────────────────────────────────────── */}
@@ -2301,6 +2365,213 @@ export default function RhPage() {
                   </table>
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+
+          {/* ── PAYROLL TAB ───────────────────────────────────────────────── */}
+          <TabsContent value="payroll" className="space-y-4 mt-4">
+            {/* Controls */}
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <div className="flex flex-wrap gap-2 items-center">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setPayrollMonth(prevMonth(payrollMonth))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[130px] text-center">
+                  {fmtMonth(payrollMonth)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setPayrollMonth(nextMonth(payrollMonth))}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+
+                <Select value={payrollStatusFilter} onValueChange={setPayrollStatusFilter}>
+                  <SelectTrigger className="w-36 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos status</SelectItem>
+                    <SelectItem value="open">Em aberto</SelectItem>
+                    <SelectItem value="closed">Fechada</SelectItem>
+                    <SelectItem value="paid">Paga</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleGeneratePayroll}
+                disabled={generatePayrollM.isPending}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${generatePayrollM.isPending ? "animate-spin" : ""}`} />
+                {generatePayrollM.isPending ? "Gerando…" : "Gerar / Recalcular Folha"}
+              </Button>
+            </div>
+
+            {/* Summary cards */}
+            {payrollEntries.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Salário Bruto</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xl font-bold tabular-nums">
+                        {payrollTotals.totalBruto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{payrollTotals.count} funcionário(s)</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Descontos (faltas)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-4 w-4 text-destructive" />
+                      <span className="text-xl font-bold tabular-nums text-destructive">
+                        {payrollTotals.totalDescontos.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Extras (horas)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="text-xl font-bold tabular-nums text-green-600">
+                        {payrollTotals.totalExtras.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase">Salário Líquido</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="text-xl font-bold tabular-nums text-primary">
+                        {payrollTotals.totalLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Payroll table */}
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Funcionário</TableHead>
+                      <TableHead>Cargo / Depto</TableHead>
+                      <TableHead className="text-right">Dias úteis</TableHead>
+                      <TableHead className="text-right">Presentes</TableHead>
+                      <TableHead className="text-right">Faltas</TableHead>
+                      <TableHead className="text-right">H. Extras</TableHead>
+                      <TableHead className="text-right">Salário Bruto</TableHead>
+                      <TableHead className="text-right">Descontos</TableHead>
+                      <TableHead className="text-right">Extras</TableHead>
+                      <TableHead className="text-right">Salário Líquido</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payrollLoading && (
+                      <TableRow>
+                        <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                          Carregando…
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!payrollLoading && payrollEntries.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                          Nenhuma folha gerada para este período. Clique em "Gerar / Recalcular Folha".
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {payrollEntries.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium">{entry.employeeName}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {entry.employeeRole ?? "—"}
+                          {entry.employeeDepartment ? ` · ${entry.employeeDepartment}` : ""}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">{entry.workingDays}</TableCell>
+                        <TableCell className="text-right tabular-nums text-sm text-green-600 font-medium">{entry.presentDays}</TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {entry.absentDays > 0
+                            ? <span className="text-destructive font-medium">{entry.absentDays}</span>
+                            : <span className="text-muted-foreground">0</span>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {parseFloat(entry.overtimeHours) > 0
+                            ? <span className="text-blue-600 font-medium">{parseFloat(entry.overtimeHours).toFixed(1)}h</span>
+                            : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {parseFloat(entry.baseSalary).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {parseFloat(entry.deductions) > 0
+                            ? <span className="text-destructive">{parseFloat(entry.deductions).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                            : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {parseFloat(entry.extras) > 0
+                            ? <span className="text-green-600">{parseFloat(entry.extras).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                            : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm font-semibold">
+                          {parseFloat(entry.netSalary).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={entry.status}
+                            onValueChange={(v) => handlePayrollStatusChange(entry, v)}
+                            disabled={updatePayrollStatusM.isPending}
+                          >
+                            <SelectTrigger className="h-7 w-28 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="open">Em aberto</SelectItem>
+                              <SelectItem value="closed">Fechada</SelectItem>
+                              <SelectItem value="paid">Paga</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {payrollEntries.length > 0 && (
+              <p className="text-xs text-muted-foreground text-right">
+                Cálculo base: salário proporcional a dias úteis · horas extras acima de 8h/dia a 1/220 do salário mensal.
+                Entradas com status "Fechada" ou "Paga" não são recalculadas.
+              </p>
             )}
           </TabsContent>
         </Tabs>

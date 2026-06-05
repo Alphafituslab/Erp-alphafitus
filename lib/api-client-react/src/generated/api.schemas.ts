@@ -2039,6 +2039,63 @@ export interface TrainingComplianceDept {
   complianceRate: number;
 }
 
+export type PayrollEntryStatus = typeof PayrollEntryStatus[keyof typeof PayrollEntryStatus];
+
+
+export const PayrollEntryStatus = {
+  open: 'open',
+  closed: 'closed',
+  paid: 'paid',
+} as const;
+
+export interface PayrollEntry {
+  id: number;
+  employeeId: number;
+  periodYear: number;
+  periodMonth: number;
+  baseSalary: string;
+  workingDays: number;
+  presentDays: number;
+  absentDays: number;
+  overtimeHours: string;
+  deductions: string;
+  extras: string;
+  netSalary: string;
+  status: PayrollEntryStatus;
+  notes?: string | null;
+  generatedAt: string;
+  closedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PayrollEntryWithEmployee = PayrollEntry & ({
+  employeeName?: string;
+  employeeRole?: string | null;
+  employeeDepartment?: string | null;
+});
+
+export interface PayrollGenerateInput {
+  /** Year (e.g. 2026) */
+  periodYear: number;
+  /** Month 1-12 */
+  periodMonth: number;
+}
+
+export type PayrollStatusUpdateStatus = typeof PayrollStatusUpdateStatus[keyof typeof PayrollStatusUpdateStatus];
+
+
+export const PayrollStatusUpdateStatus = {
+  open: 'open',
+  closed: 'closed',
+  paid: 'paid',
+} as const;
+
+export interface PayrollStatusUpdate {
+  status: PayrollStatusUpdateStatus;
+  notes?: string | null;
+}
+
 export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus];
 
 
@@ -3829,6 +3886,22 @@ export const ListTrainingsType = {
 export type GetTrainingMatrixParams = {
 dept?: string;
 };
+
+export type ListPayrollEntriesParams = {
+periodYear?: number;
+periodMonth?: number;
+employeeId?: number;
+status?: ListPayrollEntriesStatus;
+};
+
+export type ListPayrollEntriesStatus = typeof ListPayrollEntriesStatus[keyof typeof ListPayrollEntriesStatus];
+
+
+export const ListPayrollEntriesStatus = {
+  open: 'open',
+  closed: 'closed',
+  paid: 'paid',
+} as const;
 
 export type ListProjectsParams = {
 status?: ListProjectsStatus;

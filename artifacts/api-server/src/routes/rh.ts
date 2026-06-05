@@ -8,6 +8,7 @@ import {
   attendanceLogsTable,
   trainingsTable,
   employeeTrainingsTable,
+  payrollEntriesTable,
 } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import type { Request, Response } from "express";
@@ -1021,6 +1022,223 @@ router.get("/rh/dashboard", async (req: Request, res: Response): Promise<void> =
     totalTrainingHoursThisMonth: totalTrainingHoursThisMonth || null,
     trainingAlerts,
   });
+});
+
+// ─── Payroll ──────────────────────────────────────────────────────────────────
+
+/** Count business days (Mon–Fri) in a given year/month */
+function countBusinessDays(year: number, month: number): number {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const day = new Date(year, month - 1, d).getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+}
+
+/** Parse HH:MM → decimal hours */
+function parseHours(t: string | null): number {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return (h ?? 0) + (m ?? 0) / 60;
+}
+
+/** Build enriched payroll row with employee info */
+async function enrichPayroll(entry: typeof payrollEntriesTable.$inferSelect) {
+  const [emp] = await db
+    .select({ name: employeesTable.name, role: employeesTable.role, department: employeesTable.department })
+    .from(employeesTable)
+    .where(eq(employeesTable.id, entry.employeeId));
+  return {
+    ...entry,
+    employeeName: emp?.name ?? "—",
+    employeeRole: emp?.role ?? null,
+    employeeDepartment: emp?.department ?? null,
+  };
+}
+
+router.get("/rh/payroll", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { periodYear, periodMonth, employeeId, status } = req.query as {
+    periodYear?: string;
+    periodMonth?: string;
+    employeeId?: string;
+    status?: string;
+  };
+
+  const filters: any[] = [];
+  if (periodYear) filters.push(eq(payrollEntriesTable.periodYear, parseInt(periodYear, 10)));
+  if (periodMonth) filters.push(eq(payrollEntriesTable.periodMonth, parseInt(periodMonth, 10)));
+  if (employeeId) filters.push(eq(payrollEntriesTable.employeeId, parseInt(employeeId, 10)));
+  if (status) filters.push(eq(payrollEntriesTable.status, status));
+
+  const entries = await db
+    .select()
+    .from(payrollEntriesTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(payrollEntriesTable.periodYear), desc(payrollEntriesTable.periodMonth), asc(payrollEntriesTable.employeeId));
+
+  const enriched = await Promise.all(entries.map(enrichPayroll));
+  res.json(enriched);
+});
+
+router.post("/rh/payroll/generate", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const { periodYear, periodMonth } = req.body as { periodYear?: number; periodMonth?: number };
+
+  if (!periodYear || !periodMonth || periodMonth < 1 || periodMonth > 12) {
+    res.status(400).json({ error: "periodYear e periodMonth são obrigatórios (mês 1–12)" });
+    return;
+  }
+
+  const workingDays = countBusinessDays(periodYear, periodMonth);
+  const monthStr = `${periodYear}-${String(periodMonth).padStart(2, "0")}`;
+
+  // All active employees with salary set
+  const employees = await db
+    .select()
+    .from(employeesTable)
+    .where(eq(employeesTable.status, "active"));
+
+  const results: (typeof payrollEntriesTable.$inferSelect)[] = [];
+
+  for (const emp of employees) {
+    const baseSalary = parseFloat(emp.salary ?? "0") || 0;
+    if (baseSalary <= 0) continue;
+
+    // Attendance for the period
+    const logs = await db
+      .select()
+      .from(attendanceLogsTable)
+      .where(and(
+        eq(attendanceLogsTable.employeeId, String(emp.id)),
+        sql`${attendanceLogsTable.date} LIKE ${monthStr + "-%"}`
+      ));
+
+    const presentDays = logs.filter((l) => l.status === "present" || l.status === "late").length;
+    const absentDays = logs.filter((l) => l.status === "absent").length;
+
+    // Overtime: hours worked beyond 8h per day (only for present days with timestamps)
+    let overtimeHours = 0;
+    for (const log of logs) {
+      if ((log.status === "present" || log.status === "late") && log.checkIn && log.checkOut) {
+        const worked = parseHours(log.checkOut) - parseHours(log.checkIn);
+        if (worked > 8) overtimeHours += worked - 8;
+      }
+    }
+
+    // Hourly rate (Brazil standard: 220 h/month)
+    const hourlyRate = baseSalary / 220;
+
+    // Deductions for absences (proportional to base salary / working days)
+    const deductions = workingDays > 0 ? (absentDays / workingDays) * baseSalary : 0;
+
+    // Extras for overtime
+    const extras = overtimeHours * hourlyRate;
+
+    const netSalary = Math.max(0, baseSalary - deductions + extras);
+
+    // Upsert: check if entry already exists
+    const [existing] = await db
+      .select({ id: payrollEntriesTable.id, status: payrollEntriesTable.status })
+      .from(payrollEntriesTable)
+      .where(and(
+        eq(payrollEntriesTable.employeeId, emp.id),
+        eq(payrollEntriesTable.periodYear, periodYear),
+        eq(payrollEntriesTable.periodMonth, periodMonth)
+      ));
+
+    if (existing) {
+      // Only recalculate if entry is still open
+      if (existing.status === "open") {
+        const [updated] = await db
+          .update(payrollEntriesTable)
+          .set({
+            baseSalary: baseSalary.toFixed(2),
+            workingDays,
+            presentDays,
+            absentDays,
+            overtimeHours: overtimeHours.toFixed(2),
+            deductions: deductions.toFixed(2),
+            extras: extras.toFixed(2),
+            netSalary: netSalary.toFixed(2),
+            generatedAt: new Date(),
+          })
+          .where(eq(payrollEntriesTable.id, existing.id))
+          .returning();
+        results.push(updated);
+      } else {
+        // Return existing closed/paid entry as-is
+        const [row] = await db.select().from(payrollEntriesTable).where(eq(payrollEntriesTable.id, existing.id));
+        results.push(row);
+      }
+    } else {
+      const [inserted] = await db
+        .insert(payrollEntriesTable)
+        .values({
+          employeeId: emp.id,
+          periodYear,
+          periodMonth,
+          baseSalary: baseSalary.toFixed(2),
+          workingDays,
+          presentDays,
+          absentDays,
+          overtimeHours: overtimeHours.toFixed(2),
+          deductions: deductions.toFixed(2),
+          extras: extras.toFixed(2),
+          netSalary: netSalary.toFixed(2),
+          status: "open",
+        })
+        .returning();
+      results.push(inserted);
+    }
+  }
+
+  const enriched = await Promise.all(results.map(enrichPayroll));
+  res.json(enriched);
+});
+
+router.patch("/rh/payroll/:id/status", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  const id = parseId(req.params.id, res);
+  if (id === null) return;
+
+  const [existing] = await db
+    .select()
+    .from(payrollEntriesTable)
+    .where(eq(payrollEntriesTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Entrada de folha não encontrada" });
+    return;
+  }
+
+  const { status, notes } = req.body as { status?: string; notes?: string };
+
+  if (!status || !["open", "closed", "paid"].includes(status)) {
+    res.status(400).json({ error: "Status inválido: use open, closed ou paid" });
+    return;
+  }
+
+  const updates: Partial<typeof payrollEntriesTable.$inferInsert> = { status };
+  if (notes !== undefined) updates.notes = notes || null;
+  if (status === "closed" || status === "paid") {
+    if (!existing.closedAt) updates.closedAt = new Date();
+  } else {
+    updates.closedAt = null;
+  }
+
+  const [updated] = await db
+    .update(payrollEntriesTable)
+    .set(updates)
+    .where(eq(payrollEntriesTable.id, id))
+    .returning();
+
+  res.json(await enrichPayroll(updated));
 });
 
 export default router;
