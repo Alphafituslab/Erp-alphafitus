@@ -6847,6 +6847,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /rastreabilidade/alerts:
+    get:
+      operationId: getTraceabilityAlerts
+      tags: [rastreabilidade]
+      summary: List critical lots (rejected or quarantine) with production and client impact
+      responses:
+        "200":
+          description: Alert panel with critical lots and impact counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraceabilityAlertsResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /usuarios:
     get:
       operationId: listUsuarios
@@ -12943,3 +12962,66 @@ components:
         backward:
           type: object
           nullable: true
+
+    TraceabilityAlertItem:
+      type: object
+      required: [lotId, internalLot, cqStatus, opsAffectedCount, clientsExposedCount]
+      properties:
+        lotId:
+          type: integer
+        internalLot:
+          type: string
+        supplierLot:
+          type: string
+          nullable: true
+        cqStatus:
+          type: string
+          enum: [rejected, quarantine]
+        productName:
+          type: string
+          nullable: true
+        productId:
+          type: integer
+          nullable: true
+        totalQty:
+          type: number
+          nullable: true
+        availableQty:
+          type: number
+          nullable: true
+        manufacturingDate:
+          type: string
+          nullable: true
+        expirationDate:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        opsAffectedCount:
+          type: integer
+        clientsExposedCount:
+          type: integer
+        affectedOps:
+          type: array
+          items:
+            type: object
+        exposedClients:
+          type: array
+          items:
+            type: object
+
+    TraceabilityAlertsResult:
+      type: object
+      required: [alerts, totalLots, totalOpsAffected, totalClientsExposed]
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/TraceabilityAlertItem"
+        totalLots:
+          type: integer
+        totalOpsAffected:
+          type: integer
+        totalClientsExposed:
+          type: integer

@@ -113,9 +113,30 @@ export interface SuccessResponse {
 export interface Client {
   id: number;
   name: string;
+  tradeName?: string | null;
   document?: string | null;
+  stateRegistration?: string | null;
   email?: string | null;
   phone?: string | null;
+  billingZipCode?: string | null;
+  billingStreet?: string | null;
+  billingNumber?: string | null;
+  billingComplement?: string | null;
+  billingNeighborhood?: string | null;
+  billingCity?: string | null;
+  billingState?: string | null;
+  shippingZipCode?: string | null;
+  shippingStreet?: string | null;
+  shippingNumber?: string | null;
+  shippingComplement?: string | null;
+  shippingNeighborhood?: string | null;
+  shippingCity?: string | null;
+  shippingState?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  creditLimit?: string | null;
+  defaultDiscountPct?: string | null;
+  taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -210,11 +231,20 @@ export interface Product {
   description?: string | null;
   category?: string | null;
   unit: string;
+  secondaryUnit?: string | null;
   costPrice?: string | null;
   salePrice?: string | null;
   currentStock: string;
   minStock: number;
   isCritical?: string;
+  ncm?: string | null;
+  cest?: string | null;
+  shelfLifeDays?: number | null;
+  storageTemp?: string | null;
+  storageHumidity?: string | null;
+  regulatoryInfo?: string | null;
+  defaultSupplierId?: number | null;
+  leadTimeDays?: number | null;
   active: string;
   createdAt: string;
   updatedAt: string;
@@ -346,6 +376,14 @@ export interface PurchaseOrderPage {
   totalPages: number;
 }
 
+export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
+
+
+export const EmployeeStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
 export type EmployeeLinkedUserRole = typeof EmployeeLinkedUserRole[keyof typeof EmployeeLinkedUserRole];
 
 
@@ -361,14 +399,6 @@ export interface EmployeeLinkedUser {
   role: EmployeeLinkedUserRole;
   active: string;
 }
-
-export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
-
-
-export const EmployeeStatus = {
-  active: 'active',
-  inactive: 'inactive',
-} as const;
 
 export interface Employee {
   id: number;
@@ -484,43 +514,6 @@ export interface CashflowMonth {
   /** Running cumulative balance including projected entries */
   cumulativeProjected: number;
 }
-
-export interface Client {
-  id: number;
-  name: string;
-  tradeName?: string | null;
-  document?: string | null;
-  stateRegistration?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  billingZipCode?: string | null;
-  billingStreet?: string | null;
-  billingNumber?: string | null;
-  billingComplement?: string | null;
-  billingNeighborhood?: string | null;
-  billingCity?: string | null;
-  billingState?: string | null;
-  shippingZipCode?: string | null;
-  shippingStreet?: string | null;
-  shippingNumber?: string | null;
-  shippingComplement?: string | null;
-  shippingNeighborhood?: string | null;
-  shippingCity?: string | null;
-  shippingState?: string | null;
-  contactName?: string | null;
-  contactPhone?: string | null;
-  creditLimit?: string | null;
-  defaultDiscountPct?: string | null;
-  taxRegime?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  notes?: string | null;
-  active: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 
 export interface ClientInput {
   name: string;
@@ -772,33 +765,6 @@ export interface VendasDashboard {
   topClients: VendasTopClient[];
   pipelineByStatus: VendasPipelineStage[];
 }
-
-export interface Product {
-  id: number;
-  sku?: string | null;
-  name: string;
-  description?: string | null;
-  category?: string | null;
-  unit: string;
-  secondaryUnit?: string | null;
-  costPrice?: string | null;
-  salePrice?: string | null;
-  currentStock: string;
-  minStock: number;
-  isCritical?: string;
-  ncm?: string | null;
-  cest?: string | null;
-  shelfLifeDays?: number | null;
-  storageTemp?: string | null;
-  storageHumidity?: string | null;
-  regulatoryInfo?: string | null;
-  defaultSupplierId?: number | null;
-  leadTimeDays?: number | null;
-  active: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 
 export interface ProductInput {
   sku?: string | null;
@@ -3284,6 +3250,43 @@ export interface TraceabilityResult {
   paOrderInfo?: TraceabilityResultPaOrderInfoItem[] | null;
   forward?: TraceabilityResultForward;
   backward?: TraceabilityResultBackward;
+}
+
+export type TraceabilityAlertItemCqStatus = typeof TraceabilityAlertItemCqStatus[keyof typeof TraceabilityAlertItemCqStatus];
+
+
+export const TraceabilityAlertItemCqStatus = {
+  rejected: 'rejected',
+  quarantine: 'quarantine',
+} as const;
+
+export type TraceabilityAlertItemAffectedOpsItem = { [key: string]: unknown };
+
+export type TraceabilityAlertItemExposedClientsItem = { [key: string]: unknown };
+
+export interface TraceabilityAlertItem {
+  lotId: number;
+  internalLot: string;
+  supplierLot?: string | null;
+  cqStatus: TraceabilityAlertItemCqStatus;
+  productName?: string | null;
+  productId?: number | null;
+  totalQty?: number | null;
+  availableQty?: number | null;
+  manufacturingDate?: string | null;
+  expirationDate?: string | null;
+  createdAt?: string | null;
+  opsAffectedCount: number;
+  clientsExposedCount: number;
+  affectedOps?: TraceabilityAlertItemAffectedOpsItem[];
+  exposedClients?: TraceabilityAlertItemExposedClientsItem[];
+}
+
+export interface TraceabilityAlertsResult {
+  alerts: TraceabilityAlertItem[];
+  totalLots: number;
+  totalOpsAffected: number;
+  totalClientsExposed: number;
 }
 
 export type ListFinancialEntriesParams = {

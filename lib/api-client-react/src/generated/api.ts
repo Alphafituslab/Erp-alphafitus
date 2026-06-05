@@ -200,6 +200,7 @@ import type {
   SupplierApprovalInput,
   SupplierInput,
   SupplierPage,
+  TraceabilityAlertsResult,
   TraceabilityResult,
   Training,
   TrainingComplianceDept,
@@ -15640,6 +15641,83 @@ export function useGetTraceabilityBackward<TData = Awaited<ReturnType<typeof get
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTraceabilityBackwardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTraceabilityAlertsUrl = () => {
+
+
+
+
+  return `/api/rastreabilidade/alerts`
+}
+
+/**
+ * @summary List critical lots (rejected or quarantine) with production and client impact
+ */
+export const getTraceabilityAlerts = async ( options?: RequestInit): Promise<TraceabilityAlertsResult> => {
+
+  return customFetch<TraceabilityAlertsResult>(getGetTraceabilityAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTraceabilityAlertsQueryKey = () => {
+    return [
+    `/api/rastreabilidade/alerts`
+    ] as const;
+    }
+
+
+export const getGetTraceabilityAlertsQueryOptions = <TData = Awaited<ReturnType<typeof getTraceabilityAlerts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTraceabilityAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTraceabilityAlerts>>> = ({ signal }) => getTraceabilityAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityAlerts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTraceabilityAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof getTraceabilityAlerts>>>
+export type GetTraceabilityAlertsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List critical lots (rejected or quarantine) with production and client impact
+ */
+
+export function useGetTraceabilityAlerts<TData = Awaited<ReturnType<typeof getTraceabilityAlerts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTraceabilityAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTraceabilityAlertsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

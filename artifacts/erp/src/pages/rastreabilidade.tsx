@@ -4,6 +4,7 @@ import {
   useGetTraceabilityTrace,
   useGetTraceabilityForward,
   useGetTraceabilityBackward,
+  useGetTraceabilityAlerts,
 } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,9 @@ import {
   ChevronDown,
   ChevronRight as ChevronRightIcon,
   XCircle,
+  Bell,
+  Users,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -400,6 +404,182 @@ function BackwardView({ lot }: { lot: string }) {
   );
 }
 
+function AlertsPanel() {
+  const { data, isLoading, error, refetch, isFetching } = useGetTraceabilityAlerts();
+  const alerts = (data as any)?.alerts ?? [];
+  const totalLots = (data as any)?.totalLots ?? 0;
+  const totalOps = (data as any)?.totalOpsAffected ?? 0;
+  const totalClients = (data as any)?.totalClientsExposed ?? 0;
+
+  const handlePrintAlerts = () => window.print();
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center py-16 gap-3 text-white/40">
+      <Clock className="h-5 w-5 animate-spin" /><span>Carregando painel de alertas…</span>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex items-center gap-3 py-8 text-red-300 text-sm border border-red-500/20 rounded-lg px-4">
+      <XCircle className="h-4 w-4 shrink-0" />Erro ao carregar alertas de rastreabilidade.
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="bg-red-500/10 border-red-500/30">
+          <CardContent className="pt-4 pb-4 text-center">
+            <div className="text-3xl font-bold text-red-300">{totalLots}</div>
+            <div className="text-xs text-red-200/70 mt-1">Lotes Críticos</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-500/10 border-amber-500/30">
+          <CardContent className="pt-4 pb-4 text-center">
+            <div className="text-3xl font-bold text-amber-300">{totalOps}</div>
+            <div className="text-xs text-amber-200/70 mt-1">OPs Afetadas</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-orange-500/10 border-orange-500/30">
+          <CardContent className="pt-4 pb-4 text-center">
+            <div className="text-3xl font-bold text-orange-300">{totalClients}</div>
+            <div className="text-xs text-orange-200/70 mt-1">Clientes Expostos</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between no-print">
+        <p className="text-xs text-white/40">
+          {totalLots === 0
+            ? "Nenhum lote crítico encontrado. Sistema íntegro."
+            : `${totalLots} lote${totalLots > 1 ? "s" : ""} com status crítico de CQ podem ter impacto nas OPs e clientes.`}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-white/20 text-white/60 hover:text-white text-xs"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+          {alerts.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-white/20 text-white/60 hover:text-white text-xs"
+              onClick={handlePrintAlerts}
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Exportar PDF
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Empty state */}
+      {alerts.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-14 gap-3 border border-green-500/20 rounded-lg bg-green-500/5">
+          <CheckCircle2 className="h-10 w-10 text-green-400" />
+          <p className="text-green-300 font-medium">Nenhum lote crítico detectado</p>
+          <p className="text-xs text-white/30 max-w-xs text-center">
+            Todos os lotes estão aprovados ou pendentes de análise. Nenhuma ação de recall necessária.
+          </p>
+        </div>
+      )}
+
+      {/* Alert cards */}
+      {alerts.map((alert: any) => {
+        const isRejected = alert.cqStatus === "rejected";
+        const hasImpact = alert.opsAffectedCount > 0 || alert.clientsExposedCount > 0;
+        return (
+          <Card
+            key={alert.lotId}
+            className={`border ${isRejected ? "border-red-500/40 bg-red-500/5" : "border-orange-500/40 bg-orange-500/5"}`}
+          >
+            <CardContent className="pt-4 pb-4 space-y-3">
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-white text-sm">{alert.internalLot}</span>
+                    <CqBadge status={alert.cqStatus} />
+                    {hasImpact && (
+                      <Badge className="text-xs bg-red-600/30 text-red-200 border-red-500/40 border gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        IMPACTO DETECTADO
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-white/50">{alert.productName ?? "Produto não identificado"}</p>
+                </div>
+
+                {/* Impact badges */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${alert.opsAffectedCount > 0 ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-white/5 text-white/30 border border-white/10"}`}>
+                    <Factory className="h-3.5 w-3.5" />
+                    {alert.opsAffectedCount} OP{alert.opsAffectedCount !== 1 ? "s" : ""}
+                  </div>
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${alert.clientsExposedCount > 0 ? "bg-red-500/20 text-red-300 border border-red-500/40" : "bg-white/5 text-white/30 border border-white/10"}`}>
+                    <Users className="h-3.5 w-3.5" />
+                    {alert.clientsExposedCount} cliente{alert.clientsExposedCount !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detail rows */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1">
+                {alert.supplierLot && <DataRow label="Lote Forn." value={alert.supplierLot} />}
+                {alert.totalQty !== null && alert.totalQty !== undefined && (
+                  <DataRow label="Qtd Total" value={`${alert.totalQty} un`} />
+                )}
+                {alert.expirationDate && <DataRow label="Validade" value={fmt(alert.expirationDate)} />}
+                {alert.manufacturingDate && <DataRow label="Fabricação" value={fmt(alert.manufacturingDate)} />}
+              </div>
+
+              {/* Affected OPs list */}
+              {(alert.affectedOps as any[])?.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs text-white/40 mb-1.5">OPs que consumiram este lote:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(alert.affectedOps as any[]).map((op: any) => (
+                      <Badge key={op.id} variant="outline" className="text-xs border-amber-500/30 text-amber-300">
+                        <Factory className="h-3 w-3 mr-1" />
+                        OP {op.number}
+                        {op.batchLot ? ` → ${op.batchLot}` : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Exposed clients list */}
+              {(alert.exposedClients as any[])?.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-xs text-white/40 mb-1.5">Clientes que podem ter recebido PA derivado:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(alert.exposedClients as any[]).map((c: any, i: number) => (
+                      <Badge key={c.soId ?? i} variant="outline" className="text-xs border-red-500/30 text-red-300">
+                        <Users className="h-3 w-3 mr-1" />
+                        {c.clientName ?? "Cliente desconhecido"}
+                        {c.clientCity ? ` — ${c.clientCity}` : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 function CombinedView({ lot }: { lot: string }) {
   const { data: trace, isLoading, error } = useGetTraceabilityTrace(
     { lot },
@@ -531,6 +711,7 @@ export default function RastreabilidadePage() {
   const [inputValue, setInputValue] = useState("");
   const [activeLot, setActiveLot] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [mainTab, setMainTab] = useState<"trace" | "alerts">("trace");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: suggestions = [] } = useSearchTraceLots(
@@ -577,8 +758,15 @@ export default function RastreabilidadePage() {
       <div className="p-6 space-y-6 max-w-5xl mx-auto print-root">
         {/* Print-only report header */}
         <div className="print-report-header border-b-2 pb-4 mb-6">
-          <h1 className="text-2xl font-bold">Relatório de Rastreabilidade</h1>
-          <p className="text-sm">Lote: <strong>{activeLot}</strong> — Gerado em: {printTimestamp}</p>
+          <h1 className="text-2xl font-bold">
+            {mainTab === "alerts" ? "Relatório de Alertas de Rastreabilidade" : "Relatório de Rastreabilidade"}
+          </h1>
+          {mainTab === "trace" && activeLot && (
+            <p className="text-sm">Lote: <strong>{activeLot}</strong> — Gerado em: {printTimestamp}</p>
+          )}
+          {mainTab === "alerts" && (
+            <p className="text-sm">Painel de lotes críticos (reprovados/quarentena) — Gerado em: {printTimestamp}</p>
+          )}
           <p className="text-xs text-gray-500 mt-1">NEXUS ERP — Documento para fins de auditoria e recall</p>
         </div>
 
@@ -591,101 +779,123 @@ export default function RastreabilidadePage() {
               <p className="text-sm text-white/50">Rastreamento completo de lotes — frente e verso</p>
             </div>
           </div>
-          {activeLot && (
+          {((mainTab === "trace" && activeLot) || mainTab === "alerts") && (
             <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 border-white/20 text-white/70 hover:text-white no-print">
               <Printer className="h-4 w-4" />
-              Exportar Relatório
+              Exportar PDF
             </Button>
           )}
         </div>
 
-        {/* Search */}
-        <Card className="bg-white/5 border-white/10 no-print">
-          <CardContent className="pt-5 pb-5">
-            <div className="relative flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
-                <Input
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={e => { setInputValue(e.target.value); setShowSuggestions(true); }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Digite o número do lote e pressione Enter…"
-                  className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-white/30 h-11"
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute z-50 top-full mt-1 w-full rounded-lg border border-white/20 bg-gray-900 shadow-xl overflow-hidden">
-                    {suggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onMouseDown={() => handleSelect(s.lot, s.label)}
-                        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-white">{s.lot}</p>
-                          <p className="text-xs text-white/50">{s.label}</p>
-                        </div>
-                        <CqBadge status={s.cqStatus} />
-                      </button>
-                    ))}
+        {/* Main tabs: Rastrear vs Alertas */}
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "trace" | "alerts")} className="w-full">
+          <TabsList className="bg-white/5 border border-white/10 no-print">
+            <TabsTrigger value="trace" className="gap-1.5 text-white/70 data-[state=active]:text-white data-[state=active]:bg-violet-600/40">
+              <Search className="h-3.5 w-3.5" />
+              Rastrear Lote
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="gap-1.5 text-white/70 data-[state=active]:text-white data-[state=active]:bg-red-600/40">
+              <Bell className="h-3.5 w-3.5" />
+              Alertas de Recall
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Trace tab ─────────────────────────────────────────── */}
+          <TabsContent value="trace" className="mt-4 space-y-5">
+            {/* Search */}
+            <Card className="bg-white/5 border-white/10 no-print">
+              <CardContent className="pt-5 pb-5">
+                <div className="relative flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+                    <Input
+                      ref={inputRef}
+                      value={inputValue}
+                      onChange={e => { setInputValue(e.target.value); setShowSuggestions(true); }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Digite o número do lote e pressione Enter…"
+                      className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-white/30 h-11"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="absolute z-50 top-full mt-1 w-full rounded-lg border border-white/20 bg-gray-900 shadow-xl overflow-hidden">
+                        {suggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            onMouseDown={() => handleSelect(s.lot, s.label)}
+                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-white">{s.lot}</p>
+                              <p className="text-xs text-white/50">{s.label}</p>
+                            </div>
+                            <CqBadge status={s.cqStatus} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                  <Button onClick={handleSearch} disabled={!inputValue.trim()} className="h-11 px-5 bg-violet-600 hover:bg-violet-500 text-white">
+                    <Search className="h-4 w-4 mr-2" />Rastrear
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-white/30">
+                  Pesquise por lote interno, lote de fornecedor ou lote de OP. Selecione da lista ou pressione Enter para busca direta.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Results */}
+            {activeLot && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <GitBranch className="h-5 w-5 text-violet-400" />
+                  <CardTitle className="text-white text-lg font-bold">Lote: {activeLot}</CardTitle>
+                </div>
+
+                <Tabs defaultValue="combined" className="w-full">
+                  <TabsList className="bg-white/5 border border-white/10 no-print">
+                    <TabsTrigger value="combined" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-violet-600/40">
+                      Visão Geral
+                    </TabsTrigger>
+                    <TabsTrigger value="forward" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-emerald-600/40">
+                      <ArrowRight className="h-3.5 w-3.5 mr-1" />Direta (MP→Clientes)
+                    </TabsTrigger>
+                    <TabsTrigger value="backward" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-orange-600/40">
+                      <ArrowLeft className="h-3.5 w-3.5 mr-1" />Reversa (PA→Fornec.)
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="combined" className="mt-4">
+                    <CombinedView lot={activeLot} />
+                  </TabsContent>
+                  <TabsContent value="forward" className="mt-4">
+                    <ForwardView lot={activeLot} />
+                  </TabsContent>
+                  <TabsContent value="backward" className="mt-4">
+                    <BackwardView lot={activeLot} />
+                  </TabsContent>
+                </Tabs>
               </div>
-              <Button onClick={handleSearch} disabled={!inputValue.trim()} className="h-11 px-5 bg-violet-600 hover:bg-violet-500 text-white">
-                <Search className="h-4 w-4 mr-2" />Rastrear
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-white/30">
-              Pesquise por lote interno, lote de fornecedor ou lote de OP. Selecione da lista ou pressione Enter para busca direta.
-            </p>
-          </CardContent>
-        </Card>
+            )}
 
-        {/* Results */}
-        {activeLot && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <GitBranch className="h-5 w-5 text-violet-400" />
-              <CardTitle className="text-white text-lg font-bold">Lote: {activeLot}</CardTitle>
-            </div>
+            {/* Empty state */}
+            {!activeLot && (
+              <div className="flex flex-col items-center justify-center py-20 gap-4 text-center no-print">
+                <GitBranch className="h-12 w-12 text-white/20" />
+                <p className="text-white/40 text-sm max-w-sm">
+                  Digite um número de lote e clique em <strong className="text-white/60">Rastrear</strong> ou pressione <kbd className="px-1.5 py-0.5 rounded border border-white/20 text-xs">Enter</kbd> para visualizar a cadeia completa de rastreabilidade.
+                </p>
+              </div>
+            )}
+          </TabsContent>
 
-            <Tabs defaultValue="combined" className="w-full">
-              <TabsList className="bg-white/5 border border-white/10 no-print">
-                <TabsTrigger value="combined" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-violet-600/40">
-                  Visão Geral
-                </TabsTrigger>
-                <TabsTrigger value="forward" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-emerald-600/40">
-                  <ArrowRight className="h-3.5 w-3.5 mr-1" />Direta (MP→Clientes)
-                </TabsTrigger>
-                <TabsTrigger value="backward" className="text-white/70 data-[state=active]:text-white data-[state=active]:bg-orange-600/40">
-                  <ArrowLeft className="h-3.5 w-3.5 mr-1" />Reversa (PA→Fornec.)
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="combined" className="mt-4">
-                <CombinedView lot={activeLot} />
-              </TabsContent>
-              <TabsContent value="forward" className="mt-4">
-                <ForwardView lot={activeLot} />
-              </TabsContent>
-              <TabsContent value="backward" className="mt-4">
-                <BackwardView lot={activeLot} />
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!activeLot && (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center no-print">
-            <GitBranch className="h-12 w-12 text-white/20" />
-            <p className="text-white/40 text-sm max-w-sm">
-              Digite um número de lote e clique em <strong className="text-white/60">Rastrear</strong> ou pressione <kbd className="px-1.5 py-0.5 rounded border border-white/20 text-xs">Enter</kbd> para visualizar a cadeia completa de rastreabilidade.
-            </p>
-          </div>
-        )}
+          {/* ── Alerts tab ─────────────────────────────────────────── */}
+          <TabsContent value="alerts" className="mt-4">
+            <AlertsPanel />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );

@@ -6115,6 +6115,37 @@ export const GetTraceabilityBackwardResponse = zod.object({
 
 
 /**
+ * @summary List critical lots (rejected or quarantine) with production and client impact
+ */
+export const GetTraceabilityAlertsResponse = zod.object({
+  "alerts": zod.array(zod.object({
+  "lotId": zod.number(),
+  "internalLot": zod.string(),
+  "supplierLot": zod.string().nullish(),
+  "cqStatus": zod.enum(['rejected', 'quarantine']),
+  "productName": zod.string().nullish(),
+  "productId": zod.number().nullish(),
+  "totalQty": zod.number().nullish(),
+  "availableQty": zod.number().nullish(),
+  "manufacturingDate": zod.string().nullish(),
+  "expirationDate": zod.string().nullish(),
+  "createdAt": zod.string().nullish(),
+  "opsAffectedCount": zod.number(),
+  "clientsExposedCount": zod.number(),
+  "affectedOps": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "exposedClients": zod.array(zod.object({
+
+}).passthrough()).optional()
+})),
+  "totalLots": zod.number(),
+  "totalOpsAffected": zod.number(),
+  "totalClientsExposed": zod.number()
+})
+
+
+/**
  * @summary List all users
  */
 export const ListUsuariosResponse = zod.object({

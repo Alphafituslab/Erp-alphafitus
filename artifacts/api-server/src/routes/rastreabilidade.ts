@@ -717,4 +717,137 @@ router.get("/rastreabilidade/backward", async (req: Request, res: Response): Pro
   });
 });
 
+// ─── Alerts: critical lots (rejected | quarantine) with impact ────────────────
+
+router.get("/rastreabilidade/alerts", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+
+  // 1. All lots with critical CQ status
+  const criticalLots = await db.select({
+    id: productLotsTable.id,
+    internalLot: productLotsTable.internalLot,
+    supplierLot: productLotsTable.supplierLot,
+    cqStatus: productLotsTable.cqStatus,
+    totalQty: productLotsTable.totalQty,
+    availableQty: productLotsTable.availableQty,
+    manufacturingDate: productLotsTable.manufacturingDate,
+    expirationDate: productLotsTable.expirationDate,
+    createdAt: productLotsTable.createdAt,
+    productName: productsTable.name,
+    productId: productLotsTable.productId,
+  }).from(productLotsTable)
+    .leftJoin(productsTable, eq(productLotsTable.productId, productsTable.id))
+    .where(or(
+      eq(productLotsTable.cqStatus, "rejected"),
+      eq(productLotsTable.cqStatus, "quarantine"),
+    ))
+    .orderBy(productLotsTable.createdAt);
+
+  if (criticalLots.length === 0) {
+    res.json({ alerts: [], totalLots: 0, totalOpsAffected: 0, totalClientsExposed: 0 });
+    return;
+  }
+
+  const lotIds = criticalLots.map(l => l.id);
+  const lotNumbers = criticalLots.map(l => l.internalLot).filter(Boolean) as string[];
+
+  // 2. All consumptions referencing these lots
+  const allConsumptions = await db.select({
+    id: productionMaterialConsumptionsTable.id,
+    orderId: productionMaterialConsumptionsTable.orderId,
+    lotId: productionMaterialConsumptionsTable.lotId,
+    internalLot: productionMaterialConsumptionsTable.internalLot,
+  }).from(productionMaterialConsumptionsTable)
+    .where(or(
+      inArray(productionMaterialConsumptionsTable.lotId, lotIds),
+      lotNumbers.length > 0 ? inArray(productionMaterialConsumptionsTable.internalLot, lotNumbers) : sql`false`,
+    ));
+
+  // 3. Production orders involved
+  const opIds = [...new Set(allConsumptions.map(c => c.orderId))];
+  let opsMap: Map<number, { id: number; number: string; salesOrderId: number | null; batchLot: string | null }> = new Map();
+
+  if (opIds.length > 0) {
+    const ops = await db.select({
+      id: productionOrdersTable.id,
+      number: productionOrdersTable.number,
+      salesOrderId: productionOrdersTable.salesOrderId,
+      batchLot: productionOrdersTable.batchLot,
+    }).from(productionOrdersTable).where(inArray(productionOrdersTable.id, opIds));
+    for (const op of ops) opsMap.set(op.id, op);
+  }
+
+  // 4. Sales orders and clients for exposed OPs
+  const soIds = [...new Set([...opsMap.values()].filter(o => o.salesOrderId).map(o => o.salesOrderId!))];
+  let soClientMap: Map<number, { clientId: number | null; clientName: string | null; clientDocument: string | null; clientCity: string | null; status: string | null }> = new Map();
+
+  if (soIds.length > 0) {
+    const salesOrders = await db.select({
+      id: salesOrdersTable.id,
+      clientId: salesOrdersTable.clientId,
+      status: salesOrdersTable.status,
+      clientName: clientsTable.name,
+      clientDocument: clientsTable.document,
+      clientCity: clientsTable.city,
+    }).from(salesOrdersTable)
+      .leftJoin(clientsTable, eq(salesOrdersTable.clientId, clientsTable.id))
+      .where(inArray(salesOrdersTable.id, soIds));
+    for (const so of salesOrders) soClientMap.set(so.id, so);
+  }
+
+  // 5. Aggregate per critical lot
+  const alerts = criticalLots.map(lot => {
+    // Consumptions for this specific lot
+    const lotConsumptions = allConsumptions.filter(c =>
+      c.lotId === lot.id || c.internalLot === lot.internalLot
+    );
+    const affectedOpIds = [...new Set(lotConsumptions.map(c => c.orderId))];
+    const affectedOps = affectedOpIds.map(id => opsMap.get(id)).filter((x): x is NonNullable<typeof x> => x !== undefined);
+
+    // Clients exposed via sales orders
+    const exposedSoIds = [...new Set(affectedOps.filter(o => o.salesOrderId).map(o => o.salesOrderId!))];
+    const exposedClients = exposedSoIds.map(soId => {
+      const so = soClientMap.get(soId);
+      return so ? { soId, clientId: so.clientId, clientName: so.clientName, clientDocument: so.clientDocument, clientCity: so.clientCity, status: so.status } : null;
+    }).filter(Boolean);
+
+    const uniqueClientIds = [...new Set(exposedClients.map(c => c!.clientId).filter(Boolean))];
+
+    return {
+      lotId: lot.id,
+      internalLot: lot.internalLot,
+      supplierLot: lot.supplierLot,
+      cqStatus: lot.cqStatus,
+      productName: lot.productName,
+      productId: lot.productId,
+      totalQty: lot.totalQty,
+      availableQty: lot.availableQty,
+      manufacturingDate: lot.manufacturingDate,
+      expirationDate: lot.expirationDate,
+      createdAt: lot.createdAt,
+      opsAffectedCount: affectedOpIds.length,
+      clientsExposedCount: uniqueClientIds.length,
+      affectedOps: affectedOps.map(op => ({ id: op.id, number: op.number, salesOrderId: op.salesOrderId, batchLot: op.batchLot })),
+      exposedClients: exposedClients.map(c => ({
+        soId: c!.soId,
+        clientId: c!.clientId,
+        clientName: c!.clientName,
+        clientDocument: c!.clientDocument,
+        clientCity: c!.clientCity,
+        soStatus: c!.status,
+      })),
+    };
+  });
+
+  const totalOpsAffected = new Set(alerts.flatMap(a => a.affectedOps.map(o => o.id))).size;
+  const totalClientsExposed = new Set(alerts.flatMap(a => a.exposedClients.map(c => c.clientId).filter(Boolean))).size;
+
+  res.json({
+    alerts,
+    totalLots: alerts.length,
+    totalOpsAffected,
+    totalClientsExposed,
+  });
+});
+
 export default router;
