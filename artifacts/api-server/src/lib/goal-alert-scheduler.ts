@@ -1,6 +1,7 @@
 import {
   db,
   goalAlertSettingsTable,
+  goalAlertLogsTable,
   dashboardGoalsTable,
   financialEntriesTable,
   salesOrdersTable,
@@ -215,13 +216,31 @@ async function checkGoalAlerts(): Promise<void> {
   if (recipients.length === 0) return;
 
   const monthLabel = `${MONTH_LABELS[m - 1]}/${y}`;
+  const recipientsStr = recipients.join(", ");
 
-  await sendGoalAlertEmail(recipients, monthLabel, alerts);
+  let sendError: string | null = null;
+  try {
+    await sendGoalAlertEmail(recipients, monthLabel, alerts);
+  } catch (err: unknown) {
+    sendError = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, "Goal alert email failed");
+  }
 
-  await db
-    .update(goalAlertSettingsTable)
-    .set({ lastSentDate: todayStr, updatedAt: new Date() })
-    .where(eq(goalAlertSettingsTable.id, settings.id));
+  await db.insert(goalAlertLogsTable).values({
+    monthLabel,
+    recipients: recipientsStr,
+    alertCount: alerts.length,
+    alerts,
+    status: sendError ? "error" : "success",
+    errorMessage: sendError,
+  });
+
+  if (!sendError) {
+    await db
+      .update(goalAlertSettingsTable)
+      .set({ lastSentDate: todayStr, updatedAt: new Date() })
+      .where(eq(goalAlertSettingsTable.id, settings.id));
+  }
 }
 
 let alertInterval: ReturnType<typeof setInterval> | null = null;

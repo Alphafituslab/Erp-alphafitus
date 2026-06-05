@@ -15,6 +15,7 @@ import {
   reportSchedulesTable,
   reportSendLogsTable,
   goalAlertSettingsTable,
+  goalAlertLogsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
 import { sendEmail, isSmtpConfigured } from "../lib/mailer";
@@ -1229,6 +1230,22 @@ router.put("/relatorios/goal-alerts/settings", async (req: Request, res: Respons
     lastSentDate: updated.lastSentDate,
     updatedAt: updated.updatedAt,
   });
+});
+
+// ─── Goal Alert Logs ──────────────────────────────────────────────────────────
+
+router.get("/relatorios/goal-alerts/logs", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 200);
+
+  const logs = await db
+    .select()
+    .from(goalAlertLogsTable)
+    .orderBy(desc(goalAlertLogsTable.sentAt))
+    .limit(limit);
+
+  res.json(logs);
 });
 
 // ─── Preview PDF (GET, inline) ────────────────────────────────────────────────

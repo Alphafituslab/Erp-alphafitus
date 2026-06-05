@@ -4964,6 +4964,39 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/goal-alerts/logs:
+    get:
+      operationId: listGoalAlertLogs
+      tags: [relatorios]
+      summary: List goal alert history logs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of goal alert log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalAlertLog"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /relatorios/goal-alerts/settings:
     get:
       operationId: getGoalAlertSettings
@@ -11397,6 +11430,62 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    GoalAlertLogEntry:
+      type: object
+      required:
+        - kpi
+        - label
+        - progress
+        - daysRemaining
+        - actual
+        - goal
+      properties:
+        kpi:
+          type: string
+        label:
+          type: string
+        progress:
+          type: number
+        daysRemaining:
+          type: integer
+        actual:
+          type: string
+        goal:
+          type: string
+
+    GoalAlertLog:
+      type: object
+      required:
+        - id
+        - monthLabel
+        - recipients
+        - alertCount
+        - alerts
+        - status
+        - sentAt
+      properties:
+        id:
+          type: integer
+        monthLabel:
+          type: string
+        recipients:
+          type: string
+        alertCount:
+          type: integer
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoalAlertLogEntry"
+        status:
+          type: string
+          enum: [success, error]
+        errorMessage:
+          type: string
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
 
     GoalAlertSettings:
       type: object

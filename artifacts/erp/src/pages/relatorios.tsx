@@ -85,6 +85,7 @@ import {
   useGetGoalsHistory,
   useGetGoalAlertSettings,
   useUpdateGoalAlertSettings,
+  useListGoalAlertLogs,
 } from "@workspace/api-client-react";
 import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -1812,6 +1813,72 @@ function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
+// ── Goal Alert History Section ────────────────────────────────────────────────
+
+function GoalAlertHistory() {
+  const { data: logs, isLoading } = useListGoalAlertLogs({ limit: 30 });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Histórico de Alertas de Meta</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (logs?.length ?? 0) === 0 ? (
+          <p className="text-center py-8 text-sm text-muted-foreground">Nenhum alerta registrado ainda</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data/Hora</TableHead>
+                <TableHead>Mês de Referência</TableHead>
+                <TableHead>Metas em Risco</TableHead>
+                <TableHead>Destinatários</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs?.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    {new Date(log.sentAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{log.monthLabel}</TableCell>
+                  <TableCell className="text-sm">
+                    <div className="flex flex-wrap gap-1">
+                      {log.alerts.map((a) => (
+                        <span
+                          key={a.kpi}
+                          className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800"
+                          title={`${a.actual} de ${a.goal} (${a.progress.toFixed(1)}%)`}
+                        >
+                          {a.label}
+                        </span>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">{log.recipients}</TableCell>
+                  <TableCell>
+                    {log.status === "success" ? (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Enviado</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700" title={log.errorMessage ?? ""}>Erro</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Goals History Section ─────────────────────────────────────────────────────
 
 type GoalsMetric = "revenue" | "expense" | "salesOrders";
@@ -2527,6 +2594,7 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
 
           {/* Goal alert settings */}
           <GoalAlertSettingsSection isAdmin={isAdmin} />
+          <GoalAlertHistory />
 
           {/* Schedule management + send history */}
           <ScheduleSection isAdmin={isAdmin} />

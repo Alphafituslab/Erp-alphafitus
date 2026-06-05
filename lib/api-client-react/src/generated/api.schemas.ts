@@ -2371,6 +2371,34 @@ export interface DashboardGoal {
   updatedAt?: string | null;
 }
 
+export interface GoalAlertLogEntry {
+  kpi: string;
+  label: string;
+  progress: number;
+  daysRemaining: number;
+  actual: string;
+  goal: string;
+}
+
+export type GoalAlertLogStatus = typeof GoalAlertLogStatus[keyof typeof GoalAlertLogStatus];
+
+
+export const GoalAlertLogStatus = {
+  success: 'success',
+  error: 'error',
+} as const;
+
+export interface GoalAlertLog {
+  id: number;
+  monthLabel: string;
+  recipients: string;
+  alertCount: number;
+  alerts: GoalAlertLogEntry[];
+  status: GoalAlertLogStatus;
+  errorMessage?: string | null;
+  sentAt: string;
+}
+
 export interface GoalAlertSettings {
   id: number;
   enabled: boolean;
@@ -3881,6 +3909,10 @@ export type GetDashboardGoalsParams = {
  * Filter by segment. Empty or omitted returns global (company-wide) goal.
  */
 segment?: string;
+};
+
+export type ListGoalAlertLogsParams = {
+limit?: number;
 };
 
 export type ListReportSendLogsParams = {

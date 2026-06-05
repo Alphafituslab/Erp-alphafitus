@@ -4397,6 +4397,35 @@ export const DeleteReportScheduleResponse = zod.object({
 
 
 /**
+ * @summary List goal alert history logs
+ */
+export const listGoalAlertLogsQueryLimitDefault = 50;
+
+export const ListGoalAlertLogsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listGoalAlertLogsQueryLimitDefault)
+})
+
+export const ListGoalAlertLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "monthLabel": zod.string(),
+  "recipients": zod.string(),
+  "alertCount": zod.number(),
+  "alerts": zod.array(zod.object({
+  "kpi": zod.string(),
+  "label": zod.string(),
+  "progress": zod.number(),
+  "daysRemaining": zod.number(),
+  "actual": zod.string(),
+  "goal": zod.string()
+})),
+  "status": zod.enum(['success', 'error']),
+  "errorMessage": zod.string().nullish(),
+  "sentAt": zod.coerce.date()
+})
+export const ListGoalAlertLogsResponse = zod.array(ListGoalAlertLogsResponseItem)
+
+
+/**
  * @summary Get goal alert notification settings
  */
 export const getGoalAlertSettingsResponseNotifyHourMin = 0;

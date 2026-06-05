@@ -93,6 +93,7 @@ import type {
   GetTrainingMatrixParams,
   GetVendasDashboardParams,
   GetYearGoalsParams,
+  GoalAlertLog,
   GoalAlertSettings,
   GoalAlertSettingsInput,
   GoalsHistoryItem,
@@ -104,6 +105,7 @@ import type {
   ListFinancialEntriesParams,
   ListFiscalDocumentsParams,
   ListFormulasParams,
+  ListGoalAlertLogsParams,
   ListProductLotsParams,
   ListProductionOrdersParams,
   ListProductionShiftsParams,
@@ -11405,6 +11407,90 @@ export const useDeleteReportSchedule = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteReportScheduleMutationOptions(options));
     }
+
+export const getListGoalAlertLogsUrl = (params?: ListGoalAlertLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/relatorios/goal-alerts/logs?${stringifiedParams}` : `/api/relatorios/goal-alerts/logs`
+}
+
+/**
+ * @summary List goal alert history logs
+ */
+export const listGoalAlertLogs = async (params?: ListGoalAlertLogsParams, options?: RequestInit): Promise<GoalAlertLog[]> => {
+
+  return customFetch<GoalAlertLog[]>(getListGoalAlertLogsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGoalAlertLogsQueryKey = (params?: ListGoalAlertLogsParams,) => {
+    return [
+    `/api/relatorios/goal-alerts/logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListGoalAlertLogsQueryOptions = <TData = Awaited<ReturnType<typeof listGoalAlertLogs>>, TError = ErrorType<ErrorResponse>>(params?: ListGoalAlertLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGoalAlertLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGoalAlertLogsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGoalAlertLogs>>> = ({ signal }) => listGoalAlertLogs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGoalAlertLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGoalAlertLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listGoalAlertLogs>>>
+export type ListGoalAlertLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List goal alert history logs
+ */
+
+export function useListGoalAlertLogs<TData = Awaited<ReturnType<typeof listGoalAlertLogs>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListGoalAlertLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGoalAlertLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGoalAlertLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetGoalAlertSettingsUrl = () => {
 

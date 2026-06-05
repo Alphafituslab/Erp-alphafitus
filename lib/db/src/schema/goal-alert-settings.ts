@@ -1,4 +1,4 @@
-import { pgTable, serial, boolean, integer, timestamp, text } from "drizzle-orm/pg-core";
+import { pgTable, serial, boolean, integer, timestamp, text, json } from "drizzle-orm/pg-core";
 
 export const goalAlertSettingsTable = pgTable("goal_alert_settings", {
   id: serial("id").primaryKey(),
@@ -18,3 +18,26 @@ export const goalAlertSettingsTable = pgTable("goal_alert_settings", {
 
 export type GoalAlertSettings = typeof goalAlertSettingsTable.$inferSelect;
 export type InsertGoalAlertSettings = typeof goalAlertSettingsTable.$inferInsert;
+
+export type GoalAlertLogEntry = {
+  kpi: string;
+  label: string;
+  progress: number;
+  daysRemaining: number;
+  actual: string;
+  goal: string;
+};
+
+export const goalAlertLogsTable = pgTable("goal_alert_logs", {
+  id: serial("id").primaryKey(),
+  monthLabel: text("month_label").notNull(),
+  recipients: text("recipients").notNull(),
+  alertCount: integer("alert_count").notNull(),
+  alerts: json("alerts").$type<GoalAlertLogEntry[]>().notNull(),
+  status: text("status", { enum: ["success", "error"] }).notNull(),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type GoalAlertLog = typeof goalAlertLogsTable.$inferSelect;
+export type InsertGoalAlertLog = typeof goalAlertLogsTable.$inferInsert;
