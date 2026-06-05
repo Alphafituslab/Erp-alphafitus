@@ -15,9 +15,11 @@ import apsRouter from "./aps";
 import rastreabilidadeRouter from "./rastreabilidade";
 import usuariosRouter from "./usuarios";
 import adminRouter from "./admin";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
+router.use(settingsRouter);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(usuariosRouter);

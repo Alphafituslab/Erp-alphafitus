@@ -2417,6 +2417,18 @@ export interface GoalAlertSettingsInput {
   daysRemainingThreshold?: number;
 }
 
+export interface CompanySettings {
+  id: number;
+  companyName: string;
+  logoBase64?: string | null;
+  updatedAt: string;
+}
+
+export interface CompanySettingsInput {
+  companyName?: string;
+  logoBase64?: string | null;
+}
+
 export interface GoalsHistoryItem {
   year: number;
   month: number;

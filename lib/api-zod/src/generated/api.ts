@@ -9,6 +9,33 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get company settings (logo and name for PDF header)
+ */
+export const GetCompanySettingsResponse = zod.object({
+  "id": zod.number(),
+  "companyName": zod.string(),
+  "logoBase64": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update company settings (admin only)
+ */
+export const UpdateCompanySettingsBody = zod.object({
+  "companyName": zod.string().optional(),
+  "logoBase64": zod.string().nullish()
+})
+
+export const UpdateCompanySettingsResponse = zod.object({
+  "id": zod.number(),
+  "companyName": zod.string(),
+  "logoBase64": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

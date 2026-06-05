@@ -39,6 +39,54 @@ tags:
   - name: admin
     description: Administration — database backup and system maintenance (admin-only)
 paths:
+  /settings/company:
+    get:
+      operationId: getCompanySettings
+      tags: [settings]
+      summary: Get company settings (logo and name for PDF header)
+      responses:
+        "200":
+          description: Company settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanySettings"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateCompanySettings
+      tags: [settings]
+      summary: Update company settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanySettingsInput"
+      responses:
+        "200":
+          description: Updated company settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanySettings"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -11297,6 +11345,33 @@ components:
           type: integer
           minimum: 1
           maximum: 28
+
+    CompanySettings:
+      type: object
+      required:
+        - id
+        - companyName
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        logoBase64:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+
+    CompanySettingsInput:
+      type: object
+      properties:
+        companyName:
+          type: string
+        logoBase64:
+          type: string
+          nullable: true
 
     GoalsHistoryItem:
       type: object

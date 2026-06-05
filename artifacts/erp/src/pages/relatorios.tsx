@@ -85,12 +85,14 @@ import {
   useGetGoalsHistory,
   useGetGoalAlertSettings,
   useUpdateGoalAlertSettings,
+  useGetCompanySettings,
+  useUpdateCompanySettings,
 } from "@workspace/api-client-react";
 import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-// ── PDF settings (persisted in localStorage) ──────────────────────────────────
+// ── PDF settings ──────────────────────────────────────────────────────────────
 
 const PDF_SETTINGS_KEY = "erp_pdf_settings";
 
@@ -100,15 +102,15 @@ interface PdfSettings {
   includeHeader: boolean;
 }
 
-function loadPdfSettings(): PdfSettings {
+function loadLocalPdfSettings(): Partial<PdfSettings> {
   try {
     const raw = localStorage.getItem(PDF_SETTINGS_KEY);
-    if (raw) return JSON.parse(raw) as PdfSettings;
+    if (raw) return JSON.parse(raw) as Partial<PdfSettings>;
   } catch {}
-  return { companyName: "NEXUS ERP", logoBase64: null, includeHeader: true };
+  return {};
 }
 
-function savePdfSettings(s: PdfSettings) {
+function saveLocalPdfSettings(s: Partial<PdfSettings>) {
   try {
     localStorage.setItem(PDF_SETTINGS_KEY, JSON.stringify(s));
   } catch {}
@@ -681,10 +683,31 @@ function PdfExportDialog({
   onExport: (settings: PdfSettings) => Promise<void>;
   disabled: boolean;
 }) {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [settings, setSettings] = useState<PdfSettings>(loadPdfSettings);
   const [exporting, setExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: serverSettings, isLoading: loadingServer } = useGetCompanySettings();
+  const updateCompanyMutation = useUpdateCompanySettings();
+
+  const localFallback = loadLocalPdfSettings();
+
+  const [settings, setSettings] = useState<PdfSettings>({
+    companyName: localFallback.companyName ?? "NEXUS ERP",
+    logoBase64: localFallback.logoBase64 ?? null,
+    includeHeader: localFallback.includeHeader ?? true,
+  });
+
+  useEffect(() => {
+    if (serverSettings) {
+      setSettings((prev) => ({
+        ...prev,
+        companyName: serverSettings.companyName ?? prev.companyName,
+        logoBase64: serverSettings.logoBase64 ?? prev.logoBase64,
+      }));
+    }
+  }, [serverSettings]);
 
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -700,7 +723,15 @@ function PdfExportDialog({
   }
 
   async function handleExport() {
-    savePdfSettings(settings);
+    saveLocalPdfSettings({ includeHeader: settings.includeHeader });
+    updateCompanyMutation.mutate(
+      { data: { companyName: settings.companyName, logoBase64: settings.logoBase64 } },
+      {
+        onError: () => {
+          toast({ title: "Aviso", description: "Não foi possível salvar as configurações no servidor.", variant: "destructive" });
+        },
+      }
+    );
     setExporting(true);
     try {
       await onExport(settings);
@@ -726,6 +757,11 @@ function PdfExportDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {loadingServer ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
         <div className="space-y-4 mt-2">
           <div className="flex items-center gap-3 rounded-md border p-3">
             <Checkbox
@@ -798,7 +834,7 @@ function PdfExportDialog({
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  PNG ou JPG recomendado. A logo é salva no navegador.
+                  PNG ou JPG recomendado. Configurações compartilhadas com todos os usuários.
                 </p>
               </div>
             </>
@@ -828,6 +864,7 @@ function PdfExportDialog({
             </Button>
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

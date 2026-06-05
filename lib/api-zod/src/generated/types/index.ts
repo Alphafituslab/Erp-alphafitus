@@ -61,6 +61,8 @@ export * from './cashflowMonth';
 export * from './client';
 export * from './clientInput';
 export * from './clientPage';
+export * from './companySettings';
+export * from './companySettingsInput';
 export * from './completeAnalysisInput';
 export * from './completeAnalysisInputResult';
 export * from './comprasDashboard';
