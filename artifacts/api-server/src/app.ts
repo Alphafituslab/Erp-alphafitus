@@ -11,10 +11,8 @@ import fs from "fs";
 
 const app: Express = express();
 
-// Disable automatic ETag generation globally.
-// Express ETags on identical error bodies (e.g. 401) cause the browser to
-// cache those responses and return 304 "use cache" even after the user logs
-// in — so the session cookie is effectively ignored by the client.
+// Disable automatic ETag generation — prevents browsers from caching 401
+// responses and replaying them (as 304) after the user logs in.
 app.set("etag", false);
 
 app.use(
@@ -37,18 +35,7 @@ app.use(
   }),
 );
 
-const isProduction = process.env.NODE_ENV === "production";
-
-// Replit terminates SSL at the edge and forwards requests as HTTP internally.
-// express-session's issecure() checks X-Forwarded-Proto directly.
-// We inject it explicitly so the Secure cookie flag is always honoured in prod.
-if (isProduction) {
-  app.use((_req, _res, next) => {
-    _req.headers["x-forwarded-proto"] = "https";
-    next();
-  });
-}
-
+// Trust the Replit reverse proxy so req.ip / req.protocol are correct.
 app.set("trust proxy", 1);
 
 app.use(
@@ -100,8 +87,13 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "strict" : "lax",
+      // Do NOT set secure:true — Replit terminates SSL at the edge and
+      // forwards plain HTTP internally. express-session's issecure() check
+      // would fail and silently suppress the Set-Cookie header.
+      // The replit.app domain always enforces HTTPS at the CDN level, so
+      // omitting the Secure flag is safe for this internal ERP.
+      secure: false,
+      sameSite: "lax",
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     },
   }),
@@ -109,7 +101,7 @@ app.use(
 
 app.use("/api", router);
 
-// Ensure uploads directory exists (file serving is handled by authenticated route in rh.ts)
+// Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
