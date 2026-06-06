@@ -20,6 +20,7 @@ import ProducaoPage from "@/pages/producao";
 import ApsPage from "@/pages/aps";
 import RastreabilidadePage from "@/pages/rastreabilidade";
 import UsuariosPage from "@/pages/usuarios";
+import ConfiguracoesPage from "@/pages/configuracoes";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +126,12 @@ function Router() {
       <Route path="/usuarios">
         <ProtectedRoute>
           <UsuariosPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/configuracoes">
+        <ProtectedRoute>
+          <ConfiguracoesPage />
         </ProtectedRoute>
       </Route>
 

@@ -31,6 +31,7 @@ import {
   CalendarClock,
   GitBranch,
   UserCog,
+  Settings,
   ChevronRight,
   Bell,
   AlertTriangle,
@@ -122,6 +123,7 @@ const NAV_GROUPS: NavGroup[] = [
     roles: ["admin"],
     items: [
       { href: "/usuarios", label: "Usuários", icon: UserCog, iconColor: "text-rose-400", roles: ["admin"] },
+      { href: "/configuracoes", label: "Configurações", icon: Settings, iconColor: "text-slate-400", roles: ["admin"] },
     ],
   },
 ];
