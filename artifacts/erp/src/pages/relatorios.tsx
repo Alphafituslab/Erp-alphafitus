@@ -1404,6 +1404,39 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
     return `Todo dia ${s.dayOfMonth ?? 1} às ${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`;
   }
 
+  function getNextSendTime(s: ReportSchedule): string {
+    if (!s.active) return "—";
+    const now = new Date();
+    const next = new Date(now);
+    const hour = s.hour ?? 8;
+    const minute = s.minute ?? 0;
+    if (s.frequency === "weekly") {
+      const targetDay = s.dayOfWeek ?? 1;
+      const currentDay = now.getDay();
+      let daysUntil = targetDay - currentDay;
+      const alreadyPastToday =
+        daysUntil === 0 &&
+        (now.getHours() > hour || (now.getHours() === hour && now.getMinutes() >= minute));
+      if (daysUntil < 0 || alreadyPastToday) daysUntil += 7;
+      next.setDate(now.getDate() + daysUntil);
+    } else {
+      const targetDay = s.dayOfMonth ?? 1;
+      next.setDate(targetDay);
+      next.setHours(hour, minute, 0, 0);
+      if (next <= now) {
+        next.setMonth(next.getMonth() + 1);
+        next.setDate(targetDay);
+      }
+    }
+    next.setHours(hour, minute, 0, 0);
+    const dayAbbr = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][next.getDay()];
+    const dd = String(next.getDate()).padStart(2, "0");
+    const mm = String(next.getMonth() + 1).padStart(2, "0");
+    const hh = String(hour).padStart(2, "0");
+    const min = String(minute).padStart(2, "0");
+    return `${dayAbbr} ${dd}/${mm} às ${hh}:${min}`;
+  }
+
   const periodLabel = (p: string) => PERIOD_OPTIONS.find((o) => o.value === p)?.label ?? p;
 
   return (
@@ -1451,6 +1484,7 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Recorrência</TableHead>
+                  <TableHead>Próximo envio</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Módulos</TableHead>
                   <TableHead>Destinatários</TableHead>
@@ -1467,6 +1501,7 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
                   return (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm font-medium">{describeSchedule(s)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{getNextSendTime(s)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{periodLabel(s.period)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[160px]">
                       <span title={modLabels} className="block truncate">{modLabels}</span>
