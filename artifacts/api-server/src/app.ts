@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import pg from "pg";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import path from "path";
@@ -46,8 +48,34 @@ if (!sessionSecret) {
   throw new Error("SESSION_SECRET environment variable is required");
 }
 
+const pgPool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+});
+
+// Create session table manually — avoids connect-pg-simple's table.sql
+// file lookup which breaks when bundled with esbuild.
+pgPool
+  .query(`
+    CREATE TABLE IF NOT EXISTS "user_sessions" (
+      "sid"    varchar      NOT NULL COLLATE "default",
+      "sess"   json         NOT NULL,
+      "expire" timestamp(6) NOT NULL,
+      CONSTRAINT "user_sessions_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_user_sessions_expire" ON "user_sessions" ("expire");
+  `)
+  .catch((err) => logger.error({ err }, "Failed to create user_sessions table"));
+
+const PgSession = connectPgSimple(session);
+
 app.use(
   session({
+    store: new PgSession({
+      pool: pgPool,
+      tableName: "user_sessions",
+      createTableIfMissing: false,
+    }),
     name: "erp.sid",
     secret: sessionSecret,
     resave: false,
