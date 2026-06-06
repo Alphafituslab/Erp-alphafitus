@@ -861,7 +861,13 @@ function SendEmailDialog({
               </span>
               <div className="flex items-center gap-2">
                 <a
-                  href={`/api/relatorios/preview?period=${period}`}
+                  href={(() => {
+                    const saved = loadLocalPdfSettings();
+                    const params = new URLSearchParams({ period });
+                    if (saved.companyName) params.set("companyName", saved.companyName);
+                    if (saved.includeHeader !== undefined) params.set("includeHeader", String(saved.includeHeader));
+                    return `/api/relatorios/preview?${params.toString()}`;
+                  })()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary underline-offset-2 hover:underline flex items-center gap-1"
@@ -2723,7 +2729,13 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
             disabled={isLoading}
           />
           <a
-            href={`/api/relatorios/preview?period=${period}`}
+            href={(() => {
+              const saved = loadLocalPdfSettings();
+              const params = new URLSearchParams({ period });
+              if (saved.companyName) params.set("companyName", saved.companyName);
+              if (saved.includeHeader !== undefined) params.set("includeHeader", String(saved.includeHeader));
+              return `/api/relatorios/preview?${params.toString()}`;
+            })()}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -174,7 +174,7 @@ export function PdfExportDialog({
   }
 
   async function handleExport() {
-    saveLocalPdfSettings({ includeHeader: settings.includeHeader });
+    saveLocalPdfSettings({ includeHeader: settings.includeHeader, companyName: settings.companyName });
     updateCompanyMutation.mutate(
       { data: { companyName: settings.companyName, logoBase64: settings.logoBase64 } },
       {
