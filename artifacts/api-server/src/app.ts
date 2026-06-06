@@ -11,6 +11,12 @@ import fs from "fs";
 
 const app: Express = express();
 
+// Disable automatic ETag generation globally.
+// Express ETags on identical error bodies (e.g. 401) cause the browser to
+// cache those responses and return 304 "use cache" even after the user logs
+// in — so the session cookie is effectively ignored by the client.
+app.set("etag", false);
+
 app.use(
   pinoHttp({
     logger,
