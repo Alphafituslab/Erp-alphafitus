@@ -1,1 +1,1 @@
-- [Module permissions system](module-permissions.md) — granular per-module access (canAccess/canEdit) for employees; admin/manager always have full access (null modules = all).
+- [Comando reiniciar melhorias](retomar-melhorias.md) — quando o usuário disser "reiniciar as melhorias", retomar implementação de novas features a partir do ponto de parada.
