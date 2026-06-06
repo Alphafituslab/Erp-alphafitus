@@ -20,6 +20,16 @@ import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
+// Disable caching for all API responses.
+// Without this, Express's default ETags cause the browser to cache 401
+// responses and return them (via 304) even after the user logs in.
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
+
 router.use(settingsRouter);
 router.use(healthRouter);
 router.use(authRouter);
