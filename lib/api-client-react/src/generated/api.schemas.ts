@@ -2819,12 +2819,25 @@ export const RelatoriSendEmailInputPeriod = {
   this_year: 'this_year',
 } as const;
 
+export type RelatoriSendEmailInputModulesItem = typeof RelatoriSendEmailInputModulesItem[keyof typeof RelatoriSendEmailInputModulesItem];
+
+
+export const RelatoriSendEmailInputModulesItem = {
+  financeiro: 'financeiro',
+  vendas: 'vendas',
+  estoque: 'estoque',
+  compras: 'compras',
+  rh: 'rh',
+  projetos: 'projetos',
+} as const;
+
 export interface RelatoriSendEmailInput {
   /** @minItems 1 */
   recipients: string[];
   subject: string;
   message?: string;
   period: RelatoriSendEmailInputPeriod;
+  modules?: RelatoriSendEmailInputModulesItem[] | null;
 }
 
 export interface RelatoriSendEmailResult {

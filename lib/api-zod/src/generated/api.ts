@@ -4472,7 +4472,8 @@ export const SendRelatorioEmailBody = zod.object({
   "recipients": zod.array(zod.string().email()).min(1),
   "subject": zod.string(),
   "message": zod.string().optional(),
-  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year'])
+  "period": zod.enum(['this_month', 'last_month', 'this_quarter', 'this_year']),
+  "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish()
 })
 
 export const SendRelatorioEmailResponse = zod.object({

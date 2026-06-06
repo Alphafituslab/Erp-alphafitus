@@ -897,11 +897,12 @@ router.put("/relatorios/goals/:year/:month", async (req: Request, res: Response)
 router.post("/relatorios/send-email", async (req: Request, res: Response): Promise<void> => {
   if (!await requireManagerAsync(req, res)) return;
 
-  const { recipients, subject, message, period } = req.body as {
+  const { recipients, subject, message, period, modules } = req.body as {
     recipients?: string[];
     subject?: string;
     message?: string;
     period?: Period;
+    modules?: string[];
   };
 
   if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
@@ -929,7 +930,12 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
   const recipientsStr = recipients.join(", ");
 
   try {
-    const pdfBuffer = await buildReportPdf(safePeriod);
+    const VALID_MODULES = ["financeiro", "vendas", "estoque", "compras", "rh", "projetos"] as const;
+    const safeModules = Array.isArray(modules) && modules.length > 0
+      ? modules.filter((m): m is typeof VALID_MODULES[number] => (VALID_MODULES as readonly string[]).includes(m))
+      : undefined;
+
+    const pdfBuffer = await buildReportPdf(safePeriod, safeModules && safeModules.length > 0 ? { modules: safeModules } : {});
     const filename = `relatorio-executivo-${periodLabel.toLowerCase().replace(/\//g, "-")}.pdf`;
 
     await sendEmail({

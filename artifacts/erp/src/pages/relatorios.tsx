@@ -761,6 +761,7 @@ function SendEmailDialog({
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [showSections, setShowSections] = useState(false);
+  const [selectedModules, setSelectedModules] = useState<string[]>([...ALL_MODULE_VALUES]);
   const { toast } = useToast();
 
   const { mutate: sendEmail, isPending: isSending } = useSendRelatorioEmail({
@@ -787,6 +788,7 @@ function SendEmailDialog({
     setRecipients([]);
     setSubject("");
     setMessage("");
+    setSelectedModules([...ALL_MODULE_VALUES]);
   }
 
   function handleOpen(isOpen: boolean) {
@@ -797,7 +799,14 @@ function SendEmailDialog({
       setRecipients([]);
       setMessage("");
       setShowSections(false);
+      setSelectedModules([...ALL_MODULE_VALUES]);
     }
+  }
+
+  function toggleModule(value: string) {
+    setSelectedModules((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
   }
 
   function addRecipient() {
@@ -832,7 +841,10 @@ function SendEmailDialog({
       toast({ title: "Adicione ao menos um destinatário", variant: "destructive" });
       return;
     }
-    sendEmail({ data: { recipients, subject, message: message || undefined, period } });
+    const modulesToSend = selectedModules.length > 0 && selectedModules.length < ALL_MODULE_VALUES.length
+      ? selectedModules as import("@workspace/api-client-react").RelatoriSendEmailInputModulesItem[]
+      : undefined;
+    sendEmail({ data: { recipients, subject, message: message || undefined, period, modules: modulesToSend } });
   }
 
   const isLoading = isSending;
@@ -960,6 +972,31 @@ function SendEmailDialog({
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Módulos incluídos no relatório</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {MODULE_OPTIONS.map((mod) => (
+                <div key={mod.value} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`email-mod-${mod.value}`}
+                    checked={selectedModules.includes(mod.value)}
+                    onCheckedChange={() => toggleModule(mod.value)}
+                  />
+                  <Label htmlFor={`email-mod-${mod.value}`} className="cursor-pointer font-normal">
+                    {mod.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {selectedModules.length === ALL_MODULE_VALUES.length
+                ? "Todos os módulos serão incluídos."
+                : selectedModules.length === 0
+                  ? "Nenhum módulo selecionado — todos serão incluídos."
+                  : `${selectedModules.length} de ${ALL_MODULE_VALUES.length} módulos selecionados.`}
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

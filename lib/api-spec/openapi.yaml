@@ -12959,6 +12959,12 @@ components:
         period:
           type: string
           enum: [this_month, last_month, this_quarter, this_year]
+        modules:
+          type: array
+          nullable: true
+          items:
+            type: string
+            enum: [financeiro, vendas, estoque, compras, rh, projetos]
 
     RelatoriSendEmailResult:
       type: object
