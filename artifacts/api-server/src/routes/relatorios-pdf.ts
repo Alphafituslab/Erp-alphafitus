@@ -170,7 +170,7 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
   const expPrev = parseFloat(expensePrevRow[0]?.total ?? "0");
   const net = parseFloat(netBalance);
 
-  const trend12Start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const trend12Start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
   const [revTrend, expTrend] = await Promise.all([
     db.select({
       year: sql<number>`EXTRACT(YEAR FROM ${financialEntriesTable.paidAt})::int`,
@@ -191,8 +191,8 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
   const revMap = new Map(revTrend.map((r) => [`${r.year}-${r.month}`, parseFloat(r.total)]));
   const expMap = new Map(expTrend.map((r) => [`${r.year}-${r.month}`, parseFloat(r.total)]));
 
-  const monthlyTrend = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+  const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
     const y = d.getFullYear();
     const m = d.getMonth() + 1;
     const key = `${y}-${m}`;
@@ -370,17 +370,32 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
       return H;
     }
 
-    // ── Bar chart helper ──────────────────────────────────────────────────────
+    // ── Bar chart helper (with trend line overlay) ────────────────────────────
 
     function drawBarChart(data: Array<{ label: string; revenue: number; expense: number }>, chartY: number) {
-      const CHART_H = 90;
+      const CHART_H = 110;
       const CHART_W = CONTENT_W;
       const barGroupW = CHART_W / data.length;
-      const BAR_W = Math.min(18, barGroupW * 0.35);
+      const BAR_W = Math.min(14, barGroupW * 0.3);
       const maxVal = Math.max(...data.flatMap((d) => [d.revenue, d.expense]), 1);
-      const SCALE = (CHART_H - 20) / maxVal;
+      const PLOT_H = CHART_H - 20;
+      const SCALE = PLOT_H / maxVal;
+      const baseY = chartY + CHART_H - 14;
 
       doc.rect(MARGIN, chartY, CHART_W, CHART_H).fill("#f8fafc").stroke(CLR_BORDER);
+
+      // Draw horizontal grid lines (4 lines)
+      doc.save();
+      doc.rect(MARGIN, chartY, CHART_W, CHART_H).clip();
+      for (let g = 1; g <= 4; g++) {
+        const gy = baseY - (PLOT_H * g) / 4;
+        doc.moveTo(MARGIN + 2, gy).lineTo(MARGIN + CHART_W - 2, gy)
+          .strokeColor(CLR_BORDER).lineWidth(0.4).stroke();
+      }
+      doc.restore();
+
+      // Collect revenue bar top-center x/y points for trend line
+      const trendPoints: Array<{ x: number; y: number }> = [];
 
       data.forEach((d, i) => {
         const groupX = MARGIN + i * barGroupW + barGroupW / 2;
@@ -388,19 +403,110 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
         const revH = Math.max(2, d.revenue * SCALE);
         const expH = Math.max(2, d.expense * SCALE);
 
-        doc.rect(groupX - BAR_W - 1, chartY + CHART_H - 14 - revH, BAR_W, revH).fill(CLR_BLUE_MID);
-        doc.rect(groupX + 1, chartY + CHART_H - 14 - expH, BAR_W, expH).fill(CLR_RED);
+        doc.rect(groupX - BAR_W - 1, baseY - revH, BAR_W, revH).fill(CLR_BLUE_MID);
+        doc.rect(groupX + 1, baseY - expH, BAR_W, expH).fill(CLR_RED);
 
-        doc.fontSize(6.5).font("Helvetica").fillColor(CLR_MUTED)
+        trendPoints.push({ x: groupX - BAR_W / 2 - 1, y: baseY - revH });
+
+        doc.fontSize(6).font("Helvetica").fillColor(CLR_MUTED)
           .text(d.label, groupX - barGroupW / 2, chartY + CHART_H - 12, { width: barGroupW, align: "center" });
       });
 
-      const legendX = MARGIN + CHART_W - 140;
+      // Draw trend line over revenue bars
+      if (trendPoints.length > 1) {
+        doc.save();
+        doc.rect(MARGIN, chartY, CHART_W, CHART_H).clip();
+        doc.moveTo(trendPoints[0].x, trendPoints[0].y);
+        for (let i = 1; i < trendPoints.length; i++) {
+          doc.lineTo(trendPoints[i].x, trendPoints[i].y);
+        }
+        doc.strokeColor("#f59e0b").lineWidth(1.5).stroke();
+
+        // Draw circles at each trend point
+        for (const pt of trendPoints) {
+          doc.circle(pt.x, pt.y, 2.5).fillAndStroke("#f59e0b", CLR_WHITE);
+        }
+        doc.restore();
+      }
+
+      const legendX = MARGIN + CHART_W - 210;
       const legendY = chartY + 6;
       doc.rect(legendX, legendY, 8, 8).fill(CLR_BLUE_MID);
       doc.fontSize(7).font("Helvetica").fillColor(CLR_MUTED).text("Receita", legendX + 11, legendY + 1);
       doc.rect(legendX + 60, legendY, 8, 8).fill(CLR_RED);
       doc.fontSize(7).font("Helvetica").fillColor(CLR_MUTED).text("Despesas", legendX + 71, legendY + 1);
+      // Trend line legend entry
+      doc.moveTo(legendX + 130, legendY + 4).lineTo(legendX + 138, legendY + 4)
+        .strokeColor("#f59e0b").lineWidth(1.5).stroke();
+      doc.circle(legendX + 134, legendY + 4, 2).fill("#f59e0b");
+      doc.fontSize(7).font("Helvetica").fillColor(CLR_MUTED).text("Tendência receita", legendX + 141, legendY + 1);
+
+      return CHART_H + 8;
+    }
+
+    // ── Pie chart helper ──────────────────────────────────────────────────────
+
+    function drawPieChart(
+      data: Array<{ label: string; value: number; color: string }>,
+      chartY: number,
+    ) {
+      const PIE_COLORS = ["#1e40af", "#3b82f6", "#059669", "#d97706", "#7c3aed"];
+      const CHART_H = 110;
+      const cx = MARGIN + 55;
+      const cy = chartY + CHART_H / 2;
+      const R = 45;
+      const total = data.reduce((s, d) => s + d.value, 0);
+
+      doc.rect(MARGIN, chartY, CONTENT_W, CHART_H).fill("#f8fafc").stroke(CLR_BORDER);
+
+      if (total <= 0) {
+        doc.fontSize(8).font("Helvetica").fillColor(CLR_MUTED)
+          .text("Sem dados para exibir", MARGIN + 10, cy - 5, { width: CONTENT_W - 20, align: "center" });
+        return CHART_H + 8;
+      }
+
+      // Draw pie slices
+      let startAngle = -Math.PI / 2;
+      data.forEach((slice, idx) => {
+        const sliceAngle = (slice.value / total) * 2 * Math.PI;
+        const endAngle = startAngle + sliceAngle;
+        const color = PIE_COLORS[idx % PIE_COLORS.length];
+
+        if (sliceAngle < 0.001) { startAngle = endAngle; return; }
+
+        const x1 = cx + R * Math.cos(startAngle);
+        const y1 = cy + R * Math.sin(startAngle);
+        const x2 = cx + R * Math.cos(endAngle);
+        const y2 = cy + R * Math.sin(endAngle);
+        const largeArc = sliceAngle > Math.PI ? 1 : 0;
+
+        doc.save();
+        doc.path(`M ${cx} ${cy} L ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} Z`)
+          .fill(color);
+        doc.restore();
+
+        // Thin white separator
+        doc.moveTo(cx, cy).lineTo(x1, y1).strokeColor(CLR_WHITE).lineWidth(1).stroke();
+
+        startAngle = endAngle;
+      });
+
+      // Legend on the right side
+      const legendStartX = MARGIN + 120;
+      const legendStartY = chartY + 12;
+      const ROW_H = 16;
+
+      data.forEach((slice, idx) => {
+        const lY = legendStartY + idx * ROW_H;
+        const color = PIE_COLORS[idx % PIE_COLORS.length];
+        const pct = total > 0 ? ((slice.value / total) * 100).toFixed(1) : "0.0";
+        doc.rect(legendStartX, lY + 2, 8, 8).fill(color);
+        doc.fontSize(7.5).font("Helvetica-Bold").fillColor(CLR_TEXT)
+          .text(`${pct}%`, legendStartX + 12, lY + 2, { width: 36, align: "right" });
+        doc.fontSize(7.5).font("Helvetica").fillColor(CLR_TEXT)
+          .text(slice.label.length > 28 ? slice.label.slice(0, 26) + "…" : slice.label,
+            legendStartX + 52, lY + 2, { width: CONTENT_W - 120 - 56 });
+      });
 
       return CHART_H + 8;
     }
@@ -468,8 +574,8 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
       y += BOX_H + 14;
 
       // Trend chart
-      sectionTitle("Tendência Financeira — Últimos 6 Meses");
-      checkPageBreak(110);
+      sectionTitle("Tendência Financeira — Últimos 12 Meses");
+      checkPageBreak(130);
       const chartH = drawBarChart(monthlyTrend, y);
       y += chartH + 6;
     }
@@ -573,7 +679,7 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
       y += 6;
     }
 
-    // Top 5 Clients table
+    // Top 5 Clients table + pie chart
     if (inc("vendas") && topClientRows.length > 0) {
       sectionTitle("Top 5 Clientes por Receita no Período");
 
@@ -596,6 +702,17 @@ export async function buildReportPdf(period: Period, options: PdfOptions = {}): 
       });
 
       y += 8;
+
+      // Pie chart — revenue distribution by top 5 clients
+      sectionTitle("Distribuição de Receita por Cliente (Top 5)");
+      checkPageBreak(130);
+      const pieData = topClientRows.map((c) => ({
+        label: c.clientName,
+        value: parseFloat(c.totalRevenue),
+        color: "",
+      }));
+      const pieH = drawPieChart(pieData, y);
+      y += pieH + 6;
     }
 
     // Top 5 Products table
