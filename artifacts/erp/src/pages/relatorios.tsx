@@ -54,6 +54,9 @@ import {
   CheckCircle2,
   FileDown,
   Send,
+  ChevronDown,
+  ChevronRight,
+  XCircle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,6 +86,7 @@ import {
   useUpdateReportSchedule,
   useDeleteReportSchedule,
   useListReportSendLogs,
+  useListScheduleSendLogs,
   useGetGoalsHistory,
   useGetGoalAlertSettings,
   useUpdateGoalAlertSettings,
@@ -1379,12 +1383,68 @@ function ScheduleDialog({
   );
 }
 
+// ── Schedule Logs Expanded Row ─────────────────────────────────────────────────
+
+function ScheduleLogsRow({ scheduleId, colSpan }: { scheduleId: number; colSpan: number }) {
+  const { data: logs, isLoading } = useListScheduleSendLogs(scheduleId, { limit: 10 });
+
+  return (
+    <TableRow className="bg-muted/30 hover:bg-muted/30">
+      <TableCell colSpan={colSpan} className="py-3 px-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Carregando histórico…
+          </div>
+        ) : (logs?.length ?? 0) === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum envio registrado para este agendamento.</p>
+        ) : (
+          <div className="space-y-0">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Últimos {logs!.length} envio(s):</p>
+            <div className="divide-y rounded border overflow-hidden text-xs">
+              {logs!.map((log) => (
+                <div key={log.id} className="flex items-start gap-3 px-3 py-2 bg-background">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {log.status === "success" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-red-600" />
+                    )}
+                    <span className={log.status === "success" ? "text-green-700 font-medium" : "text-red-700 font-medium"}>
+                      {log.status === "success" ? "Sucesso" : "Falha"}
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground shrink-0 whitespace-nowrap">
+                    {new Date(log.sentAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">
+                    {log.triggerType === "scheduled" ? "Automático" : "Manual"}
+                  </span>
+                  <span className="text-muted-foreground truncate max-w-[200px]" title={log.recipients}>
+                    {log.recipients}
+                  </span>
+                  {log.errorMessage && (
+                    <span className="text-red-600 truncate" title={log.errorMessage}>
+                      {log.errorMessage}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 // ── Schedule Management Section ────────────────────────────────────────────────
 
 function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?: string }) {
   const [editTarget, setEditTarget] = useState<ReportSchedule | null | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<ReportSchedule | null>(null);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const { data: schedules, isLoading } = useListReportSchedules();
   const { data: smtpStatus } = useGetSmtpStatus({ query: { queryKey: getGetSmtpStatusQueryKey(), enabled: isAdmin } });
@@ -1531,11 +1591,13 @@ function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?:
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-6"></TableHead>
                   <TableHead>Recorrência</TableHead>
                   <TableHead>Próximo envio</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Módulos</TableHead>
                   <TableHead>Destinatários</TableHead>
+                  <TableHead>Último envio</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
@@ -1546,8 +1608,21 @@ function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?:
                   const modLabels = (mods && mods.length > 0 && mods.length < ALL_MODULE_VALUES.length)
                     ? mods.map((v) => MODULE_OPTIONS.find((m) => m.value === v)?.label ?? v).join(", ")
                     : "Todos";
+                  const isExpanded = expandedId === s.id;
+                  const lastSend = (s as typeof s & { lastSend?: { status: string; sentAt: string; errorMessage?: string | null } | null }).lastSend;
+                  const colSpan = isAdmin ? 9 : 8;
                   return (
-                  <TableRow key={s.id}>
+                  <>
+                  <TableRow
+                    key={s.id}
+                    className="cursor-pointer hover:bg-muted/40 select-none"
+                    onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                  >
+                    <TableCell className="pr-0 text-muted-foreground">
+                      {isExpanded
+                        ? <ChevronDown className="h-4 w-4" />
+                        : <ChevronRight className="h-4 w-4" />}
+                    </TableCell>
                     <TableCell className="text-sm font-medium">{describeSchedule(s)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{getNextSendTime(s)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{periodLabel(s.period)}</TableCell>
@@ -1556,12 +1631,38 @@ function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?:
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">{s.recipients}</TableCell>
                     <TableCell>
+                      {lastSend ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1">
+                            {lastSend.status === "success" ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                            ) : (
+                              <XCircle className="h-3.5 w-3.5 text-red-600 shrink-0" />
+                            )}
+                            <span className={`text-xs font-medium ${lastSend.status === "success" ? "text-green-700" : "text-red-700"}`}>
+                              {lastSend.status === "success" ? "Sucesso" : "Falha"}
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(lastSend.sentAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                          </span>
+                          {lastSend.errorMessage && (
+                            <span className="text-xs text-red-500 max-w-[160px] truncate" title={lastSend.errorMessage}>
+                              {lastSend.errorMessage}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                         {s.active ? "Ativo" : "Inativo"}
                       </span>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <Dialog open={editTarget?.id === s.id} onOpenChange={(o) => { if (!o) setEditTarget(undefined); }}>
                             <DialogTrigger asChild>
@@ -1583,6 +1684,10 @@ function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?:
                       </TableCell>
                     )}
                   </TableRow>
+                  {isExpanded && (
+                    <ScheduleLogsRow key={`logs-${s.id}`} scheduleId={s.id} colSpan={colSpan} />
+                  )}
+                  </>
                   );
                 })}
               </TableBody>

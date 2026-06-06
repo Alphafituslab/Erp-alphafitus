@@ -2460,6 +2460,20 @@ export interface RelatorioTopProduct {
   netQuantity: number;
 }
 
+export type ReportScheduleLastSendStatus = typeof ReportScheduleLastSendStatus[keyof typeof ReportScheduleLastSendStatus];
+
+
+export const ReportScheduleLastSendStatus = {
+  success: 'success',
+  error: 'error',
+} as const;
+
+export interface ReportScheduleLastSend {
+  status: ReportScheduleLastSendStatus;
+  sentAt: string;
+  errorMessage?: string | null;
+}
+
 export type ReportScheduleFrequency = typeof ReportScheduleFrequency[keyof typeof ReportScheduleFrequency];
 
 
@@ -2519,6 +2533,7 @@ export interface ReportSchedule {
   message?: string | null;
   active: boolean;
   modules?: ReportScheduleModulesItem[] | null;
+  lastSend?: ReportScheduleLastSend | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -4239,6 +4254,10 @@ export type GetDashboardGoalsParams = {
  * Filter by segment. Empty or omitted returns global (company-wide) goal.
  */
 segment?: string;
+};
+
+export type ListScheduleSendLogsParams = {
+limit?: number;
 };
 
 export type ListGoalAlertLogsParams = {

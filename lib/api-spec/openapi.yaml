@@ -5141,6 +5141,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /relatorios/schedules/{id}/send-logs:
+    get:
+      operationId: listScheduleSendLogs
+      tags: [relatorios]
+      summary: List send logs for a specific schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of send log entries for this schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportSendLog"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /relatorios/schedules/{id}:
     put:
       operationId: updateReportSchedule
@@ -12323,6 +12361,22 @@ components:
         netQuantity:
           type: integer
 
+    ReportScheduleLastSend:
+      type: object
+      required:
+        - status
+        - sentAt
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+        sentAt:
+          type: string
+          format: date-time
+        errorMessage:
+          type: string
+          nullable: true
+
     ReportSchedule:
       type: object
       required:
@@ -12378,6 +12432,10 @@ components:
           items:
             type: string
             enum: [financeiro, vendas, estoque, compras, rh, projetos]
+        lastSend:
+          allOf:
+            - $ref: "#/components/schemas/ReportScheduleLastSend"
+          nullable: true
         createdAt:
           type: string
           format: date-time

@@ -4510,6 +4510,11 @@ export const ListReportSchedulesResponseItem = zod.object({
   "message": zod.string().nullish(),
   "active": zod.boolean(),
   "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish(),
+  "lastSend": zod.object({
+  "status": zod.enum(['success', 'error']),
+  "sentAt": zod.coerce.date(),
+  "errorMessage": zod.string().nullish()
+}).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4545,6 +4550,33 @@ export const CreateReportScheduleBody = zod.object({
   "active": zod.boolean().optional(),
   "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish()
 })
+
+
+/**
+ * @summary List send logs for a specific schedule
+ */
+export const ListScheduleSendLogsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const listScheduleSendLogsQueryLimitDefault = 10;
+
+export const ListScheduleSendLogsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listScheduleSendLogsQueryLimitDefault)
+})
+
+export const ListScheduleSendLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "scheduleId": zod.number().nullish(),
+  "triggerType": zod.enum(['manual', 'scheduled']),
+  "period": zod.string(),
+  "periodLabel": zod.string(),
+  "recipients": zod.string(),
+  "status": zod.enum(['success', 'error']),
+  "errorMessage": zod.string().nullish(),
+  "sentAt": zod.coerce.date()
+})
+export const ListScheduleSendLogsResponse = zod.array(ListScheduleSendLogsResponseItem)
 
 
 /**
@@ -4607,6 +4639,11 @@ export const UpdateReportScheduleResponse = zod.object({
   "message": zod.string().nullish(),
   "active": zod.boolean(),
   "modules": zod.array(zod.enum(['financeiro', 'vendas', 'estoque', 'compras', 'rh', 'projetos'])).nullish(),
+  "lastSend": zod.object({
+  "status": zod.enum(['success', 'error']),
+  "sentAt": zod.coerce.date(),
+  "errorMessage": zod.string().nullish()
+}).nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

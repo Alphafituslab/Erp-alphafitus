@@ -130,6 +130,7 @@ import type {
   ListQuotationsParams,
   ListReportSendLogsParams,
   ListSalesOrdersParams,
+  ListScheduleSendLogsParams,
   ListStockMovementsParams,
   ListSuppliersParams,
   ListTrainingsParams,
@@ -11978,6 +11979,95 @@ export const useCreateReportSchedule = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getCreateReportScheduleMutationOptions(options));
     }
+
+export const getListScheduleSendLogsUrl = (id: number,
+    params?: ListScheduleSendLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/relatorios/schedules/${id}/send-logs?${stringifiedParams}` : `/api/relatorios/schedules/${id}/send-logs`
+}
+
+/**
+ * @summary List send logs for a specific schedule
+ */
+export const listScheduleSendLogs = async (id: number,
+    params?: ListScheduleSendLogsParams, options?: RequestInit): Promise<ReportSendLog[]> => {
+
+  return customFetch<ReportSendLog[]>(getListScheduleSendLogsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListScheduleSendLogsQueryKey = (id: number,
+    params?: ListScheduleSendLogsParams,) => {
+    return [
+    `/api/relatorios/schedules/${id}/send-logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListScheduleSendLogsQueryOptions = <TData = Awaited<ReturnType<typeof listScheduleSendLogs>>, TError = ErrorType<ErrorResponse>>(id: number,
+    params?: ListScheduleSendLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listScheduleSendLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListScheduleSendLogsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listScheduleSendLogs>>> = ({ signal }) => listScheduleSendLogs(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listScheduleSendLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListScheduleSendLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listScheduleSendLogs>>>
+export type ListScheduleSendLogsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List send logs for a specific schedule
+ */
+
+export function useListScheduleSendLogs<TData = Awaited<ReturnType<typeof listScheduleSendLogs>>, TError = ErrorType<ErrorResponse>>(
+ id: number,
+    params?: ListScheduleSendLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listScheduleSendLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListScheduleSendLogsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getUpdateReportScheduleUrl = (id: number,) => {
 

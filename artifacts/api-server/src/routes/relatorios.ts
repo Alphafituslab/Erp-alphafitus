@@ -975,7 +975,50 @@ router.get("/relatorios/schedules", async (req: Request, res: Response): Promise
     .from(reportSchedulesTable)
     .orderBy(reportSchedulesTable.id);
 
-  res.json(schedules);
+  // Attach the most recent send log for each schedule
+  const scheduleIds = schedules.map((s) => s.id);
+  let lastSendMap = new Map<number, { status: string; sentAt: Date; errorMessage: string | null }>();
+
+  if (scheduleIds.length > 0) {
+    // Fetch the latest send log per scheduleId using DISTINCT ON
+    const latestLogs = await db.execute(
+      sql`SELECT DISTINCT ON (schedule_id) schedule_id, status, sent_at, error_message
+          FROM report_send_logs
+          WHERE schedule_id = ANY(${scheduleIds})
+          ORDER BY schedule_id, sent_at DESC`
+    );
+    for (const row of latestLogs.rows as { schedule_id: number; status: string; sent_at: Date; error_message: string | null }[]) {
+      lastSendMap.set(row.schedule_id, { status: row.status, sentAt: row.sent_at, errorMessage: row.error_message });
+    }
+  }
+
+  const result = schedules.map((s) => {
+    const ls = lastSendMap.get(s.id);
+    return {
+      ...s,
+      lastSend: ls ? { status: ls.status, sentAt: ls.sentAt, errorMessage: ls.errorMessage } : null,
+    };
+  });
+
+  res.json(result);
+});
+
+router.get("/relatorios/schedules/:id/send-logs", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireManagerAsync(req, res)) return;
+
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "id inválido" }); return; }
+
+  const limit = Math.min(parseInt(String(req.query.limit ?? "10"), 10) || 10, 50);
+
+  const logs = await db
+    .select()
+    .from(reportSendLogsTable)
+    .where(eq(reportSendLogsTable.scheduleId, id))
+    .orderBy(desc(reportSendLogsTable.sentAt))
+    .limit(limit);
+
+  res.json(logs);
 });
 
 router.post("/relatorios/schedules", async (req: Request, res: Response): Promise<void> => {
