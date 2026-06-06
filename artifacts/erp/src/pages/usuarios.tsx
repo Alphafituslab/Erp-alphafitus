@@ -204,12 +204,12 @@ function CreateUsuarioDialog({ onSuccess }: { onSuccess: () => void }) {
           </div>
           <div className="space-y-1">
             <Label>Setor <span className="text-muted-foreground">(opcional — para colaboradores de Vendas)</span></Label>
-            <Select value={sector} onValueChange={setSector}>
+            <Select value={sector || "__none__"} onValueChange={(v) => setSector(v === "__none__" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Sem setor específico" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sem setor</SelectItem>
+                <SelectItem value="__none__">Sem setor</SelectItem>
                 {Object.entries(SECTOR_LABELS_UI).map(([v, l]) => (
                   <SelectItem key={v} value={v}>{l}</SelectItem>
                 ))}
@@ -309,12 +309,12 @@ function EditUsuarioDialog({ user, currentUserId, onSuccess }: { user: UserItem;
           </div>
           <div className="space-y-1">
             <Label>Setor <span className="text-muted-foreground">(para fluxo de Vendas)</span></Label>
-            <Select value={sector} onValueChange={setSector}>
+            <Select value={sector || "__none__"} onValueChange={(v) => setSector(v === "__none__" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Sem setor específico" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sem setor</SelectItem>
+                <SelectItem value="__none__">Sem setor</SelectItem>
                 {Object.entries(SECTOR_LABELS_UI).map(([v, l]) => (
                   <SelectItem key={v} value={v}>{l}</SelectItem>
                 ))}

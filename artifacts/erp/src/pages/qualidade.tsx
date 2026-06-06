@@ -343,10 +343,10 @@ function InspectionDialog({
             <div className="space-y-1">
               <label className="text-sm font-medium">Produto</label>
               <Controller control={form.control} name="productId" render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? null : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Nenhum —</SelectItem>
+                    <SelectItem value="__none__">— Nenhum —</SelectItem>
                     {products.map((p) => (
                       <SelectItem key={p.id} value={String(p.id)}>{p.name}{p.sku ? ` (${p.sku})` : ""}</SelectItem>
                     ))}
@@ -495,10 +495,10 @@ function NcrDialog({
             <div className="space-y-1">
               <label className="text-sm font-medium">Produto</label>
               <Controller control={form.control} name="productId" render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? null : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Nenhum —</SelectItem>
+                    <SelectItem value="__none__">— Nenhum —</SelectItem>
                     {products.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -507,10 +507,10 @@ function NcrDialog({
             <div className="space-y-1">
               <label className="text-sm font-medium">Inspeção</label>
               <Controller control={form.control} name="inspectionId" render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? null : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Nenhuma —</SelectItem>
+                    <SelectItem value="__none__">— Nenhuma —</SelectItem>
                     {inspections.slice(0, 20).map((i) => (
                       <SelectItem key={i.id} value={String(i.id)}>#{i.id} — {i.inspectionDate}</SelectItem>
                     ))}
@@ -557,10 +557,10 @@ function NcrDialog({
             <div className="space-y-1">
               <label className="text-sm font-medium">Tipo de NC</label>
               <Controller control={form.control} name="ncType" render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || undefined)}>
+                <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— Nenhum —</SelectItem>
+                    <SelectItem value="__none__">— Nenhum —</SelectItem>
                     <SelectItem value="receiving">Recebimento</SelectItem>
                     <SelectItem value="production">Produção</SelectItem>
                     <SelectItem value="finished_goods">Produto acabado</SelectItem>

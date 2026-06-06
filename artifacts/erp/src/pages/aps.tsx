@@ -914,7 +914,7 @@ export default function ApsPage() {
   const [rescheduleDialog, setRescheduleDialog] = useState<{ open: boolean; entryId: number; newWcId: number; newDate: string } | null>(null);
   const [rescheduleReason, setRescheduleReason] = useState("");
 
-  const [shiftsWcId, setShiftsWcId] = useState("");
+  const [shiftsWcId, setShiftsWcId] = useState("__all__");
   const [shiftsStartDate, setShiftsStartDate] = useState(todayStr());
   const [shiftsEndDate, setShiftsEndDate] = useState(addDays(todayStr(), 14));
 
@@ -930,7 +930,7 @@ export default function ApsPage() {
   const { data: shifts = [] } = useListProductionShifts(
     Object.fromEntries(
       Object.entries({
-        workCenterId: shiftsWcId ? parseInt(shiftsWcId, 10) : undefined,
+        workCenterId: shiftsWcId !== "__all__" ? parseInt(shiftsWcId, 10) : undefined,
         startDate: shiftsStartDate || undefined,
         endDate: shiftsEndDate || undefined,
       }).filter(([, v]) => v !== undefined)
@@ -1189,7 +1189,7 @@ export default function ApsPage() {
                     <Select value={shiftsWcId} onValueChange={setShiftsWcId}>
                       <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value="__all__">Todos</SelectItem>
                         {(allWorkCenters as WorkCenter[]).map(wc => <SelectItem key={wc.id} value={wc.id.toString()}>{wc.name}</SelectItem>)}
                       </SelectContent>
                     </Select>

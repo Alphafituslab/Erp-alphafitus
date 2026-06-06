@@ -235,7 +235,7 @@ const MONTH_NAMES = [
 const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const SEGMENT_OPTIONS = [
-  { value: "",         label: "Geral (toda empresa)" },
+  { value: "__all__",  label: "Geral (toda empresa)" },
   { value: "Vendas",   label: "Vendas" },
   { value: "Financeiro", label: "Financeiro" },
   { value: "Operações",  label: "Operações" },
@@ -265,14 +265,14 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   // ── Single-month state ──────────────────────────────────────────────────────
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
-  const [segment, setSegment] = useState("");
+  const [segment, setSegment] = useState("__all__");
   const [revenueGoal, setRevenueGoal] = useState("");
   const [expenseGoal, setExpenseGoal] = useState("");
   const [salesOrdersGoal, setSalesOrdersGoal] = useState("");
 
   // ── Annual state ────────────────────────────────────────────────────────────
   const [annualYear, setAnnualYear] = useState(currentYear);
-  const [annualSegment, setAnnualSegment] = useState("");
+  const [annualSegment, setAnnualSegment] = useState("__all__");
   const [annualRows, setAnnualRows] = useState<AnnualMonthRow[]>(makeEmptyAnnualRows);
 
   const { toast } = useToast();
@@ -284,7 +284,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   const { data: existingGoals, isLoading: goalsLoading } = useGetDashboardGoals(
     open && mode === "single" ? year : 0,
     open && mode === "single" ? month : 0,
-    { segment },
+    { segment: segment === "__all__" ? "" : segment },
   );
 
   useEffect(() => {
@@ -298,7 +298,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
   // ── Load all 12 months of goals for the selected year (annual pre-population) ─
   const { data: yearGoals } = useGetYearGoals(
     open && mode === "annual" ? annualYear : 0,
-    { segment: annualSegment },
+    { segment: annualSegment === "__all__" ? "" : annualSegment },
   );
 
   useEffect(() => {
@@ -424,7 +424,7 @@ function GoalsDialog({ currentYear, currentMonth }: { currentYear: number; curre
       return;
     }
 
-    bulkUpsert({ year: annualYear, data: { segment: annualSegment, months } });
+    bulkUpsert({ year: annualYear, data: { segment: annualSegment === "__all__" ? "" : annualSegment, months } });
   }
 
   const isPending = isSinglePending || isBulkPending;
@@ -2356,8 +2356,8 @@ function achievementColor(pct: number): string {
 
 function GoalsHistorySection() {
   const [metric, setMetric] = useState<GoalsMetric>("revenue");
-  const [histSegment, setHistSegment] = useState("");
-  const { data: history, isLoading } = useGetGoalsHistory({ months: 12, segment: histSegment || undefined });
+  const [histSegment, setHistSegment] = useState("__all__");
+  const { data: history, isLoading } = useGetGoalsHistory({ months: 12, segment: histSegment === "__all__" ? undefined : histSegment });
 
   const metricCfg = GOALS_METRIC_OPTIONS.find((o) => o.value === metric)!;
 
@@ -2675,12 +2675,12 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 
 function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManager: boolean }) {
   const [period, setPeriod] = useState<PeriodKey>("this_month");
-  const [dashSegment, setDashSegment] = useState("");
+  const [dashSegment, setDashSegment] = useState("__all__");
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user: authUser } = useAuth();
 
-  const { data, isLoading } = useGetExecutiveDashboard({ period, segment: dashSegment || undefined });
+  const { data, isLoading } = useGetExecutiveDashboard({ period, segment: dashSegment === "__all__" ? undefined : dashSegment });
 
   const kpis = data?.kpis;
   const trend = data?.monthlyTrend ?? [];
