@@ -2,6 +2,7 @@ import {
   db,
   reportSchedulesTable,
   reportSendLogsTable,
+  companySettingsTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
@@ -64,7 +65,13 @@ async function runScheduledSend(
   }
 
   try {
-    const pdfBuffer = await buildReportPdf(period, { modules: modules ?? null });
+    const [companyCfg] = await db.select().from(companySettingsTable).limit(1);
+    const pdfBuffer = await buildReportPdf(period, {
+      modules: modules ?? null,
+      companyName: companyCfg?.companyName ?? undefined,
+      logoBase64: companyCfg?.logoBase64 ?? null,
+      includeHeader: true,
+    });
     const filename = `relatorio-executivo-${periodLabel.toLowerCase().replace(/\//g, "-")}.pdf`;
 
     await sendEmail({

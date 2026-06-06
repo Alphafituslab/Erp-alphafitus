@@ -90,6 +90,9 @@ import {
   useTestGoalAlertSend,
   useGetSmtpStatus,
   getGetSmtpStatusQueryKey,
+  useGetCompanySettings,
+  useUpdateCompanySettings,
+  getGetCompanySettingsQueryKey,
 } from "@workspace/api-client-react";
 import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -1627,6 +1630,145 @@ function SendHistory() {
   );
 }
 
+// ── PDF / Company Settings Section ────────────────────────────────────────────
+
+function PdfSettingsSection({ isAdmin }: { isAdmin: boolean }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: serverSettings, isLoading } = useGetCompanySettings();
+  const updateMutation = useUpdateCompanySettings({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetCompanySettingsQueryKey() });
+        toast({ title: "Configurações de PDF salvas com sucesso" });
+      },
+      onError: () => {
+        toast({ title: "Erro ao salvar configurações", variant: "destructive" });
+      },
+    },
+  });
+
+  const [companyName, setCompanyName] = useState("");
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (serverSettings) {
+      setCompanyName(serverSettings.companyName ?? "NEXUS ERP");
+      setLogoBase64(serverSettings.logoBase64 ?? null);
+    }
+  }, [serverSettings]);
+
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setLogoBase64((ev.target?.result as string) ?? null);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleSave() {
+    updateMutation.mutate({ data: { companyName: companyName.trim() || "NEXUS ERP", logoBase64 } });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Settings className="h-4 w-4" />
+          Configurações do Cabeçalho PDF
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Logo e nome da empresa incluídos em todos os PDFs — exportações manuais e envios automáticos por e-mail.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-4 max-w-lg">
+            <div className="space-y-1.5">
+              <Label htmlFor="pdf-company-name-section">Nome da empresa</Label>
+              <Input
+                id="pdf-company-name-section"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="Ex: NEXUS ERP"
+                disabled={!isAdmin}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Logo da empresa</Label>
+              <div className="flex items-center gap-3">
+                {logoBase64 ? (
+                  <img
+                    src={logoBase64}
+                    alt="Logo"
+                    className="h-12 w-auto max-w-[96px] object-contain border rounded p-1 bg-white"
+                  />
+                ) : (
+                  <div className="h-12 w-12 border rounded flex items-center justify-center bg-muted">
+                    <Download className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
+                {isAdmin && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      {logoBase64 ? "Trocar logo" : "Carregar logo"}
+                    </Button>
+                    {logoBase64 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLogoBase64(null)}
+                      >
+                        Remover
+                      </Button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                    />
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                PNG ou JPG recomendado. Aplicado a todos os PDFs gerados no sistema.
+              </p>
+            </div>
+
+            {isAdmin && (
+              <Button onClick={handleSave} disabled={updateMutation.isPending} size="sm">
+                {updateMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando…</>
+                ) : (
+                  "Salvar configurações"
+                )}
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Goal Alert Settings Section ───────────────────────────────────────────────
 
 function GoalAlertSettingsSection({ isAdmin }: { isAdmin: boolean }) {
@@ -2682,6 +2824,9 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
               </div>
             </CardContent>
           </Card>
+
+          {/* PDF header / company settings */}
+          <PdfSettingsSection isAdmin={isAdmin} />
 
           {/* Goal alert settings */}
           <GoalAlertSettingsSection isAdmin={isAdmin} />
