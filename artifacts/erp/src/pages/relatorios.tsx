@@ -90,6 +90,7 @@ import {
   useTestGoalAlertSend,
   useGetSmtpStatus,
   getGetSmtpStatusQueryKey,
+  useTestSmtpConfig,
   useGetCompanySettings,
   useUpdateCompanySettings,
   getGetCompanySettingsQueryKey,
@@ -1380,14 +1381,27 @@ function ScheduleDialog({
 
 // ── Schedule Management Section ────────────────────────────────────────────────
 
-function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
+function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?: string }) {
   const [editTarget, setEditTarget] = useState<ReportSchedule | null | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<ReportSchedule | null>(null);
+  const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const { data: schedules, isLoading } = useListReportSchedules();
   const { data: smtpStatus } = useGetSmtpStatus({ query: { queryKey: getGetSmtpStatusQueryKey(), enabled: isAdmin } });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { mutate: testEmail, isPending: isTestingEmail } = useTestSmtpConfig({
+    mutation: {
+      onSuccess: (data) => {
+        setTestEmailResult({ success: true, message: data.message });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Falha no envio de teste.";
+        setTestEmailResult({ success: false, message: msg });
+      },
+    },
+  });
 
   const { mutate: deleteSchedule, isPending: isDeleting } = useDeleteReportSchedule({
     mutation: {
@@ -1455,6 +1469,37 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
               para que os relatórios agendados sejam enviados.
             </p>
           </div>
+        </div>
+      )}
+      {isAdmin && smtpStatus?.configured && userEmail && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 mb-3">
+          <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Testar envio de e-mail</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Envia uma mensagem de teste para <span className="font-medium">{userEmail}</span> usando a configuração SMTP atual.
+            </p>
+            {testEmailResult && (
+              <div className={`mt-2 flex items-start gap-1.5 text-xs ${testEmailResult.success ? "text-green-700" : "text-red-700"}`}>
+                {testEmailResult.success
+                  ? <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  : <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />}
+                <span>{testEmailResult.message}</span>
+              </div>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isTestingEmail}
+            onClick={() => {
+              setTestEmailResult(null);
+              testEmail({ data: { to: userEmail } });
+            }}
+          >
+            {isTestingEmail ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
+            {isTestingEmail ? "Enviando…" : "Testar envio"}
+          </Button>
         </div>
       )}
       <Card>
@@ -2452,6 +2497,7 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
   const [dashSegment, setDashSegment] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { user: authUser } = useAuth();
 
   const { data, isLoading } = useGetExecutiveDashboard({ period, segment: dashSegment || undefined });
 
@@ -2833,7 +2879,7 @@ function ExecutiveDashboard({ isAdmin, isManager }: { isAdmin: boolean; isManage
           <GoalAlertHistory />
 
           {/* Schedule management + send history */}
-          <ScheduleSection isAdmin={isAdmin} />
+          <ScheduleSection isAdmin={isAdmin} userEmail={authUser?.email} />
           <SendHistory />
         </>
       )}
