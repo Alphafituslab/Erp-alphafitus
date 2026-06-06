@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import { Component, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/contexts/auth";
 import { ProtectedRoute } from "@/components/layout";
 import LoginPage from "@/pages/login";
@@ -23,6 +24,42 @@ import UsuariosPage from "@/pages/usuarios";
 import ConfiguracoesPage from "@/pages/configuracoes";
 
 const queryClient = new QueryClient();
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
+          <div className="bg-white rounded-xl shadow border border-red-100 p-8 max-w-lg w-full">
+            <h1 className="text-xl font-bold text-red-600 mb-2">Erro na aplicação</h1>
+            <p className="text-gray-600 text-sm mb-4">
+              Ocorreu um erro inesperado. Tente recarregar a página.
+            </p>
+            <pre className="bg-gray-50 border rounded p-3 text-xs text-gray-700 overflow-auto max-h-40">
+              {this.state.error.message}
+              {"\n"}
+              {this.state.error.stack}
+            </pre>
+            <button
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded text-sm font-medium"
+              onClick={() => window.location.reload()}
+            >
+              Recarregar
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function RootRoute() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -142,16 +179,20 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AuthProvider>
-            <Router />
-            <Toaster />
-          </AuthProvider>
-        </WouterRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AuthProvider>
+              <ErrorBoundary>
+                <Router />
+              </ErrorBoundary>
+              <Toaster />
+            </AuthProvider>
+          </WouterRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

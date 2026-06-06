@@ -17,6 +17,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     query: {
       queryKey: getGetMeQueryKey(),
       retry: false,
+      staleTime: 1000 * 60 * 5, // cache is fresh for 5 min — prevents background refetch from clearing user right after login
     },
   });
 
