@@ -57,6 +57,7 @@ import {
   ChevronDown,
   ChevronRight,
   XCircle,
+  Info,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -1294,24 +1295,29 @@ function ScheduleDialog({
 
         <div className="space-y-1">
           <Label>Período do relatório</Label>
-          <div className="flex items-center gap-2">
-            <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
-              <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PERIOD_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <a
-              href={`/api/relatorios/preview?period=${period}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline whitespace-nowrap"
-            >
-              <FileDown className="h-3.5 w-3.5" />
-              Pré-visualizar
-            </a>
+          <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full mt-1"
+            onClick={() => window.open(`/api/relatorios/preview?period=${period}`, "_blank", "noopener,noreferrer")}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Pré-visualizar PDF
+          </Button>
+          <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 mt-1">
+            <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-700">
+              O PDF agendado cobrirá o período: <strong>{PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? period}</strong>. Clique em "Pré-visualizar PDF" para confirmar o conteúdo antes de salvar.
+            </p>
           </div>
         </div>
 
