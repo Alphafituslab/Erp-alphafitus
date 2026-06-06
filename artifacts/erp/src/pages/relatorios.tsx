@@ -1197,6 +1197,15 @@ const MODULE_OPTIONS = [
 ] as const;
 const ALL_MODULE_VALUES = MODULE_OPTIONS.map((m) => m.value);
 
+const MODULE_BADGE_COLORS: Record<string, string> = {
+  financeiro: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  vendas:     "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  estoque:    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  compras:    "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  rh:         "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
+  projetos:   "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+};
+
 function ScheduleDialog({
   schedule,
   onClose,
@@ -1654,9 +1663,8 @@ function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?:
               <TableBody>
                 {schedules?.map((s) => {
                   const mods = s.modules as string[] | null | undefined;
-                  const modLabels = (mods && mods.length > 0 && mods.length < ALL_MODULE_VALUES.length)
-                    ? mods.map((v) => MODULE_OPTIONS.find((m) => m.value === v)?.label ?? v).join(", ")
-                    : "Todos";
+                  const isAllMods = !mods || mods.length === 0 || mods.length >= ALL_MODULE_VALUES.length;
+                  const activeMods = isAllMods ? [] : mods;
                   const isExpanded = expandedId === s.id;
                   const lastSend = (s as typeof s & { lastSend?: { status: string; sentAt: string; errorMessage?: string | null } | null }).lastSend;
                   const colSpan = isAdmin ? 9 : 8;
@@ -1675,8 +1683,27 @@ function ScheduleSection({ isAdmin, userEmail }: { isAdmin: boolean; userEmail?:
                     <TableCell className="text-sm font-medium">{describeSchedule(s)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{getNextSendTime(s)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{periodLabel(s.period)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[160px]">
-                      <span title={modLabels} className="block truncate">{modLabels}</span>
+                    <TableCell className="max-w-[200px]">
+                      <div className="flex flex-wrap gap-1">
+                        {isAllMods ? (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            Todos
+                          </span>
+                        ) : (
+                          activeMods.map((v) => {
+                            const label = MODULE_OPTIONS.find((m) => m.value === v)?.label ?? v;
+                            const colorCls = MODULE_BADGE_COLORS[v] ?? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+                            return (
+                              <span
+                                key={v}
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorCls}`}
+                              >
+                                {label}
+                              </span>
+                            );
+                          })
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">{s.recipients}</TableCell>
                     <TableCell>
