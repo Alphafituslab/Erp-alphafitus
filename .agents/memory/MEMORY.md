@@ -1,1 +1,2 @@
 - [Comando reiniciar melhorias](retomar-melhorias.md) — quando o usuário disser "reiniciar as melhorias", retomar implementação de novas features a partir do ponto de parada.
+- [Replit production session cookies](replit-production-session-cookies.md) — injetar X-Forwarded-Proto:https antes do session() middleware; connect-pg-simple precisa de criação manual da tabela no esbuild.
