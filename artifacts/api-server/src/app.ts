@@ -33,6 +33,11 @@ app.use(
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Trust the reverse proxy (Replit terminates SSL at the edge).
+// Without this, req.secure is false in production and express-session
+// refuses to set the Secure cookie, breaking all authenticated requests.
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     origin: true,
