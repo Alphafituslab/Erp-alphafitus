@@ -1,7 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { spawn } from "child_process";
-import { createGzip } from "zlib";
-import { randomBytes, createCipheriv, pbkdf2Sync } from "crypto";
+import { createGzip, createGunzip } from "zlib";
+import { randomBytes, createCipheriv, createDecipheriv, pbkdf2Sync } from "crypto";
+import { writeFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import multer from "multer";
 import { desc, eq } from "drizzle-orm";
 import { db, usersTable, backupLogsTable, backupSchedulesTable, smtpSettingsTable } from "@workspace/db";
 import { uploadBackupToStorage, generateBackupDownloadUrl } from "../lib/backupStorage.js";
@@ -19,15 +23,35 @@ const router: IRouter = Router();
 const PBKDF2_ITERATIONS = 10000;
 const PBKDF2_DIGEST = "sha256";
 
+const uploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500 * 1024 * 1024 },
+});
+
 function encryptOpenSSL(data: Buffer, password: string): Buffer {
   const salt = randomBytes(8);
   const keyIv = pbkdf2Sync(Buffer.from(password, "utf8"), salt, PBKDF2_ITERATIONS, 48, PBKDF2_DIGEST);
   const key = keyIv.subarray(0, 32);
   const iv = keyIv.subarray(32, 48);
+
   const cipher = createCipheriv("aes-256-cbc", key, iv);
   const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
   // OpenSSL salted-file format: "Salted__" magic + 8-byte salt + ciphertext
   return Buffer.concat([Buffer.from("Salted__", "ascii"), salt, encrypted]);
+}
+
+function decryptOpenSSL(data: Buffer, password: string): Buffer {
+  // Expects OpenSSL salted-file format: "Salted__" (8) + salt (8) + ciphertext
+  if (data.length < 16 || data.subarray(0, 8).toString("ascii") !== "Salted__") {
+    throw new Error("Arquivo não possui cabeçalho OpenSSL válido. Verifique se o arquivo é realmente um backup criptografado.");
+  }
+  const salt = data.subarray(8, 16);
+  const ciphertext = data.subarray(16);
+  const keyIv = pbkdf2Sync(Buffer.from(password, "utf8"), salt, PBKDF2_ITERATIONS, 48, PBKDF2_DIGEST);
+  const key = keyIv.subarray(0, 32);
+  const iv = keyIv.subarray(32, 48);
+  const decipher = createDecipheriv("aes-256-cbc", key, iv);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
 
 async function requireAdmin(req: Request, res: Response): Promise<boolean> {
@@ -491,6 +515,143 @@ router.post("/admin/smtp/test", async (req: Request, res: Response): Promise<voi
     res.status(500).json({ error: message });
   }
 });
+
+// ─── POST /admin/backup/restore ───────────────────────────────────────────────
+
+router.post(
+  "/admin/backup/restore",
+  uploadMiddleware.single("file"),
+  async (req: Request, res: Response): Promise<void> => {
+    if (!await requireAdmin(req, res)) return;
+
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: "Nenhum arquivo enviado." });
+      return;
+    }
+
+    const filename = file.originalname;
+    const isEncrypted = filename.endsWith(".enc");
+
+    if (!filename.endsWith(".sql.gz") && !filename.endsWith(".sql.gz.enc")) {
+      res.status(400).json({ error: "Arquivo inválido. Envie um arquivo .sql.gz ou .sql.gz.enc gerado pelo NEXUS ERP." });
+      return;
+    }
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      res.status(500).json({ error: "DATABASE_URL não configurada." });
+      return;
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(dbUrl);
+    } catch {
+      res.status(500).json({ error: "DATABASE_URL inválida." });
+      return;
+    }
+
+    const host = parsedUrl.hostname;
+    const port = parsedUrl.port || "5432";
+    const database = parsedUrl.pathname.replace(/^\//, "");
+    const user = parsedUrl.username;
+    const password = parsedUrl.password;
+    const env: NodeJS.ProcessEnv = { ...process.env, PGPASSWORD: password };
+
+    let buffer = file.buffer;
+
+    // 1. Descriptografar se necessário
+    if (isEncrypted) {
+      const encKey = process.env.BACKUP_ENCRYPTION_KEY?.trim();
+      if (!encKey) {
+        res.status(400).json({ error: "BACKUP_ENCRYPTION_KEY não configurada. Impossível descriptografar o arquivo. Configure a chave e tente novamente." });
+        return;
+      }
+      try {
+        buffer = decryptOpenSSL(buffer, encKey);
+      } catch (err) {
+        req.log.error({ err }, "Backup restore: decryption failed");
+        res.status(400).json({ error: "Falha ao descriptografar. Verifique se a BACKUP_ENCRYPTION_KEY é a mesma usada na geração do backup." });
+        return;
+      }
+    }
+
+    // 2. Descompactar gzip
+    let sqlBuffer: Buffer;
+    try {
+      sqlBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const gunzip = createGunzip();
+        const chunks: Buffer[] = [];
+        gunzip.on("data", (chunk: Buffer) => chunks.push(chunk));
+        gunzip.on("end", () => resolve(Buffer.concat(chunks)));
+        gunzip.on("error", reject);
+        gunzip.end(buffer);
+      });
+    } catch (err) {
+      req.log.error({ err }, "Backup restore: gunzip failed");
+      res.status(400).json({ error: "Falha ao descompactar o arquivo. O arquivo pode estar corrompido ou incompleto." });
+      return;
+    }
+
+    // 3. Gravar SQL em arquivo temporário
+    const tmpFile = join(tmpdir(), `nexus-restore-${Date.now()}.sql`);
+    try {
+      await writeFile(tmpFile, sqlBuffer);
+    } catch (err) {
+      req.log.error({ err }, "Backup restore: failed to write temp file");
+      res.status(500).json({ error: "Erro interno ao preparar restauração." });
+      return;
+    }
+
+    try {
+      // 4. Apagar TUDO do schema atual (slate 100% limpo)
+      await new Promise<void>((resolve, reject) => {
+        const resetProc = spawn(
+          "psql",
+          [
+            "-h", host, "-p", port, "-U", user, "-d", database, "--no-password",
+            "-c",
+            `DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO "${user}"; GRANT ALL ON SCHEMA public TO public;`,
+          ],
+          { env }
+        );
+        let stderr = "";
+        resetProc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+        resetProc.on("error", reject);
+        resetProc.on("close", (code) => {
+          if (code !== 0) reject(new Error(`Falha ao limpar schema (código ${code}): ${stderr.slice(0, 400)}`));
+          else resolve();
+        });
+      });
+
+      // 5. Restaurar a partir do arquivo SQL
+      await new Promise<void>((resolve, reject) => {
+        const restoreProc = spawn(
+          "psql",
+          ["-h", host, "-p", port, "-U", user, "-d", database, "--no-password", "-f", tmpFile],
+          { env }
+        );
+        let stderr = "";
+        restoreProc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+        restoreProc.on("error", reject);
+        restoreProc.on("close", (code) => {
+          if (code !== 0) reject(new Error(`Restauração falhou (código ${code}): ${stderr.slice(0, 500)}`));
+          else resolve();
+        });
+      });
+
+      req.log.info({ filename }, "Database restored successfully from backup");
+      res.json({ success: true, message: `Banco de dados restaurado com sucesso a partir de "${filename}". Todos os dados foram substituídos pelo conteúdo do backup.` });
+    } catch (err: unknown) {
+      req.log.error({ err }, "Backup restore failed");
+      const message = err instanceof Error ? err.message : "Erro desconhecido ao restaurar o banco de dados";
+      res.status(500).json({ error: message });
+    } finally {
+      await unlink(tmpFile).catch(() => {});
+    }
+  }
+);
 
 export default router;
 

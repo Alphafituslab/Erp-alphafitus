@@ -4424,6 +4424,16 @@ export type GetTraceabilityBackwardParams = {
 lot: string;
 };
 
+export type RestoreBackupBody = {
+  /** Backup file (.sql.gz or .sql.gz.enc) */
+  file: Blob;
+};
+
+export type RestoreBackup200 = {
+  success: boolean;
+  message: string;
+};
+
 export type DeleteSmtpConfig200 = {
   success: boolean;
 };

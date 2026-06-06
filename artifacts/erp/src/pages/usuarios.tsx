@@ -68,6 +68,9 @@ import {
   Eye,
   EyeOff,
   AlertTriangle,
+  UploadCloud,
+  ShieldAlert,
+  RotateCcw,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -90,6 +93,7 @@ import {
   useTestSmtpConfig,
   useDeleteSmtpConfig,
   getGetSmtpStatusQueryKey,
+  useRestoreBackup,
 } from "@workspace/api-client-react";
 import type { UserItem, BackupLog, BackupSchedule } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1062,6 +1066,205 @@ function BackupPanel() {
   );
 }
 
+// ── Restore Panel ─────────────────────────────────────────────────────────────
+
+function RestorePanel() {
+  const { toast } = useToast();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [restoreResult, setRestoreResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const { mutate: doRestore, isPending } = useRestoreBackup({
+    mutation: {
+      onSuccess: (data) => {
+        setRestoreResult({ ok: true, message: data.message });
+        setSelectedFile(null);
+        setConfirmText("");
+        toast({ title: "Restauração concluída!", description: data.message });
+      },
+      onError: (err: unknown) => {
+        const msg =
+          (err as { data?: { error?: string } })?.data?.error ??
+          (err as { message?: string })?.message ??
+          "Erro desconhecido ao restaurar.";
+        setRestoreResult({ ok: false, message: msg });
+        toast({ title: "Falha na restauração", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
+    setSelectedFile(f);
+    setRestoreResult(null);
+    setConfirmText("");
+  }
+
+  function handleRestoreClick() {
+    if (!selectedFile) return;
+    setConfirmOpen(true);
+  }
+
+  function handleConfirmRestore() {
+    if (!selectedFile || confirmText !== "RESTAURAR") return;
+    setConfirmOpen(false);
+    doRestore({ data: { file: selectedFile } });
+  }
+
+  const isValidFile =
+    selectedFile &&
+    (selectedFile.name.endsWith(".sql.gz") || selectedFile.name.endsWith(".sql.gz.enc"));
+
+  return (
+    <Card className="shadow-sm mt-6 border-red-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 text-red-500" />
+          <CardTitle className="text-base text-red-700">Restaurar Banco de Dados</CardTitle>
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+            Zona de Perigo
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 space-y-2">
+          <div className="flex items-start gap-2 font-semibold">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            O que esta operação faz:
+          </div>
+          <ul className="list-disc list-inside text-xs space-y-1 leading-relaxed ml-1">
+            <li>Apaga <strong>TODOS</strong> os dados atuais do banco de dados</li>
+            <li>Restaura exatamente o conteúdo do arquivo de backup selecionado</li>
+            <li>Nenhuma informação fora do backup sobreviverá</li>
+            <li>A operação é <strong>irreversível</strong> — faça um novo backup antes se necessário</li>
+          </ul>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Selecionar arquivo de backup</Label>
+          <div
+            className="border-2 border-dashed border-muted-foreground/25 rounded-lg px-6 py-8 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+            onClick={() => document.getElementById("restore-file-input")?.click()}
+          >
+            <UploadCloud className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              {selectedFile ? (
+                <span className="font-medium text-foreground">{selectedFile.name}</span>
+              ) : (
+                <>Clique para selecionar um arquivo <span className="font-mono text-xs">.sql.gz</span> ou <span className="font-mono text-xs">.sql.gz.enc</span></>
+              )}
+            </p>
+            {selectedFile && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+            )}
+          </div>
+          <input
+            id="restore-file-input"
+            type="file"
+            accept=".sql.gz,.enc"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          {selectedFile && !isValidFile && (
+            <p className="text-xs text-red-600 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" /> Arquivo inválido. Use apenas arquivos <span className="font-mono">.sql.gz</span> ou <span className="font-mono">.sql.gz.enc</span> gerados pelo NEXUS ERP.
+            </p>
+          )}
+        </div>
+
+        {isPending && (
+          <div className="flex items-center gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+            <RotateCcw className="h-4 w-4 animate-spin shrink-0" />
+            <span>Restaurando banco de dados… Aguarde, isso pode levar alguns minutos.</span>
+          </div>
+        )}
+
+        {restoreResult && !isPending && (
+          <div className={`flex items-start gap-2 rounded-lg px-4 py-3 text-sm ${restoreResult.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+            {restoreResult.ok ? (
+              <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            ) : (
+              <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            )}
+            <span>{restoreResult.message}</span>
+          </div>
+        )}
+
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={!isValidFile || isPending}
+          onClick={handleRestoreClick}
+        >
+          {isPending ? (
+            <>
+              <RotateCcw className="h-4 w-4 animate-spin mr-2" />
+              Restaurando…
+            </>
+          ) : (
+            <>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Restaurar Backup
+            </>
+          )}
+        </Button>
+      </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-700">
+              <ShieldAlert className="h-5 w-5" />
+              Confirmar Restauração do Banco
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  Você está prestes a restaurar o banco de dados a partir de:
+                </p>
+                <p className="font-mono text-xs bg-muted px-3 py-2 rounded break-all">
+                  {selectedFile?.name}
+                </p>
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800 text-xs space-y-1">
+                  <p className="font-semibold">Esta ação irá:</p>
+                  <p>• Apagar permanentemente todos os dados atuais</p>
+                  <p>• Restaurar exatamente o conteúdo do backup acima</p>
+                  <p>• Isso não pode ser desfeito</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">
+                    Para confirmar, digite <span className="font-mono font-bold text-red-700">RESTAURAR</span> abaixo:
+                  </Label>
+                  <Input
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="RESTAURAR"
+                    className="font-mono text-sm"
+                    autoFocus
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmText("")}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRestore}
+              disabled={confirmText !== "RESTAURAR"}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Confirmar Restauração
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function UsuariosPage() {
@@ -1252,6 +1455,7 @@ export default function UsuariosPage() {
       </Card>
 
       <BackupPanel />
+      <RestorePanel />
       <BackupSchedulePanel />
       <SmtpConfigPanel />
 

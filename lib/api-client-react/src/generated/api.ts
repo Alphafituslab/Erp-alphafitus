@@ -205,6 +205,8 @@ import type {
   ReportScheduleInput,
   ReportSendLog,
   ResolveNcrInput,
+  RestoreBackup200,
+  RestoreBackupBody,
   RhDashboard,
   SalesOrder,
   SalesOrderInput,
@@ -17757,6 +17759,83 @@ export function useGetBackupDownloadUrl<TData = Awaited<ReturnType<typeof getBac
 
 
 
+
+export const getRestoreBackupUrl = () => {
+
+
+
+
+  return `/api/admin/backup/restore`
+}
+
+/**
+ * Accepts a .sql.gz or .sql.gz.enc backup file. Decrypts (if needed),
+decompresses, drops the current public schema completely, and restores
+from the dump. WARNING: permanently replaces ALL current data.
+
+ * @summary Restore database from a backup file (admin only)
+ */
+export const restoreBackup = async (restoreBackupBody: RestoreBackupBody, options?: RequestInit): Promise<RestoreBackup200> => {
+    const formData = new FormData();
+formData.append(`file`, restoreBackupBody.file);
+
+  return customFetch<RestoreBackup200>(getRestoreBackupUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body:
+      formData,
+  }
+);}
+
+
+
+
+export const getRestoreBackupMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<RestoreBackupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<RestoreBackupBody>}, TContext> => {
+
+const mutationKey = ['restoreBackup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreBackup>>, {data: BodyType<RestoreBackupBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  restoreBackup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreBackupMutationResult = NonNullable<Awaited<ReturnType<typeof restoreBackup>>>
+    export type RestoreBackupMutationBody = BodyType<RestoreBackupBody>
+    export type RestoreBackupMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Restore database from a backup file (admin only)
+ */
+export const useRestoreBackup = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBackup>>, TError,{data: BodyType<RestoreBackupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreBackup>>,
+        TError,
+        {data: BodyType<RestoreBackupBody>},
+        TContext
+      > => {
+      return useMutation(getRestoreBackupMutationOptions(options));
+    }
 
 export const getGetBackupConfigUrl = () => {
 

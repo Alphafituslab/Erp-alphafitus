@@ -6721,6 +6721,23 @@ export const GetBackupDownloadUrlParams = zod.object({
 
 
 /**
+ * Accepts a .sql.gz or .sql.gz.enc backup file. Decrypts (if needed),
+decompresses, drops the current public schema completely, and restores
+from the dump. WARNING: permanently replaces ALL current data.
+
+ * @summary Restore database from a backup file (admin only)
+ */
+export const RestoreBackupBody = zod.object({
+  "file": zod.instanceof(File).describe('Backup file (.sql.gz or .sql.gz.enc)')
+})
+
+export const RestoreBackupResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * Returns whether encryption is configured for backup files.
  * @summary Get backup configuration (admin only)
  */

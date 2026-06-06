@@ -7743,6 +7743,65 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/backup/restore:
+    post:
+      operationId: restoreBackup
+      tags: [admin]
+      summary: Restore database from a backup file (admin only)
+      description: |
+        Accepts a .sql.gz or .sql.gz.enc backup file. Decrypts (if needed),
+        decompresses, drops the current public schema completely, and restores
+        from the dump. WARNING: permanently replaces ALL current data.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Backup file (.sql.gz or .sql.gz.enc)
+      responses:
+        "200":
+          description: Database restored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "400":
+          description: Invalid file or missing encryption key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Restore failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/backup/config:
     get:
       operationId: getBackupConfig
