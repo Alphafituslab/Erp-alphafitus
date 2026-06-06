@@ -88,6 +88,8 @@ import {
   useUpdateGoalAlertSettings,
   useListGoalAlertLogs,
   useTestGoalAlertSend,
+  useGetSmtpStatus,
+  getGetSmtpStatusQueryKey,
 } from "@workspace/api-client-react";
 import type { ReportSchedule, ReportScheduleInputModulesItem } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -1380,6 +1382,7 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
   const [deleteTarget, setDeleteTarget] = useState<ReportSchedule | null>(null);
 
   const { data: schedules, isLoading } = useListReportSchedules();
+  const { data: smtpStatus } = useGetSmtpStatus({ query: { queryKey: getGetSmtpStatusQueryKey(), enabled: isAdmin } });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1405,6 +1408,19 @@ function ScheduleSection({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <>
+      {isAdmin && smtpStatus && !smtpStatus.configured && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 mb-3">
+          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-800">SMTP não configurado — envios vão falhar</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Configure as credenciais de e-mail em{" "}
+              <Link href="/usuarios" className="underline font-medium">Usuários → Configuração SMTP</Link>{" "}
+              para que os relatórios agendados sejam enviados.
+            </p>
+          </div>
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base">Agendamentos de Envio</CardTitle>

@@ -7791,8 +7791,215 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/smtp/status:
+    get:
+      operationId: getSmtpStatus
+      tags: [admin]
+      summary: Get current SMTP configuration status (admin only)
+      responses:
+        "200":
+          description: SMTP status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmtpStatus"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/smtp/config:
+    put:
+      operationId: updateSmtpConfig
+      tags: [admin]
+      summary: Save SMTP configuration to database (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmtpConfigInput"
+      responses:
+        "200":
+          description: Updated SMTP config (password omitted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmtpConfigResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSmtpConfig
+      tags: [admin]
+      summary: Clear database SMTP configuration (admin only)
+      responses:
+        "200":
+          description: Config cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/smtp/test:
+    post:
+      operationId: testSmtpConfig
+      tags: [admin]
+      summary: Send a test email using current SMTP configuration (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmtpTestInput"
+      responses:
+        "200":
+          description: Test email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmtpTestResult"
+        "400":
+          description: Invalid input or SMTP not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: SMTP connection error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
+    SmtpStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured:
+          type: boolean
+        source:
+          type: string
+          enum: [db, env]
+          nullable: true
+        host:
+          type: string
+          nullable: true
+        port:
+          type: integer
+          nullable: true
+        user:
+          type: string
+          nullable: true
+        from:
+          type: string
+          nullable: true
+
+    SmtpConfigInput:
+      type: object
+      required: [host, user, pass]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          default: 587
+        user:
+          type: string
+        pass:
+          type: string
+        from:
+          type: string
+
+    SmtpConfigResult:
+      type: object
+      required: [host, user, updatedAt]
+      properties:
+        host:
+          type: string
+          nullable: true
+        port:
+          type: integer
+          nullable: true
+        user:
+          type: string
+          nullable: true
+        from:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+
+    SmtpTestInput:
+      type: object
+      required: [to]
+      properties:
+        to:
+          type: string
+          format: email
+
+    SmtpTestResult:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
     BackupLog:
       type: object
       required: [id, filename, fileSizeBytes, source, status, createdAt]

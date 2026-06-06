@@ -18,7 +18,8 @@ import {
   goalAlertLogsTable,
 } from "@workspace/db";
 import type { Request, Response } from "express";
-import { sendEmail, isSmtpConfigured } from "../lib/mailer";
+import { sendEmail } from "../lib/mailer";
+import { isSmtpConfiguredAsync, getEffectiveSmtpConfig } from "../lib/smtp-config";
 import { sendGoalAlertNow } from "../lib/goal-alert-scheduler";
 import { buildReportPdf } from "./relatorios-pdf";
 
@@ -915,9 +916,10 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
   const validPeriods: Period[] = ["this_month", "last_month", "this_quarter", "this_year"];
   const safePeriod: Period = validPeriods.includes(period as Period) ? (period as Period) : "this_month";
 
-  if (!isSmtpConfigured()) {
+  const smtpCfg = await getEffectiveSmtpConfig();
+  if (!smtpCfg) {
     res.status(400).json({
-      error: "Serviço de e-mail não configurado. Configure as variáveis SMTP_HOST, SMTP_USER e SMTP_PASS.",
+      error: "Serviço de e-mail não configurado. Configure as credenciais SMTP em Configurações → SMTP.",
     });
     return;
   }
@@ -935,7 +937,7 @@ router.post("/relatorios/send-email", async (req: Request, res: Response): Promi
       subject: subject.trim(),
       text: message?.trim() || "Segue em anexo o relatório executivo gerado pelo NEXUS ERP.",
       attachments: [{ filename, content: pdfBuffer, contentType: "application/pdf" }],
-    });
+    }, smtpCfg);
 
     await db.insert(reportSendLogsTable).values({
       triggerType: "manual",

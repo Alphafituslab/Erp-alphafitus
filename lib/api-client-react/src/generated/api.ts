@@ -59,6 +59,7 @@ import type {
   CreateUsuarioResponse,
   DashboardGoal,
   DashboardGoalInput,
+  DeleteSmtpConfig200,
   Department,
   DepartmentInput,
   Employee,
@@ -212,6 +213,11 @@ import type {
   SearchTraceLotsParams,
   SelectQuotationWinnerInput,
   SetUserModulesInput,
+  SmtpConfigInput,
+  SmtpConfigResult,
+  SmtpStatus,
+  SmtpTestInput,
+  SmtpTestResult,
   StageFinishInput,
   StageStartInput,
   StageUpdateInput,
@@ -17886,5 +17892,294 @@ export const useUpdateBackupSchedule = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdateBackupScheduleMutationOptions(options));
+    }
+
+export const getGetSmtpStatusUrl = () => {
+
+
+
+
+  return `/api/admin/smtp/status`
+}
+
+/**
+ * @summary Get current SMTP configuration status (admin only)
+ */
+export const getSmtpStatus = async ( options?: RequestInit): Promise<SmtpStatus> => {
+
+  return customFetch<SmtpStatus>(getGetSmtpStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSmtpStatusQueryKey = () => {
+    return [
+    `/api/admin/smtp/status`
+    ] as const;
+    }
+
+
+export const getGetSmtpStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSmtpStatus>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSmtpStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSmtpStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSmtpStatus>>> = ({ signal }) => getSmtpStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSmtpStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSmtpStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSmtpStatus>>>
+export type GetSmtpStatusQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get current SMTP configuration status (admin only)
+ */
+
+export function useGetSmtpStatus<TData = Awaited<ReturnType<typeof getSmtpStatus>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSmtpStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSmtpStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateSmtpConfigUrl = () => {
+
+
+
+
+  return `/api/admin/smtp/config`
+}
+
+/**
+ * @summary Save SMTP configuration to database (admin only)
+ */
+export const updateSmtpConfig = async (smtpConfigInput: SmtpConfigInput, options?: RequestInit): Promise<SmtpConfigResult> => {
+
+  return customFetch<SmtpConfigResult>(getUpdateSmtpConfigUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      smtpConfigInput,)
+  }
+);}
+
+
+
+
+export const getUpdateSmtpConfigMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSmtpConfig>>, TError,{data: BodyType<SmtpConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSmtpConfig>>, TError,{data: BodyType<SmtpConfigInput>}, TContext> => {
+
+const mutationKey = ['updateSmtpConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSmtpConfig>>, {data: BodyType<SmtpConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateSmtpConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSmtpConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateSmtpConfig>>>
+    export type UpdateSmtpConfigMutationBody = BodyType<SmtpConfigInput>
+    export type UpdateSmtpConfigMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Save SMTP configuration to database (admin only)
+ */
+export const useUpdateSmtpConfig = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSmtpConfig>>, TError,{data: BodyType<SmtpConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSmtpConfig>>,
+        TError,
+        {data: BodyType<SmtpConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSmtpConfigMutationOptions(options));
+    }
+
+export const getDeleteSmtpConfigUrl = () => {
+
+
+
+
+  return `/api/admin/smtp/config`
+}
+
+/**
+ * @summary Clear database SMTP configuration (admin only)
+ */
+export const deleteSmtpConfig = async ( options?: RequestInit): Promise<DeleteSmtpConfig200> => {
+
+  return customFetch<DeleteSmtpConfig200>(getDeleteSmtpConfigUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSmtpConfigMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSmtpConfig>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSmtpConfig>>, TError,void, TContext> => {
+
+const mutationKey = ['deleteSmtpConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSmtpConfig>>, void> = () => {
+
+
+          return  deleteSmtpConfig(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSmtpConfigMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSmtpConfig>>>
+
+    export type DeleteSmtpConfigMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Clear database SMTP configuration (admin only)
+ */
+export const useDeleteSmtpConfig = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSmtpConfig>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSmtpConfig>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteSmtpConfigMutationOptions(options));
+    }
+
+export const getTestSmtpConfigUrl = () => {
+
+
+
+
+  return `/api/admin/smtp/test`
+}
+
+/**
+ * @summary Send a test email using current SMTP configuration (admin only)
+ */
+export const testSmtpConfig = async (smtpTestInput: SmtpTestInput, options?: RequestInit): Promise<SmtpTestResult> => {
+
+  return customFetch<SmtpTestResult>(getTestSmtpConfigUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      smtpTestInput,)
+  }
+);}
+
+
+
+
+export const getTestSmtpConfigMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testSmtpConfig>>, TError,{data: BodyType<SmtpTestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testSmtpConfig>>, TError,{data: BodyType<SmtpTestInput>}, TContext> => {
+
+const mutationKey = ['testSmtpConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testSmtpConfig>>, {data: BodyType<SmtpTestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  testSmtpConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestSmtpConfigMutationResult = NonNullable<Awaited<ReturnType<typeof testSmtpConfig>>>
+    export type TestSmtpConfigMutationBody = BodyType<SmtpTestInput>
+    export type TestSmtpConfigMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send a test email using current SMTP configuration (admin only)
+ */
+export const useTestSmtpConfig = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testSmtpConfig>>, TError,{data: BodyType<SmtpTestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testSmtpConfig>>,
+        TError,
+        {data: BodyType<SmtpTestInput>},
+        TContext
+      > => {
+      return useMutation(getTestSmtpConfigMutationOptions(options));
     }
 

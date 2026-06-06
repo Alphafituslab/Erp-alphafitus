@@ -22,3 +22,4 @@ export * from "./backup-schedules";
 export * from "./company-settings";
 export * from "./user-module-access";
 export * from "./notifications";
+export * from "./smtp-settings";

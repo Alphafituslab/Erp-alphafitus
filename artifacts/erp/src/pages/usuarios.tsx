@@ -63,6 +63,11 @@ import {
   Cloud,
   Lock,
   LockOpen,
+  Mail,
+  Server,
+  Eye,
+  EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 import {
   useListUsuarios,
@@ -80,6 +85,11 @@ import {
   useUpdateBackupSchedule,
   getGetBackupScheduleQueryKey,
   useGetBackupConfig,
+  useGetSmtpStatus,
+  useUpdateSmtpConfig,
+  useTestSmtpConfig,
+  useDeleteSmtpConfig,
+  getGetSmtpStatusQueryKey,
 } from "@workspace/api-client-react";
 import type { UserItem, BackupLog, BackupSchedule } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -484,6 +494,214 @@ function PermissoesDialog({ targetUser }: { targetUser: UserItem }) {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── SMTP Config Panel ─────────────────────────────────────────────────────────
+
+function SmtpConfigPanel() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: status, isLoading: statusLoading } = useGetSmtpStatus();
+
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("587");
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [from, setFrom] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testPending, setTestPending] = useState(false);
+
+  const { mutate: save, isPending: isSaving } = useUpdateSmtpConfig({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Configuração SMTP salva!" });
+        void qc.invalidateQueries({ queryKey: getGetSmtpStatusQueryKey() });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao salvar configuração SMTP.";
+        toast({ title: "Erro", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  const { mutate: clearConfig, isPending: isClearing } = useDeleteSmtpConfig({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Configuração SMTP removida", description: "Revertido para variáveis de ambiente (se configuradas)." });
+        void qc.invalidateQueries({ queryKey: getGetSmtpStatusQueryKey() });
+        setHost(""); setPort("587"); setUser(""); setPass(""); setFrom("");
+      },
+      onError: () => toast({ title: "Erro ao remover configuração", variant: "destructive" }),
+    },
+  });
+
+  const { mutate: testSend } = useTestSmtpConfig({
+    mutation: {
+      onSuccess: (data) => {
+        setTestResult({ success: true, message: data.message });
+        setTestPending(false);
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Falha no envio de teste.";
+        setTestResult({ success: false, message: msg });
+        setTestPending(false);
+      },
+    },
+  });
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    save({ data: { host: host.trim(), port: parseInt(port) || 587, user: user.trim(), pass: pass.trim(), from: from.trim() || undefined } });
+  }
+
+  function handleTest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!testEmail.trim()) return;
+    setTestResult(null);
+    setTestPending(true);
+    testSend({ data: { to: testEmail.trim() } });
+  }
+
+  const configured = status?.configured;
+  const source = status?.source;
+
+  return (
+    <Card className="shadow-sm mt-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-muted-foreground" />
+          <CardTitle className="text-base">Configuração SMTP</CardTitle>
+          {!statusLoading && (
+            <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${configured ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+              {configured ? (source === "db" ? "Configurado (BD)" : "Configurado (env)") : "Não configurado"}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Necessário para envio de relatórios agendados e alertas de metas por e-mail.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {statusLoading ? (
+          <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+          </div>
+        ) : (
+          <>
+            {configured && source === "env" && (
+              <div className="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 flex items-start gap-2">
+                <Server className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <span>
+                  SMTP configurado via variáveis de ambiente. Salvar abaixo sobrescreve com configuração no banco de dados.
+                  <br />
+                  <span className="font-medium">{status?.user}</span> via <span className="font-medium">{status?.host}:{status?.port}</span>
+                </span>
+              </div>
+            )}
+            {configured && source === "db" && (
+              <div className="rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 flex items-start gap-2">
+                <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <span>
+                  Configurado no banco de dados.{" "}
+                  <span className="font-medium">{status?.user}</span> via <span className="font-medium">{status?.host}:{status?.port}</span>
+                </span>
+              </div>
+            )}
+
+            <form onSubmit={handleSave} className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <Label htmlFor="smtp-host">Servidor (host)</Label>
+                  <Input id="smtp-host" placeholder="smtp.gmail.com" value={host} onChange={(e) => setHost(e.target.value)} required />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="smtp-port">Porta</Label>
+                  <Input id="smtp-port" type="number" min="1" max="65535" value={port} onChange={(e) => setPort(e.target.value)} required />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="smtp-user">Usuário / E-mail de envio</Label>
+                <Input id="smtp-user" type="email" placeholder="noreply@empresa.com.br" value={user} onChange={(e) => setUser(e.target.value)} required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="smtp-pass">Senha / App password</Label>
+                <div className="relative">
+                  <Input
+                    id="smtp-pass"
+                    type={showPass ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={pass}
+                    onChange={(e) => setPass(e.target.value)}
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPass((v) => !v)}
+                    tabIndex={-1}
+                  >
+                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="smtp-from">Remetente (from) <span className="text-muted-foreground">(opcional — padrão: usuário acima)</span></Label>
+                <Input id="smtp-from" type="email" placeholder="NEXUS ERP <noreply@empresa.com.br>" value={from} onChange={(e) => setFrom(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between pt-1 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                  disabled={isClearing || source !== "db"}
+                  onClick={() => clearConfig(undefined)}
+                >
+                  {isClearing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                  Remover configuração
+                </Button>
+                <Button type="submit" size="sm" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Salvar configuração
+                </Button>
+              </div>
+            </form>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-2">Testar conexão</p>
+              <form onSubmit={handleTest} className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="smtp-test-to" className="text-xs">Enviar e-mail de teste para</Label>
+                  <Input
+                    id="smtp-test-to"
+                    type="email"
+                    placeholder="admin@empresa.com.br"
+                    value={testEmail}
+                    onChange={(e) => { setTestEmail(e.target.value); setTestResult(null); }}
+                    required
+                  />
+                </div>
+                <Button type="submit" size="sm" variant="outline" disabled={testPending || !configured}>
+                  {testPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
+                  Testar conexão
+                </Button>
+              </form>
+              {testResult && (
+                <div className={`mt-2 rounded-md px-3 py-2 text-xs flex items-start gap-2 ${testResult.success ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                  {testResult.success ? <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" /> : <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />}
+                  <span>{testResult.message}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1035,6 +1253,7 @@ export default function UsuariosPage() {
 
       <BackupPanel />
       <BackupSchedulePanel />
+      <SmtpConfigPanel />
 
       {/* Permissions reference */}
       <Card className="shadow-sm mt-6">

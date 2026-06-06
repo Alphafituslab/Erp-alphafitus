@@ -3,8 +3,9 @@ import { spawn } from "child_process";
 import { createGzip } from "zlib";
 import { randomBytes, createCipheriv, pbkdf2Sync } from "crypto";
 import { desc, eq } from "drizzle-orm";
-import { db, usersTable, backupLogsTable, backupSchedulesTable } from "@workspace/db";
+import { db, usersTable, backupLogsTable, backupSchedulesTable, smtpSettingsTable } from "@workspace/db";
 import { uploadBackupToStorage, generateBackupDownloadUrl } from "../lib/backupStorage.js";
+import { sendEmail } from "../lib/mailer";
 
 const router: IRouter = Router();
 
@@ -354,4 +355,142 @@ router.put("/admin/backup/schedule", async (req: Request, res: Response): Promis
   });
 });
 
+// ─── SMTP Configuration ───────────────────────────────────────────────────────
+
+router.get("/admin/smtp/status", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  const [row] = await db.select().from(smtpSettingsTable).limit(1);
+  const envConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  const dbConfigured = !!(row?.host && row?.user && row?.pass);
+
+  const effective = dbConfigured
+    ? { host: row!.host, port: row!.port ?? 587, user: row!.user, from: row!.from }
+    : envConfigured
+    ? {
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT ?? "587", 10),
+        user: process.env.SMTP_USER,
+        from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+      }
+    : null;
+
+  res.json({
+    configured: dbConfigured || envConfigured,
+    source: dbConfigured ? "db" : envConfigured ? "env" : null,
+    host: effective?.host ?? null,
+    port: effective?.port ?? null,
+    user: effective?.user ?? null,
+    from: effective?.from ?? null,
+  });
+});
+
+router.put("/admin/smtp/config", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  const { host, port, user, pass, from } = req.body as {
+    host?: string;
+    port?: number;
+    user?: string;
+    pass?: string;
+    from?: string;
+  };
+
+  if (!host || typeof host !== "string" || host.trim() === "") {
+    res.status(400).json({ error: "host é obrigatório" });
+    return;
+  }
+  if (!user || typeof user !== "string" || user.trim() === "") {
+    res.status(400).json({ error: "user é obrigatório" });
+    return;
+  }
+  if (!pass || typeof pass !== "string" || pass.trim() === "") {
+    res.status(400).json({ error: "pass (senha) é obrigatória" });
+    return;
+  }
+
+  const portNum = typeof port === "number" ? port : parseInt(String(port ?? "587"), 10);
+  if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+    res.status(400).json({ error: "port deve ser um número entre 1 e 65535" });
+    return;
+  }
+
+  const [existing] = await db.select().from(smtpSettingsTable).limit(1);
+
+  let result;
+  if (existing) {
+    const [updated] = await db
+      .update(smtpSettingsTable)
+      .set({ host: host.trim(), port: portNum, user: user.trim(), pass: pass.trim(), from: from?.trim() || user.trim() })
+      .where(eq(smtpSettingsTable.id, existing.id))
+      .returning();
+    result = updated;
+  } else {
+    const [inserted] = await db
+      .insert(smtpSettingsTable)
+      .values({ host: host.trim(), port: portNum, user: user.trim(), pass: pass.trim(), from: from?.trim() || user.trim() })
+      .returning();
+    result = inserted;
+  }
+
+  res.json({
+    host: result!.host,
+    port: result!.port,
+    user: result!.user,
+    from: result!.from,
+    updatedAt: result!.updatedAt.toISOString(),
+  });
+});
+
+router.delete("/admin/smtp/config", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  await db.delete(smtpSettingsTable);
+  res.json({ success: true });
+});
+
+router.post("/admin/smtp/test", async (req: Request, res: Response): Promise<void> => {
+  if (!await requireAdmin(req, res)) return;
+
+  const { to } = req.body as { to?: string };
+  if (!to || typeof to !== "string" || to.trim() === "") {
+    res.status(400).json({ error: "Informe o e-mail de destino para o teste" });
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(to.trim())) {
+    res.status(400).json({ error: "E-mail de destino inválido" });
+    return;
+  }
+
+  const { getEffectiveSmtpConfig } = await import("../lib/smtp-config.js");
+  const cfg = await getEffectiveSmtpConfig();
+  if (!cfg) {
+    res.status(400).json({ error: "Nenhuma configuração SMTP encontrada. Configure as credenciais antes de testar." });
+    return;
+  }
+
+  try {
+    await sendEmail({
+      to: to.trim(),
+      subject: "✅ Teste de E-mail — NEXUS ERP",
+      text: [
+        "Este é um e-mail de teste enviado pelo NEXUS ERP para validar a configuração SMTP.",
+        "",
+        `Servidor: ${cfg.host}:${cfg.port}`,
+        `Remetente: ${cfg.from}`,
+        "",
+        "Se você recebeu esta mensagem, o envio de e-mails está funcionando corretamente.",
+      ].join("\n"),
+    }, cfg);
+    res.json({ success: true, message: `E-mail de teste enviado para ${to.trim()}` });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro ao enviar e-mail";
+    req.log.warn({ err }, "SMTP test failed");
+    res.status(500).json({ error: message });
+  }
+});
+
 export default router;
+

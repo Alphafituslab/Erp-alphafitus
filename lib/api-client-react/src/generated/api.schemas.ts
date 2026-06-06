@@ -5,6 +5,48 @@
  * ERP API specification
  * OpenAPI spec version: 0.1.0
  */
+export type SmtpStatusSource = typeof SmtpStatusSource[keyof typeof SmtpStatusSource] | null;
+
+
+export const SmtpStatusSource = {
+  db: 'db',
+  env: 'env',
+} as const;
+
+export interface SmtpStatus {
+  configured: boolean;
+  source?: SmtpStatusSource;
+  host?: string | null;
+  port?: number | null;
+  user?: string | null;
+  from?: string | null;
+}
+
+export interface SmtpConfigInput {
+  host: string;
+  port?: number;
+  user: string;
+  pass: string;
+  from?: string;
+}
+
+export interface SmtpConfigResult {
+  host: string | null;
+  port?: number | null;
+  user: string | null;
+  from?: string | null;
+  updatedAt: string;
+}
+
+export interface SmtpTestInput {
+  to: string;
+}
+
+export interface SmtpTestResult {
+  success: boolean;
+  message: string;
+}
+
 export type BackupLogSource = typeof BackupLogSource[keyof typeof BackupLogSource];
 
 
@@ -4361,5 +4403,9 @@ lot: string;
 
 export type GetTraceabilityBackwardParams = {
 lot: string;
+};
+
+export type DeleteSmtpConfig200 = {
+  success: boolean;
 };
 

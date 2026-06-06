@@ -5,7 +5,8 @@ import {
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
-import { sendEmail, isSmtpConfigured } from "./mailer";
+import { sendEmail } from "./mailer";
+import { isSmtpConfiguredAsync, getEffectiveSmtpConfig } from "./smtp-config";
 import { buildReportPdf } from "../routes/relatorios-pdf";
 
 type Period = "this_month" | "last_month" | "this_quarter" | "this_year";
@@ -48,7 +49,8 @@ async function runScheduledSend(
   const periodLabel = range.label;
   const recipientsStr = recipients.join(", ");
 
-  if (!isSmtpConfigured()) {
+  const smtpCfg = await getEffectiveSmtpConfig();
+  if (!smtpCfg) {
     await db.insert(reportSendLogsTable).values({
       scheduleId,
       triggerType: "scheduled",
@@ -56,7 +58,7 @@ async function runScheduledSend(
       periodLabel,
       recipients: recipientsStr,
       status: "error",
-      errorMessage: "SMTP não configurado (SMTP_HOST, SMTP_USER, SMTP_PASS obrigatórios)",
+      errorMessage: "SMTP não configurado. Configure as credenciais em Usuários → Configurações SMTP.",
     });
     return;
   }
@@ -70,7 +72,7 @@ async function runScheduledSend(
       subject,
       text: message?.trim() || "Segue em anexo o relatório executivo gerado automaticamente pelo NEXUS ERP.",
       attachments: [{ filename, content: pdfBuffer, contentType: "application/pdf" }],
-    });
+    }, smtpCfg);
 
     await db.insert(reportSendLogsTable).values({
       scheduleId,

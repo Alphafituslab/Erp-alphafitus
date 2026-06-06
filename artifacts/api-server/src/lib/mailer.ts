@@ -30,8 +30,8 @@ export function getSmtpConfig(): SmtpConfig | null {
   return { host, port, user, pass, from };
 }
 
-export async function sendEmail(opts: SendReportEmailOptions): Promise<void> {
-  const cfg = getSmtpConfig();
+export async function sendEmail(opts: SendReportEmailOptions, config?: SmtpConfig): Promise<void> {
+  const cfg = config ?? getSmtpConfig();
   if (!cfg) {
     throw new Error("SMTP não configurado (SMTP_HOST, SMTP_USER, SMTP_PASS obrigatórios)");
   }

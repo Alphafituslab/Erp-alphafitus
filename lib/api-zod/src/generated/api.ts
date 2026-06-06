@@ -6755,3 +6755,59 @@ export const UpdateBackupScheduleResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "updatedBy": zod.number().nullish()
 })
+
+
+/**
+ * @summary Get current SMTP configuration status (admin only)
+ */
+export const GetSmtpStatusResponse = zod.object({
+  "configured": zod.boolean(),
+  "source": zod.enum(['db', 'env']).nullish(),
+  "host": zod.string().nullish(),
+  "port": zod.number().nullish(),
+  "user": zod.string().nullish(),
+  "from": zod.string().nullish()
+})
+
+
+/**
+ * @summary Save SMTP configuration to database (admin only)
+ */
+export const updateSmtpConfigBodyPortDefault = 587;
+
+export const UpdateSmtpConfigBody = zod.object({
+  "host": zod.string(),
+  "port": zod.number().default(updateSmtpConfigBodyPortDefault),
+  "user": zod.string(),
+  "pass": zod.string(),
+  "from": zod.string().optional()
+})
+
+export const UpdateSmtpConfigResponse = zod.object({
+  "host": zod.string().nullable(),
+  "port": zod.number().nullish(),
+  "user": zod.string().nullable(),
+  "from": zod.string().nullish(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Clear database SMTP configuration (admin only)
+ */
+export const DeleteSmtpConfigResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Send a test email using current SMTP configuration (admin only)
+ */
+export const TestSmtpConfigBody = zod.object({
+  "to": zod.string().email()
+})
+
+export const TestSmtpConfigResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})

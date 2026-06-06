@@ -8,8 +8,9 @@ import {
   usersTable,
 } from "@workspace/db";
 import { and, eq, sql, gte, lte, inArray } from "drizzle-orm";
-import nodemailer from "nodemailer";
 import { logger } from "./logger";
+import { sendEmail } from "./mailer";
+import { getEffectiveSmtpConfig } from "./smtp-config";
 
 const MONTH_LABELS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -31,13 +32,8 @@ async function sendGoalAlertEmail(
   monthLabel: string,
   alerts: { kpi: string; label: string; progress: number; daysRemaining: number; actual: string; goal: string }[],
 ): Promise<void> {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpFrom = process.env.SMTP_FROM ?? smtpUser;
-
-  if (!smtpHost || !smtpUser || !smtpPass) {
+  const cfg = await getEffectiveSmtpConfig();
+  if (!cfg) {
     logger.warn("Goal alert email skipped: SMTP not configured");
     return;
   }
@@ -62,19 +58,11 @@ async function sendGoalAlertEmail(
     `Acesse o dashboard executivo para mais detalhes.`,
   ].join("\n");
 
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-  });
-
-  await transporter.sendMail({
-    from: smtpFrom,
+  await sendEmail({
     to: recipients.join(", "),
     subject,
     text,
-  });
+  }, cfg);
 
   logger.info({ recipients, monthLabel, alertCount: alerts.length }, "Goal alert email sent");
 }
@@ -394,14 +382,9 @@ async function sendGoalAlertTestEmail(
   monthLabel: string,
   alerts: { kpi: string; label: string; progress: number; daysRemaining: number; actual: string; goal: string }[],
 ): Promise<void> {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpFrom = process.env.SMTP_FROM ?? smtpUser;
-
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    throw new Error("SMTP não configurado. Defina as variáveis SMTP_HOST, SMTP_USER e SMTP_PASS.");
+  const cfg = await getEffectiveSmtpConfig();
+  if (!cfg) {
+    throw new Error("SMTP não configurado. Configure as credenciais em Usuários → Configuração SMTP.");
   }
 
   if (recipients.length === 0) {
@@ -430,19 +413,7 @@ async function sendGoalAlertTestEmail(
     `Acesse o dashboard executivo para mais detalhes.`,
   ].join("\n");
 
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-  });
-
-  await transporter.sendMail({
-    from: smtpFrom,
-    to: recipients.join(", "),
-    subject,
-    text,
-  });
+  await sendEmail({ to: recipients.join(", "), subject, text }, cfg);
 
   logger.info({ recipients, monthLabel }, "Goal alert test email sent");
 }
