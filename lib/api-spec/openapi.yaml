@@ -3501,6 +3501,312 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  # ─── Price tables & payment terms ───────────────────────────────────────────
+
+  /price-tables:
+    get:
+      operationId: listPriceTables
+      tags: [vendas]
+      summary: List price tables (optionally filtered by client, for exclusive tables)
+      parameters:
+        - name: clientId
+          in: query
+          schema:
+            type: integer
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: List of price tables
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceTablePage"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPriceTable
+      tags: [vendas]
+      summary: Create a price table
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PriceTableInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceTable"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /price-tables/{id}:
+    put:
+      operationId: updatePriceTable
+      tags: [vendas]
+      summary: Update a price table
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PriceTableInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceTable"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deletePriceTable
+      tags: [vendas]
+      summary: Delete a price table
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /price-tables/{id}/items:
+    get:
+      operationId: listPriceTableItems
+      tags: [vendas]
+      summary: List items (product prices) of a price table
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of price table items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceTableItemPage"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: replacePriceTableItems
+      tags: [vendas]
+      summary: Bulk replace all items of a price table
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplacePriceTableItemsInput"
+      responses:
+        "200":
+          description: Replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payment-terms:
+    get:
+      operationId: listPaymentTerms
+      tags: [vendas]
+      summary: List payment terms
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: List of payment terms
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentTermPage"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPaymentTerm
+      tags: [vendas]
+      summary: Create a payment term
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentTermInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentTerm"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payment-terms/{id}:
+    put:
+      operationId: updatePaymentTerm
+      tags: [vendas]
+      summary: Update a payment term
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentTermInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentTerm"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deletePaymentTerm
+      tags: [vendas]
+      summary: Delete a payment term
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   # ─── RH: Employees ────────────────────────────────────────────────────────────
 
   /rh/employees:
@@ -8723,6 +9029,12 @@ components:
         defaultDiscountPct:
           type: string
           nullable: true
+        defaultPriceTableId:
+          type: integer
+          nullable: true
+        defaultPaymentTermId:
+          type: integer
+          nullable: true
         taxRegime:
           type: string
           nullable: true
@@ -8770,6 +9082,168 @@ components:
         creditPct:
           type: integer
           description: Percentage of credit limit used (0-100+)
+
+    PriceTable:
+      type: object
+      required:
+        - id
+        - name
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientId:
+          type: integer
+          nullable: true
+          description: When set, this table is exclusive to this client
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PriceTableListItem:
+      allOf:
+        - $ref: "#/components/schemas/PriceTable"
+        - type: object
+          properties:
+            clientName:
+              type: string
+              nullable: true
+            itemCount:
+              type: integer
+
+    PriceTablePage:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceTableListItem"
+
+    PriceTableInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientId:
+          type: integer
+          nullable: true
+        active:
+          type: string
+
+    PriceTableItem:
+      type: object
+      required:
+        - id
+        - productId
+        - price
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+          nullable: true
+        productSku:
+          type: string
+          nullable: true
+        price:
+          type: string
+
+    PriceTableItemPage:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceTableItem"
+
+    ReplacePriceTableItemsInput:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - productId
+              - price
+            properties:
+              productId:
+                type: integer
+              price:
+                type: string
+
+    PaymentTerm:
+      type: object
+      required:
+        - id
+        - name
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaymentTermPage:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentTerm"
+
+    PaymentTermInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        active:
+          type: string
 
     ClientInput:
       type: object
@@ -8846,6 +9320,12 @@ components:
           nullable: true
         defaultDiscountPct:
           type: string
+          nullable: true
+        defaultPriceTableId:
+          type: integer
+          nullable: true
+        defaultPaymentTermId:
+          type: integer
           nullable: true
         taxRegime:
           type: string
@@ -8982,6 +9462,12 @@ components:
         paymentTerms:
           type: string
           nullable: true
+        paymentTermId:
+          type: integer
+          nullable: true
+        priceTableId:
+          type: integer
+          nullable: true
         commission:
           type: string
           nullable: true
@@ -9054,6 +9540,12 @@ components:
         paymentTerms:
           type: string
           nullable: true
+        paymentTermId:
+          type: integer
+          nullable: true
+        priceTableId:
+          type: integer
+          nullable: true
         commission:
           type: string
           nullable: true
@@ -9117,6 +9609,12 @@ components:
           nullable: true
         paymentTerms:
           type: string
+          nullable: true
+        paymentTermId:
+          type: integer
+          nullable: true
+        priceTableId:
+          type: integer
           nullable: true
         commission:
           type: string

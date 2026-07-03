@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/contexts/auth";
@@ -18,11 +18,25 @@ import {
   useGetSalesOrder,
   useListSalesOrderLogs,
   useGetClientTopDebtors,
+  useListPriceTables,
+  useCreatePriceTable,
+  useUpdatePriceTable,
+  useDeletePriceTable,
+  useListPriceTableItems,
+  useReplacePriceTableItems,
+  useListPaymentTerms,
+  useCreatePaymentTerm,
+  useUpdatePaymentTerm,
+  useDeletePaymentTerm,
+  useListProducts,
   getListClientsQueryKey,
   getListSalesOrdersQueryKey,
   getGetVendasDashboardQueryKey,
+  getListPriceTablesQueryKey,
+  getListPriceTableItemsQueryKey,
+  getListPaymentTermsQueryKey,
 } from "@workspace/api-client-react";
-import type { Client, SalesOrder, SalesOrderLog, ClientCreditSummary } from "@workspace/api-client-react";
+import type { Client, SalesOrder, SalesOrderLog, ClientCreditSummary, PriceTable, PriceTableItem, PaymentTerm } from "@workspace/api-client-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -30,6 +44,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -283,6 +298,8 @@ const clientSchema = z.object({
   defaultDiscountPct: z.string().optional().refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0 && Number(v) <= 100), "0–100%"),
   taxRegime: z.string().optional(),
   notes: z.string().optional(),
+  defaultPriceTableId: z.string().optional(),
+  defaultPaymentTermId: z.string().optional(),
 });
 type ClientForm = z.infer<typeof clientSchema>;
 
@@ -294,6 +311,7 @@ const CLIENT_EMPTY: ClientForm = {
   shippingNeighborhood: "", shippingCity: "", shippingState: "",
   contactName: "", contactPhone: "",
   creditLimit: "", defaultDiscountPct: "", taxRegime: "", notes: "",
+  defaultPriceTableId: "", defaultPaymentTermId: "",
 };
 
 function clientValues(c: Client): ClientForm {
@@ -311,6 +329,8 @@ function clientValues(c: Client): ClientForm {
     contactName: c.contactName ?? "", contactPhone: c.contactPhone ?? "",
     creditLimit: c.creditLimit ?? "", defaultDiscountPct: c.defaultDiscountPct ?? "",
     taxRegime: c.taxRegime ?? "", notes: c.notes ?? "",
+    defaultPriceTableId: c.defaultPriceTableId ? String(c.defaultPriceTableId) : "",
+    defaultPaymentTermId: c.defaultPaymentTermId ? String(c.defaultPaymentTermId) : "",
   };
 }
 
@@ -319,6 +339,14 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
   const invalidate = () => qc.invalidateQueries({ queryKey: getListClientsQueryKey() });
   const createMutation = useCreateClient();
   const updateMutation = useUpdateClient();
+
+  const { data: priceTablesData } = useListPriceTables({ active: "true" });
+  const priceTableOptions = useMemo(
+    () => (priceTablesData?.items ?? []).filter((t) => t.active === "true" && (t.clientId === null || t.clientId === editing?.id)),
+    [priceTablesData, editing]
+  );
+  const { data: paymentTermsData } = useListPaymentTerms({ active: "true" });
+  const paymentTermOptions = paymentTermsData?.items ?? [];
 
   const form = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
@@ -341,6 +369,8 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
       contactName: n(data.contactName), contactPhone: n(data.contactPhone),
       creditLimit: n(data.creditLimit), defaultDiscountPct: n(data.defaultDiscountPct),
       taxRegime: n(data.taxRegime), notes: n(data.notes),
+      defaultPriceTableId: data.defaultPriceTableId ? parseInt(data.defaultPriceTableId) : null,
+      defaultPaymentTermId: data.defaultPaymentTermId ? parseInt(data.defaultPaymentTermId) : null,
     };
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
@@ -520,6 +550,39 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
                   </select>
                 )} />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Tabela de Preço Padrão</label>
+                  <Controller control={form.control} name="defaultPriceTableId" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="— Padrão do sistema —" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Padrão do sistema —</SelectItem>
+                        {priceTableOptions.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.name}{t.clientId ? " (exclusiva)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                  <p className="text-xs text-muted-foreground">Carregada automaticamente ao criar pedidos para este cliente.</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Condição de Pagamento Padrão</label>
+                  <Controller control={form.control} name="defaultPaymentTermId" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="— Nenhuma —" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Nenhuma —</SelectItem>
+                        {paymentTermOptions.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
 
@@ -551,6 +614,8 @@ const orderSchema = z.object({
   deliveryDate: z.string().optional(),
   notes: z.string().optional(),
   paymentTerms: z.string().optional(),
+  paymentTermId: z.string().optional(),
+  priceTableId: z.string().optional(),
   commission: z.string().optional(),
   freightValue: z.string().optional(),
   carrier: z.string().optional(),
@@ -565,6 +630,13 @@ type OrderForm = z.infer<typeof orderSchema>;
 
 type Step = "comercial" | "produto" | "logistica" | "itens";
 
+const ORDER_DEFAULTS: OrderForm = {
+  type: "quote", clientId: "", validUntil: "", deliveryDate: "", notes: "",
+  paymentTerms: "", paymentTermId: "", priceTableId: "", commission: "", freightValue: "",
+  carrier: "", formula: "", formulaVersion: "", packagingType: "", labelRef: "", technicalNotes: "",
+  items: [{ description: "", quantity: "1", unitPrice: "0" }],
+};
+
 function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClose: () => void; editing?: SalesOrder | null; clients: Client[] }) {
   const qc = useQueryClient();
   const invalidateOrders = () => {
@@ -577,17 +649,33 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
   const [step, setStep] = useState<Step>("comercial");
 
   const { data: fullOrder, isLoading: loadingOrder } = useGetSalesOrder(editing?.id ?? 0);
+  const { data: priceTablesData } = useListPriceTables({ active: "true" });
+  const { data: paymentTermsData } = useListPaymentTerms({ active: "true" });
+  const paymentTermOptions = paymentTermsData?.items ?? [];
 
   const form = useForm<OrderForm>({
     resolver: zodResolver(orderSchema),
-    defaultValues: { type: "quote", clientId: "", validUntil: "", deliveryDate: "", notes: "", paymentTerms: "", commission: "", freightValue: "", carrier: "", formula: "", formulaVersion: "", packagingType: "", labelRef: "", technicalNotes: "", items: [{ description: "", quantity: "1", unitPrice: "0" }] },
+    defaultValues: ORDER_DEFAULTS,
   });
+
+  const clientId = form.watch("clientId");
+  const priceTableOptions = useMemo(() => {
+    const all = priceTablesData?.items ?? [];
+    const selectedClientId = clientId ? parseInt(clientId) : null;
+    return all.filter((t) => t.clientId === null || t.clientId === selectedClientId);
+  }, [priceTablesData, clientId]);
+
+  const { data: selectedPriceTableItemsData } = useListPriceTableItems(
+    form.watch("priceTableId") ? parseInt(form.watch("priceTableId")!) : 0,
+    { query: { enabled: !!form.watch("priceTableId") } as any }
+  );
+  const priceTableItems = selectedPriceTableItemsData?.items ?? [];
 
   const [populated, setPopulated] = useState(false);
   useEffect(() => {
     if (!open) { setPopulated(false); setStep("comercial"); return; }
     if (!editing) {
-      form.reset({ type: "quote", clientId: "", validUntil: "", deliveryDate: "", notes: "", paymentTerms: "", commission: "", freightValue: "", carrier: "", formula: "", formulaVersion: "", packagingType: "", labelRef: "", technicalNotes: "", items: [{ description: "", quantity: "1", unitPrice: "0" }] });
+      form.reset(ORDER_DEFAULTS);
       setPopulated(true);
       return;
     }
@@ -599,6 +687,8 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
       deliveryDate: fullOrder.deliveryDate ? new Date(fullOrder.deliveryDate).toISOString().slice(0, 10) : "",
       notes: fullOrder.notes ?? "",
       paymentTerms: fullOrder.paymentTerms ?? "",
+      paymentTermId: fullOrder.paymentTermId ? String(fullOrder.paymentTermId) : "",
+      priceTableId: fullOrder.priceTableId ? String(fullOrder.priceTableId) : "",
       commission: fullOrder.commission ?? "",
       freightValue: fullOrder.freightValue ?? "",
       carrier: fullOrder.carrier ?? "",
@@ -614,9 +704,32 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
     setPopulated(true);
   }, [open, editing, fullOrder, populated, form]);
 
+  // Auto-load client's default price table / payment term when picking a client on a new order
+  const prevClientId = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!open || editing) return;
+    if (prevClientId.current === clientId) return;
+    prevClientId.current = clientId;
+    if (!clientId) return;
+    const client = clients.find((c) => c.id === parseInt(clientId));
+    if (!client) return;
+    if (client.defaultPriceTableId) form.setValue("priceTableId", String(client.defaultPriceTableId));
+    if (client.defaultPaymentTermId) form.setValue("paymentTermId", String(client.defaultPaymentTermId));
+  }, [clientId, open, editing, clients, form]);
+
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const watchedItems = form.watch("items");
   const total = watchedItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0);
+
+  const applyPriceTableItem = (idx: number, ptItemId: string) => {
+    const item = priceTableItems.find((i) => String(i.id) === ptItemId);
+    if (!item) return;
+    form.setValue(`items.${idx}.productId`, item.productId);
+    form.setValue(`items.${idx}.unitPrice`, item.price);
+    if (!form.getValues(`items.${idx}.description`)) {
+      form.setValue(`items.${idx}.description`, item.productName ?? "");
+    }
+  };
 
   const [creditError, setCreditError] = useState<string | null>(null);
 
@@ -629,6 +742,8 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
       deliveryDate: data.deliveryDate ? new Date(data.deliveryDate + "T00:00:00").toISOString() : null,
       notes: data.notes || null,
       paymentTerms: data.paymentTerms || null,
+      paymentTermId: data.paymentTermId ? parseInt(data.paymentTermId) : null,
+      priceTableId: data.priceTableId ? parseInt(data.priceTableId) : null,
       commission: data.commission || null,
       freightValue: data.freightValue || null,
       carrier: data.carrier || null,
@@ -637,7 +752,7 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
       packagingType: data.packagingType || null,
       labelRef: data.labelRef || null,
       technicalNotes: data.technicalNotes || null,
-      items: data.items.map((i) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
+      items: data.items.map((i) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, productId: i.productId ?? null })),
     };
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload as any }, { onSuccess: () => { invalidateOrders(); onClose(); } });
@@ -722,7 +837,37 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
+                  <label className="text-sm font-medium">Tabela de Preço</label>
+                  <Controller control={form.control} name="priceTableId" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="— Padrão do sistema —" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Padrão do sistema —</SelectItem>
+                        {priceTableOptions.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>{t.name}{t.clientId ? " (exclusiva)" : ""}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                </div>
+                <div className="space-y-1">
                   <label className="text-sm font-medium">Condição de Pagamento</label>
+                  <Controller control={form.control} name="paymentTermId" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="— Nenhuma —" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Nenhuma —</SelectItem>
+                        {paymentTermOptions.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Observação de Pagamento</label>
                   <Input {...form.register("paymentTerms")} placeholder="Ex: 30/60/90 DDL" />
                 </div>
                 <div className="space-y-1">
@@ -793,20 +938,39 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
                 </Button>
               </div>
               {form.formState.errors.items?.root && <p className="text-xs text-destructive">{form.formState.errors.items.root.message}</p>}
+              {priceTableItems.length > 0 && (
+                <p className="text-xs text-muted-foreground">Selecione um produto da tabela de preço para preencher a descrição e o valor automaticamente.</p>
+              )}
               <div className="space-y-2">
                 {fields.map((field, idx) => (
-                  <div key={field.id} className="grid grid-cols-[1fr_80px_100px_36px] gap-2 items-start">
-                    <div>
-                      <Input {...form.register(`items.${idx}.description`)} placeholder="Descrição do item" />
-                      {form.formState.errors.items?.[idx]?.description && (
-                        <p className="text-xs text-destructive">{form.formState.errors.items[idx]?.description?.message}</p>
-                      )}
+                  <div key={field.id} className="space-y-1">
+                    {priceTableItems.length > 0 && (
+                      <select
+                        className="w-full h-8 px-2 border border-input rounded-md text-xs bg-background"
+                        defaultValue=""
+                        onChange={(e) => { if (e.target.value) applyPriceTableItem(idx, e.target.value); e.target.value = ""; }}
+                      >
+                        <option value="">— Preencher a partir da tabela de preço —</option>
+                        {priceTableItems.map((pti) => (
+                          <option key={pti.id} value={String(pti.id)}>
+                            {pti.productSku ? `${pti.productSku} — ` : ""}{pti.productName ?? `Produto #${pti.productId}`} ({fmt(pti.price)})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="grid grid-cols-[1fr_80px_100px_36px] gap-2 items-start">
+                      <div>
+                        <Input {...form.register(`items.${idx}.description`)} placeholder="Descrição do item" />
+                        {form.formState.errors.items?.[idx]?.description && (
+                          <p className="text-xs text-destructive">{form.formState.errors.items[idx]?.description?.message}</p>
+                        )}
+                      </div>
+                      <Input {...form.register(`items.${idx}.quantity`)} placeholder="Qtd" type="number" step="0.001" min="0" />
+                      <Input {...form.register(`items.${idx}.unitPrice`)} placeholder="Preço unit." type="number" step="0.01" min="0" />
+                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => remove(idx)} disabled={fields.length === 1}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Input {...form.register(`items.${idx}.quantity`)} placeholder="Qtd" type="number" step="0.001" min="0" />
-                    <Input {...form.register(`items.${idx}.unitPrice`)} placeholder="Preço unit." type="number" step="0.01" min="0" />
-                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => remove(idx)} disabled={fields.length === 1}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -842,6 +1006,220 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
               <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
               <Button type="submit" disabled={isPending}>{isPending ? "Salvando…" : "Salvar"}</Button>
             </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Price Table Dialog ────────────────────────────────────────────────────────
+
+const priceTableSchema = z.object({
+  name: z.string().min(1, "Obrigatório"),
+  description: z.string().optional(),
+  clientId: z.string().optional(),
+  active: z.enum(["true", "false"]),
+});
+type PriceTableForm = z.infer<typeof priceTableSchema>;
+
+function PriceTableDialog({ open, onClose, editing, clients }: { open: boolean; onClose: () => void; editing?: PriceTable | null; clients: Client[] }) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: getListPriceTablesQueryKey() });
+  const createMutation = useCreatePriceTable();
+  const updateMutation = useUpdatePriceTable();
+  const replaceItemsMutation = useReplacePriceTableItems();
+
+  const { data: productsData } = useListProducts({ pageSize: 500, active: "true" } as any);
+  const products = productsData?.items ?? [];
+
+  const { data: itemsData } = useListPriceTableItems(editing?.id ?? 0, { query: { enabled: !!editing } as any });
+
+  const form = useForm<PriceTableForm>({
+    resolver: zodResolver(priceTableSchema),
+    values: editing
+      ? { name: editing.name, description: editing.description ?? "", clientId: editing.clientId ? String(editing.clientId) : "", active: (editing.active as "true" | "false") ?? "true" }
+      : { name: "", description: "", clientId: "", active: "true" },
+  });
+
+  const [items, setItems] = useState<{ productId: string; price: string }[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    setItems((itemsData?.items ?? []).map((i) => ({ productId: String(i.productId), price: i.price })));
+  }, [open, itemsData]);
+
+  const onSubmit = form.handleSubmit((data) => {
+    const payload = {
+      name: data.name,
+      description: data.description || null,
+      clientId: data.clientId ? parseInt(data.clientId) : null,
+      active: data.active,
+    };
+    const saveItems = (id: number) => {
+      const validItems = items.filter((i) => i.productId && i.price);
+      replaceItemsMutation.mutate(
+        { id, data: { items: validItems.map((i) => ({ productId: parseInt(i.productId), price: i.price })) } },
+        { onSuccess: () => { qc.invalidateQueries({ queryKey: getListPriceTableItemsQueryKey(id) }); invalidate(); onClose(); } }
+      );
+    };
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => saveItems(editing.id) });
+    } else {
+      createMutation.mutate({ data: payload }, { onSuccess: (created) => saveItems(created.id) });
+    }
+  });
+
+  const isPending = createMutation.isPending || updateMutation.isPending || replaceItemsMutation.isPending;
+  const F = form.formState.errors;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{editing ? "Editar Tabela de Preço" : "Nova Tabela de Preço"}</DialogTitle></DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-3 pt-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nome *</label>
+              <Input {...form.register("name")} placeholder="Ex: Tabela Padrão, Tabela Cliente X" />
+              {F.name && <p className="text-xs text-destructive">{F.name.message}</p>}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Status</label>
+              <Controller control={form.control} name="active" render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Ativa</SelectItem>
+                    <SelectItem value="false">Inativa</SelectItem>
+                  </SelectContent>
+                </Select>
+              )} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Cliente Exclusivo</label>
+            <Controller control={form.control} name="clientId" render={({ field }) => (
+              <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="— Tabela padrão (todos os clientes) —" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Tabela padrão (todos os clientes) —</SelectItem>
+                  {clients.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )} />
+            <p className="text-xs text-muted-foreground">Quando definido, esta tabela é exclusiva para o cliente selecionado.</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Descrição</label>
+            <Textarea {...form.register("description")} rows={2} placeholder="Opcional" />
+          </div>
+
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Preços por Produto</label>
+              <Button type="button" variant="outline" size="sm" onClick={() => setItems((s) => [...s, { productId: "", price: "0" }])}>
+                <Plus className="h-3 w-3 mr-1" /> Adicionar produto
+              </Button>
+            </div>
+            {items.length === 0 && <p className="text-xs text-muted-foreground">Nenhum produto nesta tabela.</p>}
+            <div className="space-y-2">
+              {items.map((it, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_120px_36px] gap-2 items-center">
+                  <select
+                    className="w-full h-9 px-2 border border-input rounded-md text-sm bg-background"
+                    value={it.productId}
+                    onChange={(e) => setItems((s) => s.map((row, i) => i === idx ? { ...row, productId: e.target.value } : row))}
+                  >
+                    <option value="">— Selecionar produto —</option>
+                    {products.map((p) => <option key={p.id} value={String(p.id)}>{p.name}{p.sku ? ` (${p.sku})` : ""}</option>)}
+                  </select>
+                  <Input
+                    type="number" step="0.01" min="0" placeholder="Preço"
+                    value={it.price}
+                    onChange={(e) => setItems((s) => s.map((row, i) => i === idx ? { ...row, price: e.target.value } : row))}
+                  />
+                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => setItems((s) => s.filter((_, i) => i !== idx))}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={isPending}>{isPending ? "Salvando…" : "Salvar"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Payment Term Dialog ───────────────────────────────────────────────────────
+
+const paymentTermSchema = z.object({
+  name: z.string().min(1, "Obrigatório"),
+  description: z.string().optional(),
+  active: z.enum(["true", "false"]),
+});
+type PaymentTermForm = z.infer<typeof paymentTermSchema>;
+
+function PaymentTermDialog({ open, onClose, editing }: { open: boolean; onClose: () => void; editing?: PaymentTerm | null }) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: getListPaymentTermsQueryKey() });
+  const createMutation = useCreatePaymentTerm();
+  const updateMutation = useUpdatePaymentTerm();
+
+  const form = useForm<PaymentTermForm>({
+    resolver: zodResolver(paymentTermSchema),
+    values: editing
+      ? { name: editing.name, description: editing.description ?? "", active: (editing.active as "true" | "false") ?? "true" }
+      : { name: "", description: "", active: "true" },
+  });
+
+  const onSubmit = form.handleSubmit((data) => {
+    const payload = { name: data.name, description: data.description || null, active: data.active };
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
+    } else {
+      createMutation.mutate({ data: payload }, { onSuccess: () => { invalidate(); onClose(); form.reset(); } });
+    }
+  });
+
+  const F = form.formState.errors;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{editing ? "Editar Condição de Pagamento" : "Nova Condição de Pagamento"}</DialogTitle></DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-3 pt-1">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Nome *</label>
+            <Input {...form.register("name")} placeholder="Ex: 30/60/90 DDL, À vista" />
+            {F.name && <p className="text-xs text-destructive">{F.name.message}</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Descrição</label>
+            <Textarea {...form.register("description")} rows={2} placeholder="Opcional" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Status</label>
+            <Controller control={form.control} name="active" render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Ativa</SelectItem>
+                  <SelectItem value="false">Inativa</SelectItem>
+                </SelectContent>
+              </Select>
+            )} />
+          </div>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+              {createMutation.isPending || updateMutation.isPending ? "Salvando…" : "Salvar"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1228,6 +1606,14 @@ export default function VendasPage() {
   const [deleteOrder, setDeleteOrder] = useState<SalesOrder | null>(null);
   const [detailOrder, setDetailOrder] = useState<SalesOrder | null>(null);
 
+  const [priceTableDialog, setPriceTableDialog] = useState(false);
+  const [editingPriceTable, setEditingPriceTable] = useState<PriceTable | null>(null);
+  const [deletePriceTableItem, setDeletePriceTableItem] = useState<PriceTable | null>(null);
+
+  const [paymentTermDialog, setPaymentTermDialog] = useState(false);
+  const [editingPaymentTerm, setEditingPaymentTerm] = useState<PaymentTerm | null>(null);
+  const [deletePaymentTermItem, setDeletePaymentTermItem] = useState<PaymentTerm | null>(null);
+
   const invalidateOrders = () => {
     qc.invalidateQueries({ queryKey: getListSalesOrdersQueryKey() });
     qc.invalidateQueries({ queryKey: getGetVendasDashboardQueryKey() });
@@ -1258,8 +1644,15 @@ export default function VendasPage() {
   const { data: allOrdersData } = useListSalesOrders({ pageSize: 500 });
   const allOrders = allOrdersData?.items ?? [];
 
+  const { data: priceTablesData } = useListPriceTables();
+  const priceTables = priceTablesData?.items ?? [];
+  const { data: paymentTermsData } = useListPaymentTerms();
+  const paymentTerms = paymentTermsData?.items ?? [];
+
   const deleteCMutation = useDeleteClient();
   const deleteOMutation = useDeleteSalesOrder();
+  const deletePriceTableMutation = useDeletePriceTable();
+  const deletePaymentTermMutation = useDeletePaymentTerm();
   const convertMutation = useConvertQuoteToOrder();
   const dndStatusMutation = useUpdateSalesOrderStatus();
 
@@ -1321,6 +1714,7 @@ export default function VendasPage() {
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="orders">Orçamentos & Pedidos</TabsTrigger>
             <TabsTrigger value="clients">Clientes</TabsTrigger>
+            <TabsTrigger value="pricing">Tabelas & Condições</TabsTrigger>
           </TabsList>
 
           {/* ── DASHBOARD TAB ─────────────────────────────────────────────── */}
@@ -1738,10 +2132,111 @@ export default function VendasPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ── PRICING TAB ───────────────────────────────────────────────── */}
+          <TabsContent value="pricing" className="space-y-5 mt-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-base">Tabelas de Preço</CardTitle>
+                {canEditModule('vendas') && (
+                  <Button size="sm" onClick={() => { setEditingPriceTable(null); setPriceTableDialog(true); }}>
+                    <Plus className="h-4 w-4 mr-2" /> Nova Tabela
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Cliente Exclusivo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {priceTables.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">Nenhuma tabela de preço cadastrada</TableCell></TableRow>
+                    )}
+                    {priceTables.map((pt) => (
+                      <TableRow key={pt.id}>
+                        <TableCell className="font-medium">{pt.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {pt.clientId ? (activeClients.find((c) => c.id === pt.clientId)?.name ?? `Cliente #${pt.clientId}`) : "— Padrão (todos) —"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={pt.active === "true" ? "default" : "secondary"}>{pt.active === "true" ? "Ativa" : "Inativa"}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPriceTable(pt); setPriceTableDialog(true); }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletePriceTableItem(pt)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-base">Condições de Pagamento</CardTitle>
+                {canEditModule('vendas') && (
+                  <Button size="sm" onClick={() => { setEditingPaymentTerm(null); setPaymentTermDialog(true); }}>
+                    <Plus className="h-4 w-4 mr-2" /> Nova Condição
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentTerms.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">Nenhuma condição de pagamento cadastrada</TableCell></TableRow>
+                    )}
+                    {paymentTerms.map((pt) => (
+                      <TableRow key={pt.id}>
+                        <TableCell className="font-medium">{pt.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{pt.description ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={pt.active === "true" ? "default" : "secondary"}>{pt.active === "true" ? "Ativa" : "Inativa"}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPaymentTerm(pt); setPaymentTermDialog(true); }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletePaymentTermItem(pt)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
       {/* ── Dialogs / Sheets ────────────────────────────────────────────── */}
+      <PriceTableDialog open={priceTableDialog} onClose={() => { setPriceTableDialog(false); setEditingPriceTable(null); }} editing={editingPriceTable} clients={activeClients} />
+      <PaymentTermDialog open={paymentTermDialog} onClose={() => { setPaymentTermDialog(false); setEditingPaymentTerm(null); }} editing={editingPaymentTerm} />
       <ClientDialog open={clientDialog} onClose={() => { setClientDialog(false); setEditingClient(null); }} editing={editingClient} />
 
       <OrderDialog open={orderDialog} onClose={() => { setOrderDialog(false); setEditingOrder(null); }} editing={editingOrder} clients={activeClients} />
@@ -1780,6 +2275,38 @@ export default function VendasPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteOMutation.mutate({ id: deleteOrder!.id }, { onSuccess: () => { invalidateOrders(); setDeleteOrder(null); } })}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletePriceTableItem} onOpenChange={(v) => !v && setDeletePriceTableItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir tabela de preço?</AlertDialogTitle>
+            <AlertDialogDescription>"{deletePriceTableItem?.name}" será removida permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletePriceTableMutation.mutate({ id: deletePriceTableItem!.id }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListPriceTablesQueryKey() }); setDeletePriceTableItem(null); } })}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletePaymentTermItem} onOpenChange={(v) => !v && setDeletePaymentTermItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir condição de pagamento?</AlertDialogTitle>
+            <AlertDialogDescription>"{deletePaymentTermItem?.name}" será removida permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletePaymentTermMutation.mutate({ id: deletePaymentTermItem!.id }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListPaymentTermsQueryKey() }); setDeletePaymentTermItem(null); } })}>
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

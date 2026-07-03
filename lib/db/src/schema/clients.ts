@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, numeric, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -33,6 +33,10 @@ export const clientsTable = pgTable("clients", {
   creditLimit: numeric("credit_limit", { precision: 12, scale: 2 }),
   defaultDiscountPct: numeric("default_discount_pct", { precision: 5, scale: 2 }),
   taxRegime: text("tax_regime"), // simples | presumido | real | mei
+  // Preferred price table (shared or exclusive) and payment term for this client.
+  // Plain FK (no cross-file .references()) to avoid a circular import with price-tables.ts / payment-terms.ts.
+  defaultPriceTableId: integer("default_price_table_id"),
+  defaultPaymentTermId: integer("default_payment_term_id"),
   // Legacy / misc
   address: text("address"),
   city: text("city"),

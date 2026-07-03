@@ -15,6 +15,8 @@ export const salesOrdersTable = pgTable("sales_orders", {
   notes: text("notes"),
   // Commercial fields
   paymentTerms: text("payment_terms"),
+  paymentTermId: integer("payment_term_id"),
+  priceTableId: integer("price_table_id"),
   commission: numeric("commission", { precision: 5, scale: 2 }),
   freightValue: numeric("freight_value", { precision: 12, scale: 2 }),
   carrier: text("carrier"),

@@ -17,6 +17,8 @@ import usuariosRouter from "./usuarios";
 import adminRouter from "./admin";
 import settingsRouter from "./settings";
 import notificationsRouter from "./notifications";
+import priceTablesRouter from "./price-tables";
+import paymentTermsRouter from "./payment-terms";
 
 const router: IRouter = Router();
 
@@ -48,5 +50,7 @@ router.use(apsRouter);
 router.use(rastreabilidadeRouter);
 router.use(adminRouter);
 router.use(notificationsRouter);
+router.use(priceTablesRouter);
+router.use(paymentTermsRouter);
 
 export default router;

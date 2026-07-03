@@ -23,3 +23,5 @@ export * from "./company-settings";
 export * from "./user-module-access";
 export * from "./notifications";
 export * from "./smtp-settings";
+export * from "./price-tables";
+export * from "./payment-terms";

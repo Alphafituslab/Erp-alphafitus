@@ -272,7 +272,7 @@ router.post("/vendas/clients", async (req: Request, res: Response): Promise<void
     billingZipCode, billingStreet, billingNumber, billingComplement, billingNeighborhood, billingCity, billingState,
     shippingZipCode, shippingStreet, shippingNumber, shippingComplement, shippingNeighborhood, shippingCity, shippingState,
     contactName, contactPhone, creditLimit, defaultDiscountPct, taxRegime,
-    address, city, state, notes,
+    address, city, state, notes, defaultPriceTableId, defaultPaymentTermId,
   } = req.body;
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -299,6 +299,8 @@ router.post("/vendas/clients", async (req: Request, res: Response): Promise<void
       taxRegime: taxRegime || null,
       address: address || null, city: city || null, state: state || null,
       notes: notes || null, active: "true",
+      defaultPriceTableId: defaultPriceTableId ? Number(defaultPriceTableId) : null,
+      defaultPaymentTermId: defaultPaymentTermId ? Number(defaultPaymentTermId) : null,
     })
     .returning();
 
@@ -316,7 +318,7 @@ router.put("/vendas/clients/:id", async (req: Request, res: Response): Promise<v
     billingZipCode, billingStreet, billingNumber, billingComplement, billingNeighborhood, billingCity, billingState,
     shippingZipCode, shippingStreet, shippingNumber, shippingComplement, shippingNeighborhood, shippingCity, shippingState,
     contactName, contactPhone, creditLimit, defaultDiscountPct, taxRegime,
-    address, city, state, notes, active,
+    address, city, state, notes, active, defaultPriceTableId, defaultPaymentTermId,
   } = req.body;
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -343,6 +345,8 @@ router.put("/vendas/clients/:id", async (req: Request, res: Response): Promise<v
       taxRegime: taxRegime || null,
       address: address || null, city: city || null, state: state || null,
       notes: notes || null,
+      defaultPriceTableId: defaultPriceTableId ? Number(defaultPriceTableId) : null,
+      defaultPaymentTermId: defaultPaymentTermId ? Number(defaultPaymentTermId) : null,
       ...(active !== undefined ? { active } : {}),
     })
     .where(eq(clientsTable.id, id))
@@ -424,6 +428,8 @@ router.get("/vendas/orders", async (req: Request, res: Response): Promise<void> 
     deliveryDate: salesOrdersTable.deliveryDate,
     notes: salesOrdersTable.notes,
     paymentTerms: salesOrdersTable.paymentTerms,
+    paymentTermId: salesOrdersTable.paymentTermId,
+    priceTableId: salesOrdersTable.priceTableId,
     commission: salesOrdersTable.commission,
     freightValue: salesOrdersTable.freightValue,
     carrier: salesOrdersTable.carrier,
@@ -459,7 +465,7 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
 
   const {
     clientId, type, status, validUntil, deliveryDate, notes,
-    paymentTerms, commission, freightValue, carrier,
+    paymentTerms, paymentTermId, priceTableId, commission, freightValue, carrier,
     formula, formulaVersion, packagingType, labelRef, technicalNotes,
     items,
   } = req.body;
@@ -498,6 +504,8 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
       deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
       notes: notes ?? null,
       paymentTerms: paymentTerms ?? null,
+      paymentTermId: paymentTermId ? Number(paymentTermId) : null,
+      priceTableId: priceTableId ? Number(priceTableId) : null,
       commission: commission != null ? String(commission) : null,
       freightValue: freightValue != null ? String(freightValue) : null,
       carrier: carrier ?? null,
@@ -558,7 +566,7 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
 
   const {
     clientId, type, validUntil, deliveryDate, notes,
-    paymentTerms, commission, freightValue, carrier,
+    paymentTerms, paymentTermId, priceTableId, commission, freightValue, carrier,
     formula, formulaVersion, packagingType, labelRef, technicalNotes,
     items,
   } = req.body;
@@ -590,6 +598,8 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
       deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
       notes: notes ?? null,
       paymentTerms: paymentTerms ?? null,
+      paymentTermId: paymentTermId ? Number(paymentTermId) : null,
+      priceTableId: priceTableId ? Number(priceTableId) : null,
       commission: commission != null ? String(commission) : null,
       freightValue: freightValue != null ? String(freightValue) : null,
       carrier: carrier ?? null,

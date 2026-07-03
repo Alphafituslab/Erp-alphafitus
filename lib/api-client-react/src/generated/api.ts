@@ -115,7 +115,9 @@ import type {
   ListFiscalDocumentsParams,
   ListFormulasParams,
   ListGoalAlertLogsParams,
+  ListPaymentTermsParams,
   ListPayrollEntriesParams,
+  ListPriceTablesParams,
   ListProductLotsParams,
   ListProductionOrdersParams,
   ListProductionShiftsParams,
@@ -151,10 +153,17 @@ import type {
   NcrDetail,
   NotificationsResult,
   OkResponse,
+  PaymentTerm,
+  PaymentTermInput,
+  PaymentTermPage,
   PayrollEntryWithEmployee,
   PayrollGenerateInput,
   PayrollStatusUpdate,
   PriceHistoryPoint,
+  PriceTable,
+  PriceTableInput,
+  PriceTableItemPage,
+  PriceTablePage,
   ProducaoDashboard,
   Product,
   ProductInput,
@@ -201,6 +210,7 @@ import type {
   RelatoriSendEmailInput,
   RelatoriSendEmailResult,
   RelatorioDashboard,
+  ReplacePriceTableItemsInput,
   ReportSchedule,
   ReportScheduleInput,
   ReportSendLog,
@@ -8193,6 +8203,749 @@ export function useGetVendasDashboard<TData = Awaited<ReturnType<typeof getVenda
 
 
 
+
+export const getListPriceTablesUrl = (params?: ListPriceTablesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/price-tables?${stringifiedParams}` : `/api/price-tables`
+}
+
+/**
+ * @summary List price tables (optionally filtered by client, for exclusive tables)
+ */
+export const listPriceTables = async (params?: ListPriceTablesParams, options?: RequestInit): Promise<PriceTablePage> => {
+
+  return customFetch<PriceTablePage>(getListPriceTablesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPriceTablesQueryKey = (params?: ListPriceTablesParams,) => {
+    return [
+    `/api/price-tables`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPriceTablesQueryOptions = <TData = Awaited<ReturnType<typeof listPriceTables>>, TError = ErrorType<ErrorResponse>>(params?: ListPriceTablesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPriceTables>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPriceTablesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPriceTables>>> = ({ signal }) => listPriceTables(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPriceTables>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPriceTablesQueryResult = NonNullable<Awaited<ReturnType<typeof listPriceTables>>>
+export type ListPriceTablesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List price tables (optionally filtered by client, for exclusive tables)
+ */
+
+export function useListPriceTables<TData = Awaited<ReturnType<typeof listPriceTables>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListPriceTablesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPriceTables>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPriceTablesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreatePriceTableUrl = () => {
+
+
+
+
+  return `/api/price-tables`
+}
+
+/**
+ * @summary Create a price table
+ */
+export const createPriceTable = async (priceTableInput: PriceTableInput, options?: RequestInit): Promise<PriceTable> => {
+
+  return customFetch<PriceTable>(getCreatePriceTableUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      priceTableInput,)
+  }
+);}
+
+
+
+
+export const getCreatePriceTableMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPriceTable>>, TError,{data: BodyType<PriceTableInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPriceTable>>, TError,{data: BodyType<PriceTableInput>}, TContext> => {
+
+const mutationKey = ['createPriceTable'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPriceTable>>, {data: BodyType<PriceTableInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPriceTable(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePriceTableMutationResult = NonNullable<Awaited<ReturnType<typeof createPriceTable>>>
+    export type CreatePriceTableMutationBody = BodyType<PriceTableInput>
+    export type CreatePriceTableMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a price table
+ */
+export const useCreatePriceTable = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPriceTable>>, TError,{data: BodyType<PriceTableInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPriceTable>>,
+        TError,
+        {data: BodyType<PriceTableInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePriceTableMutationOptions(options));
+    }
+
+export const getUpdatePriceTableUrl = (id: number,) => {
+
+
+
+
+  return `/api/price-tables/${id}`
+}
+
+/**
+ * @summary Update a price table
+ */
+export const updatePriceTable = async (id: number,
+    priceTableInput: PriceTableInput, options?: RequestInit): Promise<PriceTable> => {
+
+  return customFetch<PriceTable>(getUpdatePriceTableUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      priceTableInput,)
+  }
+);}
+
+
+
+
+export const getUpdatePriceTableMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePriceTable>>, TError,{id: number;data: BodyType<PriceTableInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePriceTable>>, TError,{id: number;data: BodyType<PriceTableInput>}, TContext> => {
+
+const mutationKey = ['updatePriceTable'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePriceTable>>, {id: number;data: BodyType<PriceTableInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePriceTable(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePriceTableMutationResult = NonNullable<Awaited<ReturnType<typeof updatePriceTable>>>
+    export type UpdatePriceTableMutationBody = BodyType<PriceTableInput>
+    export type UpdatePriceTableMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a price table
+ */
+export const useUpdatePriceTable = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePriceTable>>, TError,{id: number;data: BodyType<PriceTableInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePriceTable>>,
+        TError,
+        {id: number;data: BodyType<PriceTableInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePriceTableMutationOptions(options));
+    }
+
+export const getDeletePriceTableUrl = (id: number,) => {
+
+
+
+
+  return `/api/price-tables/${id}`
+}
+
+/**
+ * @summary Delete a price table
+ */
+export const deletePriceTable = async (id: number, options?: RequestInit): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getDeletePriceTableUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePriceTableMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePriceTable>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePriceTable>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePriceTable'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePriceTable>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePriceTable(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePriceTableMutationResult = NonNullable<Awaited<ReturnType<typeof deletePriceTable>>>
+
+    export type DeletePriceTableMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a price table
+ */
+export const useDeletePriceTable = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePriceTable>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePriceTable>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePriceTableMutationOptions(options));
+    }
+
+export const getListPriceTableItemsUrl = (id: number,) => {
+
+
+
+
+  return `/api/price-tables/${id}/items`
+}
+
+/**
+ * @summary List items (product prices) of a price table
+ */
+export const listPriceTableItems = async (id: number, options?: RequestInit): Promise<PriceTableItemPage> => {
+
+  return customFetch<PriceTableItemPage>(getListPriceTableItemsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPriceTableItemsQueryKey = (id: number,) => {
+    return [
+    `/api/price-tables/${id}/items`
+    ] as const;
+    }
+
+
+export const getListPriceTableItemsQueryOptions = <TData = Awaited<ReturnType<typeof listPriceTableItems>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPriceTableItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPriceTableItemsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPriceTableItems>>> = ({ signal }) => listPriceTableItems(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPriceTableItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPriceTableItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listPriceTableItems>>>
+export type ListPriceTableItemsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List items (product prices) of a price table
+ */
+
+export function useListPriceTableItems<TData = Awaited<ReturnType<typeof listPriceTableItems>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPriceTableItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPriceTableItemsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getReplacePriceTableItemsUrl = (id: number,) => {
+
+
+
+
+  return `/api/price-tables/${id}/items`
+}
+
+/**
+ * @summary Bulk replace all items of a price table
+ */
+export const replacePriceTableItems = async (id: number,
+    replacePriceTableItemsInput: ReplacePriceTableItemsInput, options?: RequestInit): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getReplacePriceTableItemsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      replacePriceTableItemsInput,)
+  }
+);}
+
+
+
+
+export const getReplacePriceTableItemsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replacePriceTableItems>>, TError,{id: number;data: BodyType<ReplacePriceTableItemsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replacePriceTableItems>>, TError,{id: number;data: BodyType<ReplacePriceTableItemsInput>}, TContext> => {
+
+const mutationKey = ['replacePriceTableItems'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replacePriceTableItems>>, {id: number;data: BodyType<ReplacePriceTableItemsInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  replacePriceTableItems(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplacePriceTableItemsMutationResult = NonNullable<Awaited<ReturnType<typeof replacePriceTableItems>>>
+    export type ReplacePriceTableItemsMutationBody = BodyType<ReplacePriceTableItemsInput>
+    export type ReplacePriceTableItemsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Bulk replace all items of a price table
+ */
+export const useReplacePriceTableItems = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replacePriceTableItems>>, TError,{id: number;data: BodyType<ReplacePriceTableItemsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof replacePriceTableItems>>,
+        TError,
+        {id: number;data: BodyType<ReplacePriceTableItemsInput>},
+        TContext
+      > => {
+      return useMutation(getReplacePriceTableItemsMutationOptions(options));
+    }
+
+export const getListPaymentTermsUrl = (params?: ListPaymentTermsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/payment-terms?${stringifiedParams}` : `/api/payment-terms`
+}
+
+/**
+ * @summary List payment terms
+ */
+export const listPaymentTerms = async (params?: ListPaymentTermsParams, options?: RequestInit): Promise<PaymentTermPage> => {
+
+  return customFetch<PaymentTermPage>(getListPaymentTermsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPaymentTermsQueryKey = (params?: ListPaymentTermsParams,) => {
+    return [
+    `/api/payment-terms`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPaymentTermsQueryOptions = <TData = Awaited<ReturnType<typeof listPaymentTerms>>, TError = ErrorType<ErrorResponse>>(params?: ListPaymentTermsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentTerms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPaymentTermsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPaymentTerms>>> = ({ signal }) => listPaymentTerms(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPaymentTerms>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPaymentTermsQueryResult = NonNullable<Awaited<ReturnType<typeof listPaymentTerms>>>
+export type ListPaymentTermsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List payment terms
+ */
+
+export function useListPaymentTerms<TData = Awaited<ReturnType<typeof listPaymentTerms>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListPaymentTermsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentTerms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPaymentTermsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreatePaymentTermUrl = () => {
+
+
+
+
+  return `/api/payment-terms`
+}
+
+/**
+ * @summary Create a payment term
+ */
+export const createPaymentTerm = async (paymentTermInput: PaymentTermInput, options?: RequestInit): Promise<PaymentTerm> => {
+
+  return customFetch<PaymentTerm>(getCreatePaymentTermUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      paymentTermInput,)
+  }
+);}
+
+
+
+
+export const getCreatePaymentTermMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentTerm>>, TError,{data: BodyType<PaymentTermInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaymentTerm>>, TError,{data: BodyType<PaymentTermInput>}, TContext> => {
+
+const mutationKey = ['createPaymentTerm'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaymentTerm>>, {data: BodyType<PaymentTermInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPaymentTerm(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentTermMutationResult = NonNullable<Awaited<ReturnType<typeof createPaymentTerm>>>
+    export type CreatePaymentTermMutationBody = BodyType<PaymentTermInput>
+    export type CreatePaymentTermMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a payment term
+ */
+export const useCreatePaymentTerm = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentTerm>>, TError,{data: BodyType<PaymentTermInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPaymentTerm>>,
+        TError,
+        {data: BodyType<PaymentTermInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePaymentTermMutationOptions(options));
+    }
+
+export const getUpdatePaymentTermUrl = (id: number,) => {
+
+
+
+
+  return `/api/payment-terms/${id}`
+}
+
+/**
+ * @summary Update a payment term
+ */
+export const updatePaymentTerm = async (id: number,
+    paymentTermInput: PaymentTermInput, options?: RequestInit): Promise<PaymentTerm> => {
+
+  return customFetch<PaymentTerm>(getUpdatePaymentTermUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      paymentTermInput,)
+  }
+);}
+
+
+
+
+export const getUpdatePaymentTermMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePaymentTerm>>, TError,{id: number;data: BodyType<PaymentTermInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePaymentTerm>>, TError,{id: number;data: BodyType<PaymentTermInput>}, TContext> => {
+
+const mutationKey = ['updatePaymentTerm'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePaymentTerm>>, {id: number;data: BodyType<PaymentTermInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePaymentTerm(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePaymentTermMutationResult = NonNullable<Awaited<ReturnType<typeof updatePaymentTerm>>>
+    export type UpdatePaymentTermMutationBody = BodyType<PaymentTermInput>
+    export type UpdatePaymentTermMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a payment term
+ */
+export const useUpdatePaymentTerm = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePaymentTerm>>, TError,{id: number;data: BodyType<PaymentTermInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePaymentTerm>>,
+        TError,
+        {id: number;data: BodyType<PaymentTermInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePaymentTermMutationOptions(options));
+    }
+
+export const getDeletePaymentTermUrl = (id: number,) => {
+
+
+
+
+  return `/api/payment-terms/${id}`
+}
+
+/**
+ * @summary Delete a payment term
+ */
+export const deletePaymentTerm = async (id: number, options?: RequestInit): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getDeletePaymentTermUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePaymentTermMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePaymentTerm>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePaymentTerm>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePaymentTerm'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePaymentTerm>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePaymentTerm(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePaymentTermMutationResult = NonNullable<Awaited<ReturnType<typeof deletePaymentTerm>>>
+
+    export type DeletePaymentTermMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a payment term
+ */
+export const useDeletePaymentTerm = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePaymentTerm>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePaymentTerm>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePaymentTermMutationOptions(options));
+    }
 
 export const getListEmployeesUrl = (params?: ListEmployeesParams,) => {
   const normalizedParams = new URLSearchParams();

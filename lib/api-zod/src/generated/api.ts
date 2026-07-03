@@ -322,6 +322,8 @@ export const ListClientsResponse = zod.object({
   "creditLimit": zod.string().nullish(),
   "creditUsed": zod.string().nullish().describe('Sum of totalAmount of open (non-terminal) sales orders for this client (computed)'),
   "defaultDiscountPct": zod.string().nullish(),
+  "defaultPriceTableId": zod.number().nullish(),
+  "defaultPaymentTermId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -366,6 +368,8 @@ export const CreateClientBody = zod.object({
   "contactPhone": zod.string().nullish(),
   "creditLimit": zod.string().nullish(),
   "defaultDiscountPct": zod.string().nullish(),
+  "defaultPriceTableId": zod.number().nullish(),
+  "defaultPaymentTermId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -430,6 +434,8 @@ export const UpdateClientBody = zod.object({
   "contactPhone": zod.string().nullish(),
   "creditLimit": zod.string().nullish(),
   "defaultDiscountPct": zod.string().nullish(),
+  "defaultPriceTableId": zod.number().nullish(),
+  "defaultPaymentTermId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -465,6 +471,8 @@ export const UpdateClientResponse = zod.object({
   "creditLimit": zod.string().nullish(),
   "creditUsed": zod.string().nullish().describe('Sum of totalAmount of open (non-terminal) sales orders for this client (computed)'),
   "defaultDiscountPct": zod.string().nullish(),
+  "defaultPriceTableId": zod.number().nullish(),
+  "defaultPaymentTermId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -520,6 +528,8 @@ export const ListSalesOrdersResponse = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -549,6 +559,8 @@ export const CreateSalesOrderBody = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -584,6 +596,8 @@ export const GetSalesOrderResponse = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -622,6 +636,8 @@ export const UpdateSalesOrderBody = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -649,6 +665,8 @@ export const UpdateSalesOrderResponse = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -712,6 +730,8 @@ export const ConvertQuoteToOrderResponse = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -748,6 +768,8 @@ export const UpdateSalesOrderStatusResponse = zod.object({
   "deliveryDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
+  "paymentTermId": zod.number().nullish(),
+  "priceTableId": zod.number().nullish(),
   "commission": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
   "carrier": zod.string().nullish(),
@@ -3286,6 +3308,179 @@ export const GetVendasDashboardResponse = zod.object({
   "count": zod.number(),
   "total": zod.number()
 }))
+})
+
+
+/**
+ * @summary List price tables (optionally filtered by client, for exclusive tables)
+ */
+export const ListPriceTablesQueryParams = zod.object({
+  "clientId": zod.coerce.number().optional(),
+  "active": zod.enum(['true', 'false']).optional()
+})
+
+export const ListPriceTablesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish().describe('When set, this table is exclusive to this client'),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "clientName": zod.string().nullish(),
+  "itemCount": zod.number().optional()
+})))
+})
+
+
+/**
+ * @summary Create a price table
+ */
+export const CreatePriceTableBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "active": zod.string().optional()
+})
+
+
+/**
+ * @summary Update a price table
+ */
+export const UpdatePriceTableParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePriceTableBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish(),
+  "active": zod.string().optional()
+})
+
+export const UpdatePriceTableResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "clientId": zod.number().nullish().describe('When set, this table is exclusive to this client'),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a price table
+ */
+export const DeletePriceTableParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePriceTableResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List items (product prices) of a price table
+ */
+export const ListPriceTableItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListPriceTableItemsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string().nullish(),
+  "productSku": zod.string().nullish(),
+  "price": zod.string()
+}))
+})
+
+
+/**
+ * @summary Bulk replace all items of a price table
+ */
+export const ReplacePriceTableItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReplacePriceTableItemsBody = zod.object({
+  "items": zod.array(zod.object({
+  "productId": zod.number(),
+  "price": zod.string()
+}))
+})
+
+export const ReplacePriceTableItemsResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List payment terms
+ */
+export const ListPaymentTermsQueryParams = zod.object({
+  "active": zod.enum(['true', 'false']).optional()
+})
+
+export const ListPaymentTermsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a payment term
+ */
+export const CreatePaymentTermBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string().optional()
+})
+
+
+/**
+ * @summary Update a payment term
+ */
+export const UpdatePaymentTermParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePaymentTermBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string().optional()
+})
+
+export const UpdatePaymentTermResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a payment term
+ */
+export const DeletePaymentTermParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePaymentTermResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 

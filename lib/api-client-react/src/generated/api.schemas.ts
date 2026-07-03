@@ -318,6 +318,8 @@ export interface Client {
   /** Sum of totalAmount of open (non-terminal) sales orders for this client (computed) */
   creditUsed?: string | null;
   defaultDiscountPct?: string | null;
+  defaultPriceTableId?: number | null;
+  defaultPaymentTermId?: number | null;
   taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
@@ -374,6 +376,8 @@ export interface SalesOrder {
   deliveryDate?: string | null;
   notes?: string | null;
   paymentTerms?: string | null;
+  paymentTermId?: number | null;
+  priceTableId?: number | null;
   commission?: string | null;
   freightValue?: string | null;
   carrier?: string | null;
@@ -695,6 +699,73 @@ export interface ClientCreditSummary {
   creditPct: number;
 }
 
+export interface PriceTable {
+  id: number;
+  name: string;
+  description?: string | null;
+  /** When set, this table is exclusive to this client */
+  clientId?: number | null;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PriceTableListItem = PriceTable & ({
+  clientName?: string | null;
+  itemCount?: number;
+});
+
+export interface PriceTablePage {
+  items: PriceTableListItem[];
+}
+
+export interface PriceTableInput {
+  name: string;
+  description?: string | null;
+  clientId?: number | null;
+  active?: string;
+}
+
+export interface PriceTableItem {
+  id: number;
+  productId: number;
+  productName?: string | null;
+  productSku?: string | null;
+  price: string;
+}
+
+export interface PriceTableItemPage {
+  items: PriceTableItem[];
+}
+
+export type ReplacePriceTableItemsInputItemsItem = {
+  productId: number;
+  price: string;
+};
+
+export interface ReplacePriceTableItemsInput {
+  items: ReplacePriceTableItemsInputItemsItem[];
+}
+
+export interface PaymentTerm {
+  id: number;
+  name: string;
+  description?: string | null;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentTermPage {
+  items: PaymentTerm[];
+}
+
+export interface PaymentTermInput {
+  name: string;
+  description?: string | null;
+  active?: string;
+}
+
 export interface ClientInput {
   name: string;
   tradeName?: string | null;
@@ -720,6 +791,8 @@ export interface ClientInput {
   contactPhone?: string | null;
   creditLimit?: string | null;
   defaultDiscountPct?: string | null;
+  defaultPriceTableId?: number | null;
+  defaultPaymentTermId?: number | null;
   taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
@@ -807,6 +880,8 @@ export interface SalesOrderWithItems {
   deliveryDate?: string | null;
   notes?: string | null;
   paymentTerms?: string | null;
+  paymentTermId?: number | null;
+  priceTableId?: number | null;
   commission?: string | null;
   freightValue?: string | null;
   carrier?: string | null;
@@ -867,6 +942,8 @@ export interface SalesOrderInput {
   deliveryDate?: string | null;
   notes?: string | null;
   paymentTerms?: string | null;
+  paymentTermId?: number | null;
+  priceTableId?: number | null;
   commission?: string | null;
   freightValue?: string | null;
   carrier?: string | null;
@@ -4112,6 +4189,31 @@ export const ListQualityAnalysesStatus = {
 export type GetVendasDashboardParams = {
 year?: number;
 };
+
+export type ListPriceTablesParams = {
+clientId?: number;
+active?: ListPriceTablesActive;
+};
+
+export type ListPriceTablesActive = typeof ListPriceTablesActive[keyof typeof ListPriceTablesActive];
+
+
+export const ListPriceTablesActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type ListPaymentTermsParams = {
+active?: ListPaymentTermsActive;
+};
+
+export type ListPaymentTermsActive = typeof ListPaymentTermsActive[keyof typeof ListPaymentTermsActive];
+
+
+export const ListPaymentTermsActive = {
+  true: 'true',
+  false: 'false',
+} as const;
 
 export type ListEmployeesParams = {
 search?: string;
