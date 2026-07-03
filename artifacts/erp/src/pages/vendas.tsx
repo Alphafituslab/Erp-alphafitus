@@ -29,14 +29,21 @@ import {
   useUpdatePaymentTerm,
   useDeletePaymentTerm,
   useListProducts,
+  useListCarriers,
+  useCreateCarrier,
+  useUpdateCarrier,
+  useDeleteCarrier,
+  useListEmployees,
+  useVerifyPassword,
   getListClientsQueryKey,
   getListSalesOrdersQueryKey,
   getGetVendasDashboardQueryKey,
   getListPriceTablesQueryKey,
   getListPriceTableItemsQueryKey,
   getListPaymentTermsQueryKey,
+  getListCarriersQueryKey,
 } from "@workspace/api-client-react";
-import type { Client, SalesOrder, SalesOrderLog, ClientCreditSummary, PriceTable, PriceTableItem, PaymentTerm } from "@workspace/api-client-react";
+import type { Client, SalesOrder, SalesOrderLog, ClientCreditSummary, PriceTable, PriceTableItem, PaymentTerm, Carrier, Employee } from "@workspace/api-client-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -300,6 +307,7 @@ const clientSchema = z.object({
   notes: z.string().optional(),
   defaultPriceTableId: z.string().optional(),
   defaultPaymentTermId: z.string().optional(),
+  salespersonId: z.string().optional(),
 });
 type ClientForm = z.infer<typeof clientSchema>;
 
@@ -311,7 +319,7 @@ const CLIENT_EMPTY: ClientForm = {
   shippingNeighborhood: "", shippingCity: "", shippingState: "",
   contactName: "", contactPhone: "",
   creditLimit: "", defaultDiscountPct: "", taxRegime: "", notes: "",
-  defaultPriceTableId: "", defaultPaymentTermId: "",
+  defaultPriceTableId: "", defaultPaymentTermId: "", salespersonId: "",
 };
 
 function clientValues(c: Client): ClientForm {
@@ -331,6 +339,7 @@ function clientValues(c: Client): ClientForm {
     taxRegime: c.taxRegime ?? "", notes: c.notes ?? "",
     defaultPriceTableId: c.defaultPriceTableId ? String(c.defaultPriceTableId) : "",
     defaultPaymentTermId: c.defaultPaymentTermId ? String(c.defaultPaymentTermId) : "",
+    salespersonId: c.salespersonId ? String(c.salespersonId) : "",
   };
 }
 
@@ -347,6 +356,8 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
   );
   const { data: paymentTermsData } = useListPaymentTerms({ active: "true" });
   const paymentTermOptions = paymentTermsData?.items ?? [];
+  const { data: employeesData } = useListEmployees({ status: "active", pageSize: 500 });
+  const employeeOptions = employeesData?.items ?? [];
 
   const form = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
@@ -371,6 +382,7 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
       taxRegime: n(data.taxRegime), notes: n(data.notes),
       defaultPriceTableId: data.defaultPriceTableId ? parseInt(data.defaultPriceTableId) : null,
       defaultPaymentTermId: data.defaultPaymentTermId ? parseInt(data.defaultPaymentTermId) : null,
+      salespersonId: data.salespersonId ? parseInt(data.salespersonId) : null,
     };
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => { invalidate(); onClose(); } });
@@ -583,6 +595,21 @@ function ClientDialog({ open, onClose, editing }: { open: boolean; onClose: () =
                   )} />
                 </div>
               </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Vendedor Vinculado</label>
+                <Controller control={form.control} name="salespersonId" render={({ field }) => (
+                  <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="— Nenhum —" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Nenhum —</SelectItem>
+                      {employeeOptions.map((e) => (
+                        <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )} />
+                <p className="text-xs text-muted-foreground">Vendedor responsável por este cliente; a comissão do pedido será preenchida a partir dele.</p>
+              </div>
             </TabsContent>
           </Tabs>
 
@@ -613,16 +640,15 @@ const orderSchema = z.object({
   validUntil: z.string().optional(),
   deliveryDate: z.string().optional(),
   notes: z.string().optional(),
+  paymentMethod: z.string().optional(),
   paymentTerms: z.string().optional(),
   paymentTermId: z.string().optional(),
   priceTableId: z.string().optional(),
   commission: z.string().optional(),
   freightValue: z.string().optional(),
-  carrier: z.string().optional(),
+  freightType: z.string().optional(),
+  carrierId: z.string().optional(),
   formula: z.string().optional(),
-  formulaVersion: z.string().optional(),
-  packagingType: z.string().optional(),
-  labelRef: z.string().optional(),
   technicalNotes: z.string().optional(),
   items: z.array(itemSchema).min(1, "Adicione pelo menos um item"),
 });
@@ -630,10 +656,18 @@ type OrderForm = z.infer<typeof orderSchema>;
 
 type Step = "comercial" | "produto" | "logistica" | "itens";
 
+const PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "cartao", label: "Cartão" },
+  { value: "boleto", label: "Boleto" },
+  { value: "pix", label: "PIX" },
+  { value: "pix_boleto", label: "PIX + Boleto (split)" },
+];
+
 const ORDER_DEFAULTS: OrderForm = {
   type: "quote", clientId: "", validUntil: "", deliveryDate: "", notes: "",
-  paymentTerms: "", paymentTermId: "", priceTableId: "", commission: "", freightValue: "",
-  carrier: "", formula: "", formulaVersion: "", packagingType: "", labelRef: "", technicalNotes: "",
+  paymentMethod: "", paymentTerms: "", paymentTermId: "", priceTableId: "", commission: "", freightValue: "",
+  freightType: "", carrierId: "", formula: "", technicalNotes: "",
   items: [{ description: "", quantity: "1", unitPrice: "0" }],
 };
 
@@ -652,6 +686,12 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
   const { data: priceTablesData } = useListPriceTables({ active: "true" });
   const { data: paymentTermsData } = useListPaymentTerms({ active: "true" });
   const paymentTermOptions = paymentTermsData?.items ?? [];
+  const { data: employeesData } = useListEmployees({ status: "active", pageSize: 500 });
+  const employeeOptions = employeesData?.items ?? [];
+  const { data: carriersData } = useListCarriers({ active: "true" });
+  const carrierOptions = carriersData?.items ?? [];
+  const { data: productsData } = useListProducts({ pageSize: 500 } as any);
+  const productOptions = productsData?.items ?? [];
 
   const form = useForm<OrderForm>({
     resolver: zodResolver(orderSchema),
@@ -686,16 +726,15 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
       validUntil: fullOrder.validUntil ? new Date(fullOrder.validUntil).toISOString().slice(0, 10) : "",
       deliveryDate: fullOrder.deliveryDate ? new Date(fullOrder.deliveryDate).toISOString().slice(0, 10) : "",
       notes: fullOrder.notes ?? "",
+      paymentMethod: fullOrder.paymentMethod ?? "",
       paymentTerms: fullOrder.paymentTerms ?? "",
       paymentTermId: fullOrder.paymentTermId ? String(fullOrder.paymentTermId) : "",
       priceTableId: fullOrder.priceTableId ? String(fullOrder.priceTableId) : "",
       commission: fullOrder.commission ?? "",
       freightValue: fullOrder.freightValue ?? "",
-      carrier: fullOrder.carrier ?? "",
+      freightType: fullOrder.freightType ?? "",
+      carrierId: fullOrder.carrierId ? String(fullOrder.carrierId) : "",
       formula: fullOrder.formula ?? "",
-      formulaVersion: fullOrder.formulaVersion ?? "",
-      packagingType: fullOrder.packagingType ?? "",
-      labelRef: fullOrder.labelRef ?? "",
       technicalNotes: fullOrder.technicalNotes ?? "",
       items: fullOrder.items.length > 0
         ? fullOrder.items.map((it) => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice }))
@@ -715,7 +754,14 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
     if (!client) return;
     if (client.defaultPriceTableId) form.setValue("priceTableId", String(client.defaultPriceTableId));
     if (client.defaultPaymentTermId) form.setValue("paymentTermId", String(client.defaultPaymentTermId));
-  }, [clientId, open, editing, clients, form]);
+    if (client.salespersonId) {
+      const salesperson = employeeOptions.find((e) => e.id === client.salespersonId);
+      if (salesperson?.commissionRate) form.setValue("commission", salesperson.commissionRate);
+    }
+  }, [clientId, open, editing, clients, form, employeeOptions]);
+
+  const selectedClient = clients.find((c) => c.id === (clientId ? parseInt(clientId) : -1));
+  const selectedSalesperson = employeeOptions.find((e) => e.id === selectedClient?.salespersonId);
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const watchedItems = form.watch("items");
@@ -733,6 +779,13 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
 
   const [creditError, setCreditError] = useState<string | null>(null);
 
+  const priceBelowTable = watchedItems.some((it) => {
+    if (!it.productId) return false;
+    const pti = priceTableItems.find((p) => p.productId === it.productId);
+    if (!pti) return false;
+    return Number(it.unitPrice || 0) < Number(pti.price);
+  });
+
   const onSubmit = form.handleSubmit((data) => {
     setCreditError(null);
     const payload = {
@@ -741,16 +794,16 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
       validUntil: data.validUntil ? new Date(data.validUntil + "T00:00:00").toISOString() : null,
       deliveryDate: data.deliveryDate ? new Date(data.deliveryDate + "T00:00:00").toISOString() : null,
       notes: data.notes || null,
+      paymentMethod: data.paymentMethod || null,
       paymentTerms: data.paymentTerms || null,
       paymentTermId: data.paymentTermId ? parseInt(data.paymentTermId) : null,
       priceTableId: data.priceTableId ? parseInt(data.priceTableId) : null,
+      salespersonId: selectedClient?.salespersonId ?? null,
       commission: data.commission || null,
       freightValue: data.freightValue || null,
-      carrier: data.carrier || null,
+      freightType: data.freightType || null,
+      carrierId: data.carrierId ? parseInt(data.carrierId) : null,
       formula: data.formula || null,
-      formulaVersion: data.formulaVersion || null,
-      packagingType: data.packagingType || null,
-      labelRef: data.labelRef || null,
       technicalNotes: data.technicalNotes || null,
       items: data.items.map((i) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, productId: i.productId ?? null })),
     };
@@ -867,14 +920,40 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
+                  <label className="text-sm font-medium">Forma de Pagamento</label>
+                  <Controller control={form.control} name="paymentMethod" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Nenhuma —</SelectItem>
+                        {PAYMENT_METHODS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                </div>
+                <div className="space-y-1">
                   <label className="text-sm font-medium">Observação de Pagamento</label>
                   <Input {...form.register("paymentTerms")} placeholder="Ex: 30/60/90 DDL" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Vendedor</label>
+                  <Input value={selectedSalesperson?.name ?? "— Sem vendedor vinculado ao cliente —"} disabled readOnly />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Comissão (%)</label>
                   <Input {...form.register("commission")} placeholder="Ex: 5.00" type="number" step="0.01" min="0" />
                 </div>
               </div>
+              {priceBelowTable && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Um ou mais itens têm preço abaixo da tabela selecionada. A comissão poderá ser reduzida automaticamente.</span>
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="text-sm font-medium">Observações</label>
                 <Input {...form.register("notes")} placeholder="Observações comerciais" />
@@ -885,25 +964,9 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
           {/* Step 2: Produto/Fórmula */}
           {step === "produto" && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Fórmula / Produto</label>
-                  <Input {...form.register("formula")} placeholder="Ex: Whey Protein Concentrado" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Versão da Fórmula</label>
-                  <Input {...form.register("formulaVersion")} placeholder="Ex: v3.2" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Tipo de Embalagem</label>
-                  <Input {...form.register("packagingType")} placeholder="Ex: Pote 900g, Sachê 30g" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Referência do Rótulo</label>
-                  <Input {...form.register("labelRef")} placeholder="Ex: ROT-2024-001" />
-                </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Fórmula / Produto</label>
+                <Input {...form.register("formula")} placeholder="Ex: Whey Protein Concentrado" />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Notas Técnicas</label>
@@ -918,12 +981,35 @@ function OrderDialog({ open, onClose, editing, clients }: { open: boolean; onClo
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Transportadora</label>
-                  <Input {...form.register("carrier")} placeholder="Ex: Jamef, TNT, Jadlog" />
+                  <Controller control={form.control} name="carrierId" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="— Nenhuma —" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Nenhuma —</SelectItem>
+                        {carrierOptions.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium">Valor do Frete (R$)</label>
-                  <Input {...form.register("freightValue")} placeholder="0.00" type="number" step="0.01" min="0" />
+                  <label className="text-sm font-medium">Tipo de Frete</label>
+                  <Controller control={form.control} name="freightType" render={({ field }) => (
+                    <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="— Nenhum —" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— Nenhum —</SelectItem>
+                        <SelectItem value="CIF">CIF (frete por conta do fornecedor)</SelectItem>
+                        <SelectItem value="FOB">FOB (frete por conta do cliente)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )} />
                 </div>
+              </div>
+              <div className="space-y-1 w-1/2 pr-1.5">
+                <label className="text-sm font-medium">Valor do Frete (R$)</label>
+                <Input {...form.register("freightValue")} placeholder="0.00" type="number" step="0.01" min="0" />
               </div>
             </div>
           )}
@@ -1280,6 +1366,63 @@ function StatusTransitionDialog({
   );
 }
 
+// ─── Password Gate Dialog (approval-gated edit/delete) ─────────────────────────
+
+function PasswordGateDialog({
+  gate, onClose, onAuthorized,
+}: {
+  gate: { action: "edit" | "delete"; order: SalesOrder } | null;
+  onClose: () => void;
+  onAuthorized: (gate: { action: "edit" | "delete"; order: SalesOrder }) => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const verifyMutation = useVerifyPassword();
+
+  useEffect(() => {
+    if (gate) { setPassword(""); setError(null); }
+  }, [gate]);
+
+  const handleConfirm = () => {
+    if (!gate) return;
+    setError(null);
+    verifyMutation.mutate({ data: { password } }, {
+      onSuccess: (res) => {
+        if (res.ok) onAuthorized(gate);
+        else setError("Senha inválida.");
+      },
+      onError: () => setError("Senha inválida."),
+    });
+  };
+
+  return (
+    <AlertDialog open={!!gate} onOpenChange={(v) => !v && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Autorização necessária</AlertDialogTitle>
+          <AlertDialogDescription>
+            O pedido #{gate?.order.id} já está em andamento no fluxo comercial. Para {gate?.action === "edit" ? "editar" : "excluir"}, informe a senha de um administrador ou gerente.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Input
+          type="password"
+          placeholder="Senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleConfirm(); } }}
+        />
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction disabled={verifyMutation.isPending || !password} onClick={(e) => { e.preventDefault(); handleConfirm(); }}>
+            {verifyMutation.isPending ? "Verificando…" : "Confirmar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ─── Order Detail Sheet ────────────────────────────────────────────────────────
 
 function OrderDetailSheet({
@@ -1291,9 +1434,16 @@ function OrderDetailSheet({
   const { user } = useAuth();
   const { data: fullOrder } = useGetSalesOrder(order?.id ?? 0);
   const { data: logs = [] } = useListSalesOrderLogs(order?.id ?? 0);
+  const { data: carriersData } = useListCarriers({ active: "true" });
+  const { data: employeesData } = useListEmployees({ status: "active", pageSize: 500 });
   const [pendingTransition, setPendingTransition] = useState<Transition | null>(null);
 
   if (!order) return null;
+
+  const orderClient = clients.find((c) => c.id === order.clientId);
+  const salesperson = employeesData?.items.find((e) => e.id === orderClient?.salespersonId);
+  const carrierName = carriersData?.items.find((c) => c.id === order.carrierId)?.name;
+  const paymentMethodLabel = PAYMENT_METHODS.find((m) => m.value === order.paymentMethod)?.label;
 
   const statusLabel = STATUS_LABELS[order.status] ?? order.status;
   const transitions = TRANSITIONS[order.status] ?? [];
@@ -1362,20 +1512,26 @@ function OrderDetailSheet({
                 <div><span className="text-muted-foreground">Total:</span> <span className="font-semibold">{fmt(order.totalAmount)}</span></div>
                 <div><span className="text-muted-foreground">Validade:</span> <span>{fmtDate(order.validUntil)}</span></div>
                 <div><span className="text-muted-foreground">Prazo entrega:</span> <span>{fmtDate(order.deliveryDate)}</span></div>
+                <div><span className="text-muted-foreground">Forma de pagamento:</span> <span>{paymentMethodLabel ?? "—"}</span></div>
                 <div><span className="text-muted-foreground">Cond. pagamento:</span> <span>{order.paymentTerms ?? "—"}</span></div>
-                <div><span className="text-muted-foreground">Comissão:</span> <span>{order.commission ? `${order.commission}%` : "—"}</span></div>
-                <div><span className="text-muted-foreground">Frete:</span> <span>{order.freightValue ? fmt(order.freightValue) : "—"}</span></div>
-                <div><span className="text-muted-foreground">Transportadora:</span> <span>{order.carrier ?? "—"}</span></div>
+                <div><span className="text-muted-foreground">Vendedor:</span> <span>{salesperson?.name ?? "—"}</span></div>
+                <div><span className="text-muted-foreground">Comissão:</span> <span>{order.commission ? `${order.commission}%${order.commissionReduced === "true" ? " (reduzida)" : ""}` : "—"}</span></div>
+                <div><span className="text-muted-foreground">Frete:</span> <span>{order.freightValue ? fmt(order.freightValue) : "—"}{order.freightType ? ` (${order.freightType})` : ""}</span></div>
+                <div><span className="text-muted-foreground">Transportadora:</span> <span>{carrierName ?? "—"}</span></div>
               </div>
 
-              {(order.formula || order.formulaVersion || order.packagingType || order.labelRef) && (
+              {order.commissionReduced === "true" && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Comissão reduzida automaticamente: um ou mais itens foram vendidos abaixo da tabela de preço.</span>
+                </div>
+              )}
+
+              {order.formula && (
                 <>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-3">Produto/Fórmula</p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <div><span className="text-muted-foreground">Fórmula:</span> <span>{order.formula ?? "—"}</span></div>
-                    <div><span className="text-muted-foreground">Versão:</span> <span>{order.formulaVersion ?? "—"}</span></div>
-                    <div><span className="text-muted-foreground">Embalagem:</span> <span>{order.packagingType ?? "—"}</span></div>
-                    <div><span className="text-muted-foreground">Ref. rótulo:</span> <span>{order.labelRef ?? "—"}</span></div>
                   </div>
                 </>
               )}
@@ -1605,6 +1761,17 @@ export default function VendasPage() {
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
   const [deleteOrder, setDeleteOrder] = useState<SalesOrder | null>(null);
   const [detailOrder, setDetailOrder] = useState<SalesOrder | null>(null);
+  const [passwordGate, setPasswordGate] = useState<{ action: "edit" | "delete"; order: SalesOrder } | null>(null);
+
+  const requiresApprovalGate = (order: SalesOrder) => !["draft", "awaiting_approval"].includes(order.status);
+  const requestEditOrder = (order: SalesOrder) => {
+    if (requiresApprovalGate(order)) { setPasswordGate({ action: "edit", order }); return; }
+    setEditingOrder(order); setOrderDialog(true);
+  };
+  const requestDeleteOrder = (order: SalesOrder) => {
+    if (requiresApprovalGate(order)) { setPasswordGate({ action: "delete", order }); return; }
+    setDeleteOrder(order);
+  };
 
   const [priceTableDialog, setPriceTableDialog] = useState(false);
   const [editingPriceTable, setEditingPriceTable] = useState<PriceTable | null>(null);
@@ -1974,10 +2141,10 @@ export default function VendasPage() {
                                   <ArrowRightCircle className="h-4 w-4" />
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingOrder(order); setOrderDialog(true); }}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => requestEditOrder(order)}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteOrder(order)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => requestDeleteOrder(order)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -2280,6 +2447,16 @@ export default function VendasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordGateDialog
+        gate={passwordGate}
+        onClose={() => setPasswordGate(null)}
+        onAuthorized={(gate) => {
+          setPasswordGate(null);
+          if (gate.action === "edit") { setEditingOrder(gate.order); setOrderDialog(true); }
+          else { setDeleteOrder(gate.order); }
+        }}
+      />
 
       <AlertDialog open={!!deletePriceTableItem} onOpenChange={(v) => !v && setDeletePriceTableItem(null)}>
         <AlertDialogContent>

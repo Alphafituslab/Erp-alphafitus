@@ -255,6 +255,16 @@ export interface LoginInput {
   password: string;
 }
 
+export interface VerifyPasswordInput {
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface VerifyPasswordResult {
+  ok: boolean;
+  authorizedBy?: string | null;
+}
+
 export type AuthUserRole = typeof AuthUserRole[keyof typeof AuthUserRole];
 
 
@@ -320,6 +330,7 @@ export interface Client {
   defaultDiscountPct?: string | null;
   defaultPriceTableId?: number | null;
   defaultPaymentTermId?: number | null;
+  salespersonId?: number | null;
   taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
@@ -377,14 +388,16 @@ export interface SalesOrder {
   notes?: string | null;
   paymentTerms?: string | null;
   paymentTermId?: number | null;
+  paymentMethod?: string | null;
   priceTableId?: number | null;
+  salespersonId?: number | null;
   commission?: string | null;
+  commissionReduced?: string | null;
   freightValue?: string | null;
+  freightType?: string | null;
   carrier?: string | null;
+  carrierId?: number | null;
   formula?: string | null;
-  formulaVersion?: string | null;
-  packagingType?: string | null;
-  labelRef?: string | null;
   technicalNotes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -584,6 +597,7 @@ export interface Employee {
   department?: string | null;
   hireDate?: string | null;
   salary?: string | null;
+  commissionRate?: string | null;
   status: EmployeeStatus;
   linkedUser?: EmployeeLinkedUser | null;
   createdAt: string;
@@ -766,6 +780,29 @@ export interface PaymentTermInput {
   active?: string;
 }
 
+export interface Carrier {
+  id: number;
+  name: string;
+  document?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  active: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CarrierPage {
+  items: Carrier[];
+}
+
+export interface CarrierInput {
+  name: string;
+  document?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  active?: string;
+}
+
 export interface ClientInput {
   name: string;
   tradeName?: string | null;
@@ -793,6 +830,7 @@ export interface ClientInput {
   defaultDiscountPct?: string | null;
   defaultPriceTableId?: number | null;
   defaultPaymentTermId?: number | null;
+  salespersonId?: number | null;
   taxRegime?: string | null;
   address?: string | null;
   city?: string | null;
@@ -881,14 +919,16 @@ export interface SalesOrderWithItems {
   notes?: string | null;
   paymentTerms?: string | null;
   paymentTermId?: number | null;
+  paymentMethod?: string | null;
   priceTableId?: number | null;
+  salespersonId?: number | null;
   commission?: string | null;
+  commissionReduced?: string | null;
   freightValue?: string | null;
+  freightType?: string | null;
   carrier?: string | null;
+  carrierId?: number | null;
   formula?: string | null;
-  formulaVersion?: string | null;
-  packagingType?: string | null;
-  labelRef?: string | null;
   technicalNotes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -943,14 +983,16 @@ export interface SalesOrderInput {
   notes?: string | null;
   paymentTerms?: string | null;
   paymentTermId?: number | null;
+  paymentMethod?: string | null;
   priceTableId?: number | null;
+  salespersonId?: number | null;
   commission?: string | null;
+  commissionReduced?: string | null;
   freightValue?: string | null;
+  freightType?: string | null;
   carrier?: string | null;
+  carrierId?: number | null;
   formula?: string | null;
-  formulaVersion?: string | null;
-  packagingType?: string | null;
-  labelRef?: string | null;
   technicalNotes?: string | null;
   items: SalesOrderItemInput[];
 }
@@ -2041,6 +2083,7 @@ export interface EmployeeInput {
   department?: string | null;
   hireDate?: string | null;
   salary?: string | null;
+  commissionRate?: string | null;
   status?: EmployeeInputStatus;
   /** Whether the employee should have system login access */
   systemAccessEnabled?: boolean | null;
@@ -4214,6 +4257,22 @@ export const ListPaymentTermsActive = {
   true: 'true',
   false: 'false',
 } as const;
+
+export type ListCarriersParams = {
+active?: ListCarriersActive;
+};
+
+export type ListCarriersActive = typeof ListCarriersActive[keyof typeof ListCarriersActive];
+
+
+export const ListCarriersActive = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type DeleteCarrier200 = {
+  ok?: boolean;
+};
 
 export type ListEmployeesParams = {
 search?: string;

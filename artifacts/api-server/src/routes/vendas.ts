@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq, gte, lte, sql, desc, isNotNull, inArray, notInArray } from "drizzle-orm";
-import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable, usersTable, stockMovementsTable, productsTable, financialEntriesTable } from "@workspace/db";
+import { db, clientsTable, salesOrdersTable, salesOrderItemsTable, salesOrderLogsTable, usersTable, stockMovementsTable, productsTable, financialEntriesTable, employeesTable, priceTableItemsTable } from "@workspace/db";
 import type { Request, Response } from "express";
 
 const router: IRouter = Router();
@@ -192,6 +192,29 @@ async function checkCreditLimit(
   return true;
 }
 
+// Detects if any order item was sold below the price registered in its price table,
+// which should reduce the salesperson's commission and flag it for the sales report.
+async function computeCommissionReduced(priceTableId: number | null, items: any[]): Promise<boolean> {
+  if (!priceTableId) return false;
+  const productIds = items.map((i) => (i.productId ? parseInt(i.productId) : null)).filter((id): id is number => id != null);
+  if (productIds.length === 0) return false;
+
+  const rows = await db
+    .select({ productId: priceTableItemsTable.productId, price: priceTableItemsTable.price })
+    .from(priceTableItemsTable)
+    .where(and(eq(priceTableItemsTable.priceTableId, priceTableId), inArray(priceTableItemsTable.productId, productIds)));
+
+  const tablePriceByProduct = new Map(rows.map((r) => [r.productId, parseFloat(String(r.price))]));
+
+  return items.some((item) => {
+    const productId = item.productId ? parseInt(item.productId) : null;
+    if (productId == null) return false;
+    const tablePrice = tablePriceByProduct.get(productId);
+    if (tablePrice == null) return false;
+    return Number(item.unitPrice) < tablePrice;
+  });
+}
+
 router.get("/vendas/clients/top-debtors", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
 
@@ -272,7 +295,7 @@ router.post("/vendas/clients", async (req: Request, res: Response): Promise<void
     billingZipCode, billingStreet, billingNumber, billingComplement, billingNeighborhood, billingCity, billingState,
     shippingZipCode, shippingStreet, shippingNumber, shippingComplement, shippingNeighborhood, shippingCity, shippingState,
     contactName, contactPhone, creditLimit, defaultDiscountPct, taxRegime,
-    address, city, state, notes, defaultPriceTableId, defaultPaymentTermId,
+    address, city, state, notes, defaultPriceTableId, defaultPaymentTermId, salespersonId,
   } = req.body;
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -301,6 +324,7 @@ router.post("/vendas/clients", async (req: Request, res: Response): Promise<void
       notes: notes || null, active: "true",
       defaultPriceTableId: defaultPriceTableId ? Number(defaultPriceTableId) : null,
       defaultPaymentTermId: defaultPaymentTermId ? Number(defaultPaymentTermId) : null,
+      salespersonId: salespersonId ? Number(salespersonId) : null,
     })
     .returning();
 
@@ -318,7 +342,7 @@ router.put("/vendas/clients/:id", async (req: Request, res: Response): Promise<v
     billingZipCode, billingStreet, billingNumber, billingComplement, billingNeighborhood, billingCity, billingState,
     shippingZipCode, shippingStreet, shippingNumber, shippingComplement, shippingNeighborhood, shippingCity, shippingState,
     contactName, contactPhone, creditLimit, defaultDiscountPct, taxRegime,
-    address, city, state, notes, active, defaultPriceTableId, defaultPaymentTermId,
+    address, city, state, notes, active, defaultPriceTableId, defaultPaymentTermId, salespersonId,
   } = req.body;
   if (!name || typeof name !== "string") {
     res.status(400).json({ error: "Nome é obrigatório" });
@@ -347,6 +371,7 @@ router.put("/vendas/clients/:id", async (req: Request, res: Response): Promise<v
       notes: notes || null,
       defaultPriceTableId: defaultPriceTableId ? Number(defaultPriceTableId) : null,
       defaultPaymentTermId: defaultPaymentTermId ? Number(defaultPaymentTermId) : null,
+      salespersonId: salespersonId ? Number(salespersonId) : null,
       ...(active !== undefined ? { active } : {}),
     })
     .where(eq(clientsTable.id, id))
@@ -429,14 +454,16 @@ router.get("/vendas/orders", async (req: Request, res: Response): Promise<void> 
     notes: salesOrdersTable.notes,
     paymentTerms: salesOrdersTable.paymentTerms,
     paymentTermId: salesOrdersTable.paymentTermId,
+    paymentMethod: salesOrdersTable.paymentMethod,
     priceTableId: salesOrdersTable.priceTableId,
+    salespersonId: salesOrdersTable.salespersonId,
     commission: salesOrdersTable.commission,
+    commissionReduced: salesOrdersTable.commissionReduced,
     freightValue: salesOrdersTable.freightValue,
+    freightType: salesOrdersTable.freightType,
     carrier: salesOrdersTable.carrier,
+    carrierId: salesOrdersTable.carrierId,
     formula: salesOrdersTable.formula,
-    formulaVersion: salesOrdersTable.formulaVersion,
-    packagingType: salesOrdersTable.packagingType,
-    labelRef: salesOrdersTable.labelRef,
     technicalNotes: salesOrdersTable.technicalNotes,
     createdAt: salesOrdersTable.createdAt,
     updatedAt: salesOrdersTable.updatedAt,
@@ -465,8 +492,8 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
 
   const {
     clientId, type, status, validUntil, deliveryDate, notes,
-    paymentTerms, paymentTermId, priceTableId, commission, freightValue, carrier,
-    formula, formulaVersion, packagingType, labelRef, technicalNotes,
+    paymentTerms, paymentTermId, paymentMethod, priceTableId, salespersonId, commission, freightValue, freightType, carrier, carrierId,
+    formula, technicalNotes,
     items,
   } = req.body;
 
@@ -493,6 +520,16 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
   // New orders start at awaiting_approval; quotes stay as draft
   const initialStatus = status ?? (type === "order" ? "awaiting_approval" : "draft");
 
+  const commissionReduced = await computeCommissionReduced(priceTableId ? Number(priceTableId) : null, items);
+
+  // Auto-fill commission rate from the salesperson's record when not explicitly provided.
+  let effectiveCommission = commission != null ? String(commission) : null;
+  const effectiveSalespersonId = salespersonId ? Number(salespersonId) : null;
+  if (effectiveCommission == null && effectiveSalespersonId) {
+    const [emp] = await db.select({ commissionRate: employeesTable.commissionRate }).from(employeesTable).where(eq(employeesTable.id, effectiveSalespersonId));
+    effectiveCommission = emp?.commissionRate ?? null;
+  }
+
   const [order] = await db
     .insert(salesOrdersTable)
     .values({
@@ -505,14 +542,16 @@ router.post("/vendas/orders", async (req: Request, res: Response): Promise<void>
       notes: notes ?? null,
       paymentTerms: paymentTerms ?? null,
       paymentTermId: paymentTermId ? Number(paymentTermId) : null,
+      paymentMethod: paymentMethod ?? null,
       priceTableId: priceTableId ? Number(priceTableId) : null,
-      commission: commission != null ? String(commission) : null,
+      salespersonId: effectiveSalespersonId,
+      commission: effectiveCommission,
+      commissionReduced: commissionReduced ? "true" : "false",
       freightValue: freightValue != null ? String(freightValue) : null,
+      freightType: freightType ?? null,
       carrier: carrier ?? null,
+      carrierId: carrierId ? Number(carrierId) : null,
       formula: formula ?? null,
-      formulaVersion: formulaVersion ?? null,
-      packagingType: packagingType ?? null,
-      labelRef: labelRef ?? null,
       technicalNotes: technicalNotes ?? null,
     })
     .returning();
@@ -566,8 +605,8 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
 
   const {
     clientId, type, validUntil, deliveryDate, notes,
-    paymentTerms, paymentTermId, priceTableId, commission, freightValue, carrier,
-    formula, formulaVersion, packagingType, labelRef, technicalNotes,
+    paymentTerms, paymentTermId, paymentMethod, priceTableId, salespersonId, commission, freightValue, freightType, carrier, carrierId,
+    formula, technicalNotes,
     items,
   } = req.body;
 
@@ -588,6 +627,15 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
     if (!ok) return;
   }
 
+  const commissionReduced = await computeCommissionReduced(priceTableId ? Number(priceTableId) : null, items);
+
+  let effectiveCommission = commission != null ? String(commission) : null;
+  const effectiveSalespersonId = salespersonId ? Number(salespersonId) : null;
+  if (effectiveCommission == null && effectiveSalespersonId) {
+    const [emp] = await db.select({ commissionRate: employeesTable.commissionRate }).from(employeesTable).where(eq(employeesTable.id, effectiveSalespersonId));
+    effectiveCommission = emp?.commissionRate ?? null;
+  }
+
   const [order] = await db
     .update(salesOrdersTable)
     .set({
@@ -599,14 +647,16 @@ router.put("/vendas/orders/:id", async (req: Request, res: Response): Promise<vo
       notes: notes ?? null,
       paymentTerms: paymentTerms ?? null,
       paymentTermId: paymentTermId ? Number(paymentTermId) : null,
+      paymentMethod: paymentMethod ?? null,
       priceTableId: priceTableId ? Number(priceTableId) : null,
-      commission: commission != null ? String(commission) : null,
+      salespersonId: effectiveSalespersonId,
+      commission: effectiveCommission,
+      commissionReduced: commissionReduced ? "true" : "false",
       freightValue: freightValue != null ? String(freightValue) : null,
+      freightType: freightType ?? null,
       carrier: carrier ?? null,
+      carrierId: carrierId ? Number(carrierId) : null,
       formula: formula ?? null,
-      formulaVersion: formulaVersion ?? null,
-      packagingType: packagingType ?? null,
-      labelRef: labelRef ?? null,
       technicalNotes: technicalNotes ?? null,
     })
     .where(eq(salesOrdersTable.id, id))

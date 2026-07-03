@@ -64,6 +64,40 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   });
 });
 
+// Re-authentication gate used for sensitive actions (e.g. editing/deleting an
+// order that has already moved past draft/awaiting_approval). Verifies the
+// given password against a manager/admin account (or the current user's own
+// password), without altering the session.
+router.post("/auth/verify-password", async (req, res): Promise<void> => {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Não autenticado" });
+    return;
+  }
+
+  const { password } = req.body ?? {};
+  if (!password) {
+    res.status(400).json({ error: "Senha é obrigatória" });
+    return;
+  }
+
+  // Accept the password of the current user, or of any active manager/admin
+  // (a "senha gerencial" that unlocks the action for whoever is logged in).
+  const candidates = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.active, "true"));
+
+  for (const candidate of candidates) {
+    if (candidate.id !== req.session.userId && candidate.role !== "admin" && candidate.role !== "manager") continue;
+    if (await bcrypt.compare(String(password), candidate.passwordHash)) {
+      res.json({ ok: true, authorizedBy: candidate.name ?? candidate.email });
+      return;
+    }
+  }
+
+  res.status(401).json({ error: "Senha incorreta" });
+});
+
 router.post("/auth/logout", (req, res): void => {
   req.session.destroy((err) => {
     if (err) {

@@ -104,7 +104,7 @@ router.post("/rh/employees", async (req: Request, res: Response): Promise<void> 
   if (!requireAuth(req, res)) return;
 
   const {
-    name, cpf, email, phone, role, department, hireDate, salary, status,
+    name, cpf, email, phone, role, department, hireDate, salary, commissionRate, status,
     systemAccessEnabled, systemAccessEmail, systemAccessPassword, systemAccessRole,
   } = req.body;
 
@@ -124,6 +124,7 @@ router.post("/rh/employees", async (req: Request, res: Response): Promise<void> 
       department: department || null,
       hireDate: hireDate ? new Date(hireDate) : null,
       salary: salary ? String(salary) : null,
+      commissionRate: commissionRate != null && commissionRate !== "" ? String(commissionRate) : null,
       status: status ?? "active",
     })
     .returning();
@@ -187,7 +188,7 @@ router.put("/rh/employees/:id", async (req: Request, res: Response): Promise<voi
   }
 
   const {
-    name, cpf, email, phone, role, department, hireDate, salary, status,
+    name, cpf, email, phone, role, department, hireDate, salary, commissionRate, status,
     systemAccessEnabled, systemAccessEmail, systemAccessPassword, systemAccessRole,
   } = req.body;
 
@@ -202,6 +203,7 @@ router.put("/rh/employees/:id", async (req: Request, res: Response): Promise<voi
       department: department || null,
       hireDate: hireDate ? new Date(hireDate) : null,
       salary: salary ? String(salary) : null,
+      commissionRate: commissionRate != null && commissionRate !== "" ? String(commissionRate) : null,
       status,
     })
     .where(eq(employeesTable.id, id))

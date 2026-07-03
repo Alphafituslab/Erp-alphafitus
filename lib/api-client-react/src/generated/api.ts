@@ -46,6 +46,9 @@ import type {
   CapaDashboard,
   CapaEvidence,
   CapaTransitionInput,
+  Carrier,
+  CarrierInput,
+  CarrierPage,
   CashflowMonth,
   Client,
   ClientCreditSummary,
@@ -59,6 +62,7 @@ import type {
   CreateUsuarioResponse,
   DashboardGoal,
   DashboardGoalInput,
+  DeleteCarrier200,
   DeleteSmtpConfig200,
   Department,
   DepartmentInput,
@@ -109,6 +113,7 @@ import type {
   HealthStatus,
   ListApsScheduleParams,
   ListAttendanceLogsParams,
+  ListCarriersParams,
   ListClientsParams,
   ListEmployeesParams,
   ListFinancialEntriesParams,
@@ -256,6 +261,8 @@ import type {
   UserModulesResponse,
   UsuariosListData,
   VendasDashboard,
+  VerifyPasswordInput,
+  VerifyPasswordResult,
   Warehouse,
   WarehouseInput,
   WorkCenter,
@@ -864,6 +871,77 @@ export const useLogin = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getLoginMutationOptions(options));
+    }
+
+export const getVerifyPasswordUrl = () => {
+
+
+
+
+  return `/api/auth/verify-password`
+}
+
+/**
+ * @summary Verify a password for a sensitive re-authentication gate (own password or any active manager/admin)
+ */
+export const verifyPassword = async (verifyPasswordInput: VerifyPasswordInput, options?: RequestInit): Promise<VerifyPasswordResult> => {
+
+  return customFetch<VerifyPasswordResult>(getVerifyPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      verifyPasswordInput,)
+  }
+);}
+
+
+
+
+export const getVerifyPasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPassword>>, TError,{data: BodyType<VerifyPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyPassword>>, TError,{data: BodyType<VerifyPasswordInput>}, TContext> => {
+
+const mutationKey = ['verifyPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyPassword>>, {data: BodyType<VerifyPasswordInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof verifyPassword>>>
+    export type VerifyPasswordMutationBody = BodyType<VerifyPasswordInput>
+    export type VerifyPasswordMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Verify a password for a sensitive re-authentication gate (own password or any active manager/admin)
+ */
+export const useVerifyPassword = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPassword>>, TError,{data: BodyType<VerifyPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyPassword>>,
+        TError,
+        {data: BodyType<VerifyPasswordInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyPasswordMutationOptions(options));
     }
 
 export const getLogoutUrl = () => {
@@ -8803,6 +8881,303 @@ export const useCreatePaymentTerm = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreatePaymentTermMutationOptions(options));
+    }
+
+export const getListCarriersUrl = (params?: ListCarriersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/carriers?${stringifiedParams}` : `/api/carriers`
+}
+
+/**
+ * @summary List carriers
+ */
+export const listCarriers = async (params?: ListCarriersParams, options?: RequestInit): Promise<CarrierPage> => {
+
+  return customFetch<CarrierPage>(getListCarriersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCarriersQueryKey = (params?: ListCarriersParams,) => {
+    return [
+    `/api/carriers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCarriersQueryOptions = <TData = Awaited<ReturnType<typeof listCarriers>>, TError = ErrorType<ErrorResponse>>(params?: ListCarriersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCarriers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCarriersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCarriers>>> = ({ signal }) => listCarriers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCarriers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCarriersQueryResult = NonNullable<Awaited<ReturnType<typeof listCarriers>>>
+export type ListCarriersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List carriers
+ */
+
+export function useListCarriers<TData = Awaited<ReturnType<typeof listCarriers>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListCarriersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCarriers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCarriersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCarrierUrl = () => {
+
+
+
+
+  return `/api/carriers`
+}
+
+/**
+ * @summary Create a carrier
+ */
+export const createCarrier = async (carrierInput: CarrierInput, options?: RequestInit): Promise<Carrier> => {
+
+  return customFetch<Carrier>(getCreateCarrierUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      carrierInput,)
+  }
+);}
+
+
+
+
+export const getCreateCarrierMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCarrier>>, TError,{data: BodyType<CarrierInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCarrier>>, TError,{data: BodyType<CarrierInput>}, TContext> => {
+
+const mutationKey = ['createCarrier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCarrier>>, {data: BodyType<CarrierInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCarrier(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCarrierMutationResult = NonNullable<Awaited<ReturnType<typeof createCarrier>>>
+    export type CreateCarrierMutationBody = BodyType<CarrierInput>
+    export type CreateCarrierMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a carrier
+ */
+export const useCreateCarrier = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCarrier>>, TError,{data: BodyType<CarrierInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCarrier>>,
+        TError,
+        {data: BodyType<CarrierInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCarrierMutationOptions(options));
+    }
+
+export const getUpdateCarrierUrl = (id: number,) => {
+
+
+
+
+  return `/api/carriers/${id}`
+}
+
+/**
+ * @summary Update a carrier
+ */
+export const updateCarrier = async (id: number,
+    carrierInput: CarrierInput, options?: RequestInit): Promise<Carrier> => {
+
+  return customFetch<Carrier>(getUpdateCarrierUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      carrierInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCarrierMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCarrier>>, TError,{id: number;data: BodyType<CarrierInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCarrier>>, TError,{id: number;data: BodyType<CarrierInput>}, TContext> => {
+
+const mutationKey = ['updateCarrier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCarrier>>, {id: number;data: BodyType<CarrierInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCarrier(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCarrierMutationResult = NonNullable<Awaited<ReturnType<typeof updateCarrier>>>
+    export type UpdateCarrierMutationBody = BodyType<CarrierInput>
+    export type UpdateCarrierMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a carrier
+ */
+export const useUpdateCarrier = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCarrier>>, TError,{id: number;data: BodyType<CarrierInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCarrier>>,
+        TError,
+        {id: number;data: BodyType<CarrierInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCarrierMutationOptions(options));
+    }
+
+export const getDeleteCarrierUrl = (id: number,) => {
+
+
+
+
+  return `/api/carriers/${id}`
+}
+
+/**
+ * @summary Deactivate a carrier
+ */
+export const deleteCarrier = async (id: number, options?: RequestInit): Promise<DeleteCarrier200> => {
+
+  return customFetch<DeleteCarrier200>(getDeleteCarrierUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCarrierMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCarrier>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCarrier>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCarrier'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCarrier>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCarrier(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCarrierMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCarrier>>>
+
+    export type DeleteCarrierMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Deactivate a carrier
+ */
+export const useDeleteCarrier = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCarrier>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCarrier>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCarrierMutationOptions(options));
     }
 
 export const getUpdatePaymentTermUrl = (id: number,) => {

@@ -114,6 +114,22 @@ export const LoginResponse = zod.object({
 
 
 /**
+ * @summary Verify a password for a sensitive re-authentication gate (own password or any active manager/admin)
+ */
+
+
+
+export const VerifyPasswordBody = zod.object({
+  "password": zod.string().min(1)
+})
+
+export const VerifyPasswordResponse = zod.object({
+  "ok": zod.boolean(),
+  "authorizedBy": zod.string().nullish()
+})
+
+
+/**
  * @summary Logout current user
  */
 export const LogoutResponse = zod.object({
@@ -324,6 +340,7 @@ export const ListClientsResponse = zod.object({
   "defaultDiscountPct": zod.string().nullish(),
   "defaultPriceTableId": zod.number().nullish(),
   "defaultPaymentTermId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -370,6 +387,7 @@ export const CreateClientBody = zod.object({
   "defaultDiscountPct": zod.string().nullish(),
   "defaultPriceTableId": zod.number().nullish(),
   "defaultPaymentTermId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -436,6 +454,7 @@ export const UpdateClientBody = zod.object({
   "defaultDiscountPct": zod.string().nullish(),
   "defaultPriceTableId": zod.number().nullish(),
   "defaultPaymentTermId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -473,6 +492,7 @@ export const UpdateClientResponse = zod.object({
   "defaultDiscountPct": zod.string().nullish(),
   "defaultPriceTableId": zod.number().nullish(),
   "defaultPaymentTermId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "taxRegime": zod.string().nullish(),
   "address": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -529,14 +549,16 @@ export const ListSalesOrdersResponse = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -560,14 +582,16 @@ export const CreateSalesOrderBody = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
@@ -597,14 +621,16 @@ export const GetSalesOrderResponse = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -637,14 +663,16 @@ export const UpdateSalesOrderBody = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
@@ -666,14 +694,16 @@ export const UpdateSalesOrderResponse = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -731,14 +761,16 @@ export const ConvertQuoteToOrderResponse = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -769,14 +801,16 @@ export const UpdateSalesOrderStatusResponse = zod.object({
   "notes": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
   "paymentTermId": zod.number().nullish(),
+  "paymentMethod": zod.string().nullish(),
   "priceTableId": zod.number().nullish(),
+  "salespersonId": zod.number().nullish(),
   "commission": zod.string().nullish(),
+  "commissionReduced": zod.string().nullish(),
   "freightValue": zod.string().nullish(),
+  "freightType": zod.string().nullish(),
   "carrier": zod.string().nullish(),
+  "carrierId": zod.number().nullish(),
   "formula": zod.string().nullish(),
-  "formulaVersion": zod.string().nullish(),
-  "packagingType": zod.string().nullish(),
-  "labelRef": zod.string().nullish(),
   "technicalNotes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -3450,6 +3484,78 @@ export const CreatePaymentTermBody = zod.object({
 
 
 /**
+ * @summary List carriers
+ */
+export const ListCarriersQueryParams = zod.object({
+  "active": zod.enum(['true', 'false']).optional()
+})
+
+export const ListCarriersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a carrier
+ */
+export const CreateCarrierBody = zod.object({
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "active": zod.string().optional()
+})
+
+
+/**
+ * @summary Update a carrier
+ */
+export const UpdateCarrierParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateCarrierBody = zod.object({
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "active": zod.string().optional()
+})
+
+export const UpdateCarrierResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "document": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "active": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Deactivate a carrier
+ */
+export const DeleteCarrierParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCarrierResponse = zod.object({
+  "ok": zod.boolean().optional()
+})
+
+
+/**
  * @summary Update a payment term
  */
 export const UpdatePaymentTermParams = zod.object({
@@ -3513,6 +3619,7 @@ export const ListEmployeesResponse = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
+  "commissionRate": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
   "linkedUser": zod.object({
   "id": zod.number(),
@@ -3542,6 +3649,7 @@ export const CreateEmployeeBody = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
+  "commissionRate": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']).optional(),
   "systemAccessEnabled": zod.boolean().nullish().describe('Whether the employee should have system login access'),
   "systemAccessEmail": zod.string().nullish().describe('Login email for system access'),
@@ -3567,6 +3675,7 @@ export const GetEmployeeResponse = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
+  "commissionRate": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
   "linkedUser": zod.object({
   "id": zod.number(),
@@ -3606,6 +3715,7 @@ export const UpdateEmployeeBody = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
+  "commissionRate": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']).optional(),
   "systemAccessEnabled": zod.boolean().nullish().describe('Whether the employee should have system login access'),
   "systemAccessEmail": zod.string().nullish().describe('Login email for system access'),
@@ -3623,6 +3733,7 @@ export const UpdateEmployeeResponse = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
+  "commissionRate": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
   "linkedUser": zod.object({
   "id": zod.number(),
@@ -3817,6 +3928,7 @@ export const GetRhDashboardResponse = zod.object({
   "department": zod.string().nullish(),
   "hireDate": zod.coerce.date().nullish(),
   "salary": zod.string().nullish(),
+  "commissionRate": zod.string().nullish(),
   "status": zod.enum(['active', 'inactive']),
   "linkedUser": zod.object({
   "id": zod.number(),

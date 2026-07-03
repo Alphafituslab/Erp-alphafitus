@@ -203,6 +203,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /auth/verify-password:
+    post:
+      operationId: verifyPassword
+      tags: [auth]
+      summary: Verify a password for a sensitive re-authentication gate (own password or any active manager/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPasswordInput"
+      responses:
+        "200":
+          description: Password verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyPasswordResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated or incorrect password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /auth/logout:
     post:
       operationId: logout
@@ -3730,6 +3761,129 @@ paths:
                 $ref: "#/components/schemas/PaymentTerm"
         "400":
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /carriers:
+    get:
+      operationId: listCarriers
+      tags: [vendas]
+      summary: List carriers
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: List of carriers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarrierPage"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCarrier
+      tags: [vendas]
+      summary: Create a carrier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarrierInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Carrier"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /carriers/{id}:
+    put:
+      operationId: updateCarrier
+      tags: [vendas]
+      summary: Update a carrier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarrierInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Carrier"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCarrier
+      tags: [vendas]
+      summary: Deactivate a carrier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "404":
+          description: Not found
           content:
             application/json:
               schema:
@@ -8646,6 +8800,26 @@ components:
           type: string
           minLength: 1
 
+    VerifyPasswordInput:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          minLength: 1
+
+    VerifyPasswordResult:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+        authorizedBy:
+          type: string
+          nullable: true
+
     AuthUser:
       type: object
       required:
@@ -9035,6 +9209,9 @@ components:
         defaultPaymentTermId:
           type: integer
           nullable: true
+        salespersonId:
+          type: integer
+          nullable: true
         taxRegime:
           type: string
           nullable: true
@@ -9245,6 +9422,66 @@ components:
         active:
           type: string
 
+    Carrier:
+      type: object
+      required:
+        - id
+        - name
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        active:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CarrierPage:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Carrier"
+
+    CarrierInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        document:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        active:
+          type: string
+
     ClientInput:
       type: object
       required:
@@ -9325,6 +9562,9 @@ components:
           type: integer
           nullable: true
         defaultPaymentTermId:
+          type: integer
+          nullable: true
+        salespersonId:
           type: integer
           nullable: true
         taxRegime:
@@ -9465,28 +9705,34 @@ components:
         paymentTermId:
           type: integer
           nullable: true
+        paymentMethod:
+          type: string
+          nullable: true
         priceTableId:
+          type: integer
+          nullable: true
+        salespersonId:
           type: integer
           nullable: true
         commission:
           type: string
           nullable: true
+        commissionReduced:
+          type: string
+          nullable: true
         freightValue:
+          type: string
+          nullable: true
+        freightType:
           type: string
           nullable: true
         carrier:
           type: string
           nullable: true
+        carrierId:
+          type: integer
+          nullable: true
         formula:
-          type: string
-          nullable: true
-        formulaVersion:
-          type: string
-          nullable: true
-        packagingType:
-          type: string
-          nullable: true
-        labelRef:
           type: string
           nullable: true
         technicalNotes:
@@ -9543,28 +9789,34 @@ components:
         paymentTermId:
           type: integer
           nullable: true
+        paymentMethod:
+          type: string
+          nullable: true
         priceTableId:
+          type: integer
+          nullable: true
+        salespersonId:
           type: integer
           nullable: true
         commission:
           type: string
           nullable: true
+        commissionReduced:
+          type: string
+          nullable: true
         freightValue:
+          type: string
+          nullable: true
+        freightType:
           type: string
           nullable: true
         carrier:
           type: string
           nullable: true
+        carrierId:
+          type: integer
+          nullable: true
         formula:
-          type: string
-          nullable: true
-        formulaVersion:
-          type: string
-          nullable: true
-        packagingType:
-          type: string
-          nullable: true
-        labelRef:
           type: string
           nullable: true
         technicalNotes:
@@ -9613,28 +9865,34 @@ components:
         paymentTermId:
           type: integer
           nullable: true
+        paymentMethod:
+          type: string
+          nullable: true
         priceTableId:
+          type: integer
+          nullable: true
+        salespersonId:
           type: integer
           nullable: true
         commission:
           type: string
           nullable: true
+        commissionReduced:
+          type: string
+          nullable: true
         freightValue:
+          type: string
+          nullable: true
+        freightType:
           type: string
           nullable: true
         carrier:
           type: string
           nullable: true
+        carrierId:
+          type: integer
+          nullable: true
         formula:
-          type: string
-          nullable: true
-        formulaVersion:
-          type: string
-          nullable: true
-        packagingType:
-          type: string
-          nullable: true
-        labelRef:
           type: string
           nullable: true
         technicalNotes:
@@ -11991,6 +12249,9 @@ components:
         salary:
           type: string
           nullable: true
+        commissionRate:
+          type: string
+          nullable: true
         status:
           type: string
           enum: [active, inactive]
@@ -12032,6 +12293,9 @@ components:
           format: date-time
           nullable: true
         salary:
+          type: string
+          nullable: true
+        commissionRate:
           type: string
           nullable: true
         status:
