@@ -37,6 +37,9 @@ export const clientsTable = pgTable("clients", {
   // Plain FK (no cross-file .references()) to avoid a circular import with price-tables.ts / payment-terms.ts.
   defaultPriceTableId: integer("default_price_table_id"),
   defaultPaymentTermId: integer("default_payment_term_id"),
+  // Salesperson (vendedor) linked to this client. Plain FK (no cross-file .references())
+  // to avoid a circular import with employees.ts.
+  salespersonId: integer("salesperson_id"),
   // Legacy / misc
   address: text("address"),
   city: text("city"),

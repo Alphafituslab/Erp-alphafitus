@@ -16,15 +16,17 @@ export const salesOrdersTable = pgTable("sales_orders", {
   // Commercial fields
   paymentTerms: text("payment_terms"),
   paymentTermId: integer("payment_term_id"),
+  paymentMethod: text("payment_method"), // dinheiro | cartao | boleto | pix | pix_boleto
   priceTableId: integer("price_table_id"),
+  salespersonId: integer("salesperson_id"),
   commission: numeric("commission", { precision: 5, scale: 2 }),
+  commissionReduced: text("commission_reduced").notNull().default("false"), // "true" when any item sold below price-table price
   freightValue: numeric("freight_value", { precision: 12, scale: 2 }),
+  freightType: text("freight_type"), // CIF | FOB
   carrier: text("carrier"),
+  carrierId: integer("carrier_id"),
   // Product/formula fields
   formula: text("formula"),
-  formulaVersion: text("formula_version"),
-  packagingType: text("packaging_type"),
-  labelRef: text("label_ref"),
   // Internal notes
   technicalNotes: text("technical_notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

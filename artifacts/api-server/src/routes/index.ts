@@ -19,6 +19,7 @@ import settingsRouter from "./settings";
 import notificationsRouter from "./notifications";
 import priceTablesRouter from "./price-tables";
 import paymentTermsRouter from "./payment-terms";
+import carriersRouter from "./carriers";
 
 const router: IRouter = Router();
 

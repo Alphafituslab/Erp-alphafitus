@@ -1,3 +1,4 @@
 - [Comando reiniciar melhorias](retomar-melhorias.md) — quando o usuário disser "reiniciar as melhorias", retomar implementação de novas features a partir do ponto de parada.
 - [Replit production session cookies](replit-production-session-cookies.md) — injetar X-Forwarded-Proto:https antes do session() middleware; connect-pg-simple precisa de criação manual da tabela no esbuild.
 - [Orval hook `query: { enabled }` typing](orval-query-enabled-cast.md) — generated `useGetX`/`useListX` hooks need `as any` on the `{ query: {...} }` options object or TS complains about a missing `queryKey`.
+- [Sales order sector-visibility + status PIN gate (queued)](vendas-sector-visibility-queued.md) — confirmed design for a not-yet-built feature: sector-filtered order screens + supervisor PIN override for status changes.

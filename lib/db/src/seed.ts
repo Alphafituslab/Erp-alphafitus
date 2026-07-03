@@ -736,8 +736,6 @@ export async function seed() {
         deliveryDate: daysAgo(15),
         paymentTerms: "30/60/90 DDL",
         formula: "Vitamina C 500mg",
-        formulaVersion: "1.0",
-        packagingType: "Frasco PET 500mL",
         notes: "Pedido urgente — atendimento hospitalar",
       },
       {
@@ -748,8 +746,6 @@ export async function seed() {
         deliveryDate: daysFromNow(20),
         paymentTerms: "28 DDL",
         formula: "Complexo Vitamínico D",
-        formulaVersion: "1.0",
-        packagingType: "Cápsula gelatinosa 30ct",
         notes: "Lote piloto para contrato anual",
       },
       {
@@ -760,7 +756,6 @@ export async function seed() {
         validUntil: daysFromNow(30),
         paymentTerms: "28 DDL",
         formula: "Vitamina C 500mg",
-        formulaVersion: "1.0",
         notes: "Orçamento inicial — aguardando aprovação cliente",
       },
     ])

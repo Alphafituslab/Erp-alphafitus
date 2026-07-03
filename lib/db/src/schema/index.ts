@@ -25,3 +25,4 @@ export * from "./notifications";
 export * from "./smtp-settings";
 export * from "./price-tables";
 export * from "./payment-terms";
+export * from "./carriers";

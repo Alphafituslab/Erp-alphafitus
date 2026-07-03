@@ -19,6 +19,7 @@ export const employeesTable = pgTable("employees", {
   department: text("department"),
   hireDate: timestamp("hire_date", { withTimezone: true }),
   salary: numeric("salary", { precision: 12, scale: 2 }),
+  commissionRate: numeric("commission_rate", { precision: 5, scale: 2 }), // % commission for salespeople
   status: text("status").notNull().default("active"), // active | inactive
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
