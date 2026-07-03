@@ -169,6 +169,8 @@ export interface UserItem {
   active: boolean;
   employeeId?: number | null;
   employeeName?: string | null;
+  /** Number of modules explicitly granted (only meaningful for the "employee" role; admin/manager always have full access). */
+  moduleCount: number;
   createdAt: string;
 }
 

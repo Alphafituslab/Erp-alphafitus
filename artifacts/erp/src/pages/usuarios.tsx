@@ -360,7 +360,7 @@ const MODULES_LIST = [
   { key: "projetos", label: "Projetos", group: "Gestão" },
 ];
 
-function PermissoesDialog({ targetUser }: { targetUser: UserItem }) {
+function PermissoesDialog({ targetUser, trigger }: { targetUser: UserItem; trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -422,9 +422,11 @@ function PermissoesDialog({ targetUser }: { targetUser: UserItem }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600" title="Gerenciar permissões">
-          <ShieldCheck className="h-3.5 w-3.5" />
-        </Button>
+        {trigger ?? (
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600" title="Gerenciar permissões">
+            <ShieldCheck className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0">
         <DialogHeader className="pb-3">
@@ -498,6 +500,75 @@ function PermissoesDialog({ targetUser }: { targetUser: UserItem }) {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Permissions Summary Badge (clickable, opens PermissoesDialog) ──────────────
+
+function PermissoesSummary({ targetUser }: { targetUser: UserItem }) {
+  const isFullAccess = targetUser.role === "admin" || targetUser.role === "manager";
+  const count = targetUser.moduleCount ?? 0;
+
+  const label = isFullAccess
+    ? `Total (${targetUser.role === "admin" ? "admin" : "gerente"})`
+    : count === 0
+    ? "Nenhuma permissão"
+    : `${count} permissão${count === 1 ? "" : "ões"}`;
+
+  const colorClass = isFullAccess
+    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+    : count === 0
+    ? "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+    : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100";
+
+  return (
+    <PermissoesDialog
+      targetUser={targetUser}
+      trigger={
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${colorClass}`}
+          title="Clique para configurar acessos e módulos"
+        >
+          <ShieldCheck className="h-3 w-3" />
+          {label}
+        </button>
+      }
+    />
+  );
+}
+
+// ── Status Toggle (quick active/inactive switch) ────────────────────────────────
+
+function StatusToggle({ targetUser, isSelf }: { targetUser: UserItem; isSelf: boolean }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { mutate: update, isPending } = useUpdateUsuario({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListUsuariosQueryKey() });
+        toast({ title: targetUser.active ? "Conta desativada." : "Conta ativada." });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Erro ao atualizar status.";
+        toast({ title: "Erro", description: msg, variant: "destructive" });
+      },
+    },
+  });
+
+  return (
+    <div className="flex items-center gap-2">
+      <Switch
+        checked={targetUser.active}
+        disabled={isPending || isSelf}
+        title={isSelf ? "Você não pode desativar sua própria conta." : targetUser.active ? "Desativar conta" : "Ativar conta"}
+        onCheckedChange={(checked) => update({ id: targetUser.id, data: { active: checked } })}
+      />
+      <span className={`text-xs font-medium ${targetUser.active ? "text-emerald-600" : "text-muted-foreground"}`}>
+        {targetUser.active ? "Ativo" : "Inativo"}
+      </span>
+    </div>
   );
 }
 
@@ -1357,11 +1428,11 @@ export default function UsuariosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
+                  <TableHead>Usuário</TableHead>
                   <TableHead>Perfil</TableHead>
-                  <TableHead>Setor</TableHead>
+                  <TableHead>Permissões</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
+                  <TableHead className="w-[90px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1375,17 +1446,24 @@ export default function UsuariosPage() {
                             <span className="ml-2 text-xs text-muted-foreground">(você)</span>
                           )}
                         </span>
-                        {u.employeeId && u.employeeName && (
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit cursor-pointer"
-                            title="Abrir ficha do funcionário no módulo RH"
-                            onClick={() => setLocation(`/rh?tab=employees&employeeId=${u.employeeId}`)}
-                          >
-                            <Link2 className="h-3 w-3" />
-                            {u.employeeName}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {(u as any).sector && (
+                            <span className="text-xs text-muted-foreground">
+                              {SECTOR_LABELS_UI[(u as any).sector] ?? (u as any).sector}
+                            </span>
+                          )}
+                          {u.employeeId && u.employeeName && (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline w-fit cursor-pointer"
+                              title="Abrir ficha do funcionário no módulo RH"
+                              onClick={() => setLocation(`/rh?tab=employees&employeeId=${u.employeeId}`)}
+                            >
+                              <Link2 className="h-3 w-3" />
+                              {u.employeeName}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
@@ -1393,28 +1471,13 @@ export default function UsuariosPage() {
                       <RoleBadge role={u.role} />
                     </TableCell>
                     <TableCell>
-                      {(u as any).sector ? (
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {SECTOR_LABELS_UI[(u as any).sector] ?? (u as any).sector}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/50">—</span>
-                      )}
+                      <PermissoesSummary targetUser={u} />
                     </TableCell>
                     <TableCell>
-                      {u.active ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                          <UserCheck className="h-3.5 w-3.5" /> Ativo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
-                          <UserX className="h-3.5 w-3.5" /> Inativo
-                        </span>
-                      )}
+                      <StatusToggle targetUser={u} isSelf={u.id === user?.id} />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <PermissoesDialog targetUser={u} />
                         <EditUsuarioDialog user={u} currentUserId={user?.id ?? 0} onSuccess={refresh} />
                         {u.id !== user?.id && (
                           <AlertDialog>

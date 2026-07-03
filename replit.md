@@ -87,6 +87,9 @@ Tables defined (all in `lib/db/src/schema/`):
 
 ## Architecture decisions
 
+- Gerenciamento de Usuários (`/usuarios`): a coluna "Permissões" na tabela principal mostra um badge clicável (resumo: "Total (admin/gerente)" ou "N permissão(ões)"/"Nenhuma") que abre o `PermissoesDialog` diretamente — não há mais ícone de escudo escondido na coluna Ações. O campo `moduleCount` em `UserItem` (OpenAPI) alimenta esse resumo. O Status também virou um `Switch` de toggle rápido na própria linha, em vez de badge estático.
+
+
 - Session-based auth (cookie `erp.sid`) — simpler than JWT for internal ERP, no token refresh needed
 - OpenAPI-first: spec in `lib/api-spec/openapi.yaml` gates all codegen; never hand-write hooks or Zod schemas
 - `credentials: 'include'` added to `lib/api-client-react/src/custom-fetch.ts` — required for session cookies in same-site fetch

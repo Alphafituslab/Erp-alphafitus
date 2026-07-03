@@ -8240,6 +8240,9 @@ components:
         employeeName:
           type: string
           nullable: true
+        moduleCount:
+          type: integer
+          description: Number of modules explicitly granted (only meaningful for the "employee" role; admin/manager always have full access).
         createdAt:
           type: string
           format: date-time
@@ -8247,6 +8250,7 @@ components:
         - id
         - name
         - email
+        - moduleCount
         - role
         - active
         - createdAt

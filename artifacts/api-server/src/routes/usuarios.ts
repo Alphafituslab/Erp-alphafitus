@@ -34,7 +34,7 @@ async function requireAdminAsync(req: Request, res: Response): Promise<boolean> 
   return true;
 }
 
-function formatUser(u: typeof usersTable.$inferSelect, employeeName?: string | null) {
+function formatUser(u: typeof usersTable.$inferSelect, employeeName?: string | null, moduleCount = 0) {
   return {
     id: u.id,
     name: u.name,
@@ -44,6 +44,7 @@ function formatUser(u: typeof usersTable.$inferSelect, employeeName?: string | n
     active: u.active === "true",
     employeeId: u.employeeId ?? null,
     employeeName: employeeName ?? null,
+    moduleCount,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -58,7 +59,12 @@ router.get("/usuarios", async (req, res): Promise<void> => {
     .from(usersTable)
     .leftJoin(employeesTable, eq(usersTable.employeeId, employeesTable.id))
     .orderBy(usersTable.name);
-  res.json({ users: rows.map((r) => formatUser(r.user, r.employeeName)) });
+  const moduleRows = await db
+    .select({ userId: userModuleAccessTable.userId, module: userModuleAccessTable.module })
+    .from(userModuleAccessTable);
+  const counts = new Map<number, number>();
+  for (const m of moduleRows) counts.set(m.userId, (counts.get(m.userId) ?? 0) + 1);
+  res.json({ users: rows.map((r) => formatUser(r.user, r.employeeName, counts.get(r.user.id) ?? 0)) });
 });
 
 router.post("/usuarios", async (req, res): Promise<void> => {

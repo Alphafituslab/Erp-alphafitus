@@ -6587,6 +6587,7 @@ export const ListUsuariosResponse = zod.object({
   "active": zod.boolean(),
   "employeeId": zod.number().nullish(),
   "employeeName": zod.string().nullish(),
+  "moduleCount": zod.number().describe('Number of modules explicitly granted (only meaningful for the \"employee\" role; admin\/manager always have full access).'),
   "createdAt": zod.coerce.date()
 }))
 })
@@ -6642,6 +6643,7 @@ export const UpdateUsuarioResponse = zod.object({
   "active": zod.boolean(),
   "employeeId": zod.number().nullish(),
   "employeeName": zod.string().nullish(),
+  "moduleCount": zod.number().describe('Number of modules explicitly granted (only meaningful for the \"employee\" role; admin\/manager always have full access).'),
   "createdAt": zod.coerce.date()
 })
 })
